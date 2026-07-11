@@ -4,10 +4,17 @@
  */
 
 import { parseRow, ProductRow } from './index'
+import { hasProduct } from '@/lib/catalog/catalog'
 
 export interface ParseTableOptions {
   invoice?: string
   allowNegativeQty?: boolean
+  trackUnknown?: boolean
+}
+
+export interface ParseTableResult {
+  rows: ProductRow[]
+  unknownProducts: ProductRow[]
 }
 
 /**
@@ -45,6 +52,54 @@ export function parseTable(text: string): ProductRow[] {
   }
 
   return rows
+}
+
+/**
+ * Parse table data with unknown product tracking
+ * @param text OCR text to parse
+ * @param options Parse options
+ * @returns Object with parsed rows and unknown products
+ */
+export function parseTableWithTracking(
+  text: string,
+  options: ParseTableOptions = {}
+): ParseTableResult {
+  const rows: ProductRow[] = []
+  const unknownProducts: ProductRow[] = []
+  const lines = text.split('\n')
+
+  lines.forEach((line, lineIndex) => {
+    if (!line.match(/\d{5}/)) return
+
+    const sku = line.match(/\b\d{5}\b/)?.[0]
+    const barcode = line.match(/\b\d{13}\b/)?.[0]
+
+    if (!sku || !barcode) return
+
+    const qtyMatch = line.match(/(-?\d+(?:\.\d+)?)$/)
+    const quantity = qtyMatch ? Number(qtyMatch[1]) : 0
+
+    if (quantity === 0) return
+
+    if (!options.allowNegativeQty && quantity < 0) return
+
+    const row = parseRow({
+      invoice: options.invoice || '',
+      sku,
+      barcode,
+      name: line,
+      quantity,
+    })
+
+    rows.push(row)
+
+    // Track unknown products
+    if (options.trackUnknown && !hasProduct(row.sku)) {
+      unknownProducts.push(row)
+    }
+  })
+
+  return { rows, unknownProducts }
 }
 
 /**
@@ -121,7 +176,7 @@ export function parseMultipleTables(
   const tables = text.split(tableDelimiter)
   const allRows: ProductRow[] = []
 
-  tables.forEach((table, tableIndex) => {
+  tables.forEach((table) => {
     const rows = parseTable(table)
     allRows.push(...rows)
   })

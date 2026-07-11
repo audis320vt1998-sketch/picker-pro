@@ -1,26 +1,114 @@
 [
   {
-    "id": "rule-6pack",
-    "priority": 1,
+    "id": "R001",
+    "priority": 100,
     "type": "contains",
     "value": "(6)",
     "packSize": 6,
     "allowUnits": true
   },
   {
-    "id": "rule-12pack",
-    "priority": 1,
+    "id": "R002",
+    "priority": 100,
+    "type": "contains",
+    "value": "(8)",
+    "packSize": 8,
+    "allowUnits": true
+  },
+  {
+    "id": "R003",
+    "priority": 100,
+    "type": "contains",
+    "value": "(9)",
+    "packSize": 9,
+    "allowUnits": true
+  },
+  {
+    "id": "R004",
+    "priority": 100,
+    "type": "contains",
+    "value": "(10)",
+    "packSize": 10,
+    "allowUnits": true
+  },
+  {
+    "id": "R005",
+    "priority": 100,
+    "type": "contains",
+    "value": "(12)",
+    "packSize": 12,
+    "allowUnits": true
+  },
+  {
+    "id": "R006",
+    "priority": 100,
+    "type": "contains",
+    "value": "(18)",
+    "packSize": 18,
+    "allowUnits": true
+  },
+  {
+    "id": "R007",
+    "priority": 100,
+    "type": "contains",
+    "value": "(24)",
+    "packSize": 24,
+    "allowUnits": true
+  },
+  {
+    "id": "R008",
+    "priority": 90,
+    "type": "contains",
+    "value": "1/6",
+    "packSize": 6,
+    "allowUnits": false
+  },
+  {
+    "id": "R009",
+    "priority": 90,
+    "type": "contains",
+    "value": "1/8",
+    "packSize": 8,
+    "allowUnits": false
+  },
+  {
+    "id": "R010",
+    "priority": 90,
+    "type": "contains",
+    "value": "1/9",
+    "packSize": 9,
+    "allowUnits": false
+  },
+  {
+    "id": "R011",
+    "priority": 90,
+    "type": "contains",
+    "value": "1/10",
+    "packSize": 10,
+    "allowUnits": false
+  },
+  {
+    "id": "R012",
+    "priority": 90,
     "type": "contains",
     "value": "1/12",
     "packSize": 12,
     "allowUnits": false
   },
   {
-    "id": "rule-18pack",
-    "priority": 1,
+    "id": "R013",
+    "priority": 90,
     "type": "contains",
-    "value": "(18)",
-    "packSize": 18,
-    "allowUnits": true
+    "value": "1/24",
+    "packSize": 24,
+    "allowUnits": false
+  },
+  {
+    "id": "R014",
+    "priority": 90,
+    "type": "contains",
+    "value": "1/30",
+    "packSize": 30,
+    "allowUnits": false
   }
 ]

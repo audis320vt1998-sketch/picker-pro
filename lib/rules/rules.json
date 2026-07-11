@@ -1,0 +1,20 @@
+[
+  {
+    "rule": "contains",
+    "value": "(6)",
+    "packSize": 6,
+    "allowUnits": true
+  },
+  {
+    "rule": "contains",
+    "value": "1/12",
+    "packSize": 12,
+    "allowUnits": false
+  },
+  {
+    "rule": "contains",
+    "value": "(18)",
+    "packSize": 18,
+    "allowUnits": true
+  }
+]

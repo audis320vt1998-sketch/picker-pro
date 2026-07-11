@@ -1,82 +1,117 @@
 /**
- * Product Database
- * Centralized product definitions with SKU, names, and packaging information
+ * Product Catalog
+ * Centralized product definitions with Map-based storage
  */
 
-export interface ProductDefinition {
+export interface ProductCatalogItem {
+  sku: string
+  barcode: string
   name: string
-  units: boolean
-  pack: number
+  brand: string
+  packSize: number
+  allowUnits: boolean
 }
 
-export const PRODUCTS: Record<string, ProductDefinition> = {
-  '88135': {
+const catalog = new Map<string, ProductCatalogItem>()
+
+// Initialize catalog with default products
+const defaultProducts: ProductCatalogItem[] = [
+  {
+    sku: '88135',
+    barcode: '7290018813505',
     name: 'לואקר אדום אגוז',
-    units: true,
-    pack: 6,
+    brand: 'Loacker',
+    packSize: 6,
+    allowUnits: true,
   },
-  '88136': {
+  {
+    sku: '88136',
+    barcode: '7290018813512',
     name: 'לואקר צהוב',
-    units: true,
-    pack: 6,
+    brand: 'Loacker',
+    packSize: 6,
+    allowUnits: true,
   },
-  '88137': {
+  {
+    sku: '88137',
+    barcode: '7290018813529',
     name: 'לואקר לבן',
-    units: true,
-    pack: 6,
+    brand: 'Loacker',
+    packSize: 6,
+    allowUnits: true,
   },
-  '88107': {
+  {
+    sku: '88107',
+    barcode: '7290018810758',
     name: 'פראנוי פטל פינק',
-    units: false,
-    pack: 12,
+    brand: 'Pranoy',
+    packSize: 12,
+    allowUnits: false,
   },
-  '88108': {
+  {
+    sku: '88108',
+    barcode: '7290018810765',
     name: 'פראנוי פטל חלב',
-    units: false,
-    pack: 12,
+    brand: 'Pranoy',
+    packSize: 12,
+    allowUnits: false,
   },
-  '88109': {
+  {
+    sku: '88109',
+    barcode: '7290018810772',
     name: 'פראנוי פטל מריר',
-    units: false,
-    pack: 12,
+    brand: 'Pranoy',
+    packSize: 12,
+    allowUnits: false,
   },
-}
+]
+
+// Initialize catalog with default products
+defaultProducts.forEach((product) => {
+  catalog.set(product.sku, product)
+})
 
 /**
- * Get product definition by SKU
+ * Get product by SKU
  * @param sku Product SKU
- * @returns Product definition or undefined
+ * @returns Product catalog item or undefined
  */
-export function getProduct(sku: string): ProductDefinition | undefined {
-  return PRODUCTS[sku]
+export function getProduct(sku: string): ProductCatalogItem | undefined {
+  return catalog.get(sku)
 }
 
 /**
- * Check if SKU exists in product database
+ * Add product to catalog
+ * @param product Product catalog item
+ */
+export function addProduct(product: ProductCatalogItem): void {
+  catalog.set(product.sku, product)
+}
+
+/**
+ * Check if product exists in catalog
  * @param sku Product SKU
  * @returns True if product exists
  */
 export function hasProduct(sku: string): boolean {
-  return sku in PRODUCTS
+  return catalog.has(sku)
 }
 
 /**
- * Get all product SKUs
- * @returns Array of all product SKUs
+ * Get all products from catalog
+ * @returns Array of all products
  */
-export function getAllSkus(): string[] {
-  return Object.keys(PRODUCTS)
+export function getAllProducts(): ProductCatalogItem[] {
+  return [...catalog.values()]
 }
 
 /**
- * Get all products
- * @returns Array of all products with their definitions
+ * Remove product from catalog
+ * @param sku Product SKU
+ * @returns True if product was removed
  */
-export function getAllProducts(): Array<{ sku: string; product: ProductDefinition }> {
-  return Object.entries(PRODUCTS).map(([sku, product]) => ({
-    sku,
-    product,
-  }))
+export function removeProduct(sku: string): boolean {
+  return catalog.delete(sku)
 }
 
 /**
@@ -84,16 +119,20 @@ export function getAllProducts(): Array<{ sku: string; product: ProductDefinitio
  * @param searchTerm Search term
  * @returns Array of matching products
  */
-export function searchProductsByName(
-  searchTerm: string
-): Array<{ sku: string; product: ProductDefinition }> {
+export function searchByName(searchTerm: string): ProductCatalogItem[] {
   const term = searchTerm.toLowerCase()
-  return Object.entries(PRODUCTS)
-    .filter(([_, product]) => product.name.toLowerCase().includes(term))
-    .map(([sku, product]) => ({
-      sku,
-      product,
-    }))
+  return [...catalog.values()].filter((product) =>
+    product.name.toLowerCase().includes(term)
+  )
+}
+
+/**
+ * Get products by brand
+ * @param brand Brand name
+ * @returns Array of products from that brand
+ */
+export function getByBrand(brand: string): ProductCatalogItem[] {
+  return [...catalog.values()].filter((product) => product.brand === brand)
 }
 
 /**
@@ -101,126 +140,84 @@ export function searchProductsByName(
  * @param packSize Pack size to filter by
  * @returns Array of products with specified pack size
  */
-export function getProductsByPack(
-  packSize: number
-): Array<{ sku: string; product: ProductDefinition }> {
-  return Object.entries(PRODUCTS)
-    .filter(([_, product]) => product.pack === packSize)
-    .map(([sku, product]) => ({
-      sku,
-      product,
-    }))
+export function getByPackSize(packSize: number): ProductCatalogItem[] {
+  return [...catalog.values()].filter((product) => product.packSize === packSize)
 }
 
 /**
- * Get products by unit/case type
- * @param isUnits True for unit products, false for case products
- * @returns Array of products matching the type
+ * Get products that allow units
+ * @returns Array of unit-allowed products
  */
-export function getProductsByType(
-  isUnits: boolean
-): Array<{ sku: string; product: ProductDefinition }> {
-  return Object.entries(PRODUCTS)
-    .filter(([_, product]) => product.units === isUnits)
-    .map(([sku, product]) => ({
-      sku,
-      product,
-    }))
+export function getUnitProducts(): ProductCatalogItem[] {
+  return [...catalog.values()].filter((product) => product.allowUnits)
 }
 
 /**
- * Calculate units from cases
- * @param sku Product SKU
- * @param caseCount Number of cases
- * @returns Number of units
+ * Get products that only allow cases
+ * @returns Array of case-only products
  */
-export function casesToUnits(sku: string, caseCount: number): number {
-  const product = getProduct(sku)
-  if (!product) return 0
-  return caseCount * product.pack
+export function getCaseProducts(): ProductCatalogItem[] {
+  return [...catalog.values()].filter((product) => !product.allowUnits)
 }
 
 /**
- * Calculate cases from units
- * @param sku Product SKU
- * @param unitCount Number of units
- * @returns Number of cases and remaining units
+ * Get product by barcode
+ * @param barcode Product barcode
+ * @returns Product catalog item or undefined
  */
-export function unitsToCases(
-  sku: string,
-  unitCount: number
-): { cases: number; remainingUnits: number } {
-  const product = getProduct(sku)
-  if (!product) return { cases: 0, remainingUnits: unitCount }
-
-  const cases = Math.floor(unitCount / product.pack)
-  const remainingUnits = unitCount % product.pack
-
-  return { cases, remainingUnits }
+export function getByBarcode(barcode: string): ProductCatalogItem | undefined {
+  return [...catalog.values()].find((product) => product.barcode === barcode)
 }
 
 /**
- * Validate product data
- * @param sku Product SKU
- * @returns Validation result
+ * Get catalog size
+ * @returns Number of products in catalog
  */
-export function validateProduct(sku: string): { valid: boolean; message: string } {
-  if (!hasProduct(sku)) {
-    return { valid: false, message: `Product with SKU ${sku} not found` }
-  }
-
-  const product = getProduct(sku)
-  if (!product?.name) {
-    return { valid: false, message: `Product ${sku} has no name` }
-  }
-
-  if (!product?.pack || product.pack <= 0) {
-    return {
-      valid: false,
-      message: `Product ${sku} has invalid pack size`,
-    }
-  }
-
-  return { valid: true, message: 'Product is valid' }
+export function getCatalogSize(): number {
+  return catalog.size
 }
 
 /**
- * Add new product to database (runtime only, not persisted)
- * @param sku Product SKU
- * @param product Product definition
+ * Clear entire catalog
  */
-export function addProduct(sku: string, product: ProductDefinition): void {
-  PRODUCTS[sku] = product
+export function clearCatalog(): void {
+  catalog.clear()
 }
 
 /**
- * Remove product from database (runtime only)
- * @param sku Product SKU
+ * Reset catalog to default products
  */
-export function removeProduct(sku: string): void {
-  delete PRODUCTS[sku]
+export function resetToDefaults(): void {
+  catalog.clear()
+  defaultProducts.forEach((product) => {
+    catalog.set(product.sku, product)
+  })
 }
 
 /**
- * Get product statistics
- * @returns Statistics about products
+ * Get catalog statistics
+ * @returns Statistics about the catalog
  */
-export function getProductStats(): {
-  totalProducts: number
+export function getCatalogStats(): {
+  total: number
   unitProducts: number
   caseProducts: number
-  avgPackSize: number
+  brands: string[]
+  packSizes: number[]
 } {
   const products = getAllProducts()
-  const unitProducts = products.filter((p) => p.product.units).length
+  const unitProducts = products.filter((p) => p.allowUnits).length
   const caseProducts = products.length - unitProducts
-  const avgPackSize =
-    products.reduce((sum, p) => sum + p.product.pack, 0) / products.length
+  const brands = [...new Set(products.map((p) => p.brand))]
+  const packSizes = [...new Set(products.map((p) => p.packSize))].sort(
+    (a, b) => a - b
+  )
 
   return {
-    totalProducts: products.length,
+    total: products.length,
     unitProducts,
     caseProducts,
-    avgPackSize: Math.round(avgPackSize * 100) / 100,
+    brands,
+    packSizes,
   }
 }

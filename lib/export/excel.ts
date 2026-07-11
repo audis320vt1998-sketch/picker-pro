@@ -20,6 +20,20 @@ export async function exportToExcel(rows: ProductSummary[]) {
     bold: true,
   }
 
+  sheet.eachRow((row, index) => {
+    if (index === 1) return
+
+    const units = Number(row.getCell(5).value)
+
+    if (units > 0) {
+      row.getCell(5).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFF9C4' },
+      }
+    }
+  })
+
   sheet.views = [
     {
       state: 'frozen',

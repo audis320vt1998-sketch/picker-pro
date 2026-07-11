@@ -17,39 +17,25 @@ export interface ParseTableOptions {
  * @param options Parse options
  * @returns Array of parsed ProductRow objects
  */
-export function parseTable(
-  text: string,
-  options: ParseTableOptions = {}
-): ProductRow[] {
+export function parseTable(text: string): ProductRow[] {
   const rows: ProductRow[] = []
+
   const lines = text.split('\n')
 
   for (const line of lines) {
-    // Skip lines without 5-digit SKU
     if (!line.match(/\d{5}/)) continue
 
-    // Extract SKU (5 digits)
     const sku = line.match(/\b\d{5}\b/)?.[0]
-
-    // Extract barcode (13 digits)
     const barcode = line.match(/\b\d{13}\b/)?.[0]
 
-    // Skip if either SKU or barcode is missing
     if (!sku || !barcode) continue
 
-    // Extract quantity (last number in line, can be decimal or negative)
     const qtyMatch = line.match(/(-?\d+(?:\.\d+)?)$/)
     const quantity = qtyMatch ? Number(qtyMatch[1]) : 0
 
-    // Skip if quantity is negative and not allowed
-    if (!options.allowNegativeQty && quantity < 0) continue
-
-    // Skip if quantity is 0
-    if (quantity === 0) continue
-
     rows.push(
       parseRow({
-        invoice: options.invoice || '',
+        invoice: '',
         sku,
         barcode,
         name: line,
@@ -136,9 +122,7 @@ export function parseMultipleTables(
   const allRows: ProductRow[] = []
 
   tables.forEach((table, tableIndex) => {
-    const rows = parseTable(table, {
-      invoice: `INV-${tableIndex + 1}`,
-    })
+    const rows = parseTable(table)
     allRows.push(...rows)
   })
 

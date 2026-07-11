@@ -1,0 +1,202 @@
+[
+  {
+    "sku": "88135",
+    "barcode": "7622300988135",
+    "name": "Pringles Original",
+    "packSize": 10,
+    "allowUnits": true,
+    "category": "Snacks",
+    "supplier": "PepsiCo",
+    "price": 2.99
+  },
+  {
+    "sku": "88108",
+    "barcode": "7622300988108",
+    "name": "Pringles Paprika",
+    "packSize": 20,
+    "allowUnits": false,
+    "category": "Snacks",
+    "supplier": "PepsiCo",
+    "price": 4.99
+  },
+  {
+    "sku": "88101",
+    "barcode": "7622300988101",
+    "name": "Pringles Sour & Onion",
+    "packSize": 10,
+    "allowUnits": true,
+    "category": "Snacks",
+    "supplier": "PepsiCo",
+    "price": 2.99
+  },
+  {
+    "sku": "12345",
+    "barcode": "5449000000996",
+    "name": "Coca-Cola 330ml",
+    "packSize": 24,
+    "allowUnits": false,
+    "category": "Beverages",
+    "supplier": "Coca-Cola",
+    "price": 0.89
+  },
+  {
+    "sku": "12346",
+    "barcode": "5449000013000",
+    "name": "Coca-Cola Zero",
+    "packSize": 24,
+    "allowUnits": false,
+    "category": "Beverages",
+    "supplier": "Coca-Cola",
+    "price": 0.99
+  },
+  {
+    "sku": "12347",
+    "barcode": "5449000050127",
+    "name": "Sprite 330ml",
+    "packSize": 24,
+    "allowUnits": false,
+    "category": "Beverages",
+    "supplier": "Coca-Cola",
+    "price": 0.89
+  },
+  {
+    "sku": "65432",
+    "barcode": "7613035781200",
+    "name": "Häagen-Dazs Vanilla",
+    "packSize": 6,
+    "allowUnits": true,
+    "category": "Frozen Foods",
+    "supplier": "General Mills",
+    "price": 8.99
+  },
+  {
+    "sku": "65433",
+    "barcode": "7613035781217",
+    "name": "Häagen-Dazs Strawberry",
+    "packSize": 6,
+    "allowUnits": true,
+    "category": "Frozen Foods",
+    "supplier": "General Mills",
+    "price": 8.99
+  },
+  {
+    "sku": "54321",
+    "barcode": "7622201224202",
+    "name": "Nestlé KitKat",
+    "packSize": 48,
+    "allowUnits": true,
+    "category": "Confectionery",
+    "supplier": "Nestlé",
+    "price": 0.65
+  },
+  {
+    "sku": "54322",
+    "barcode": "7622201224219",
+    "name": "Nestlé Aero",
+    "packSize": 48,
+    "allowUnits": true,
+    "category": "Confectionery",
+    "supplier": "Nestlé",
+    "price": 0.75
+  },
+  {
+    "sku": "99999",
+    "barcode": "4005500325501",
+    "name": "Snickers Bar",
+    "packSize": 50,
+    "allowUnits": true,
+    "category": "Confectionery",
+    "supplier": "Mars",
+    "price": 0.55
+  },
+  {
+    "sku": "88888",
+    "barcode": "4005500325518",
+    "name": "Twix Bar",
+    "packSize": 50,
+    "allowUnits": true,
+    "category": "Confectionery",
+    "supplier": "Mars",
+    "price": 0.55
+  },
+  {
+    "sku": "77777",
+    "barcode": "3017620429484",
+    "name": "Ferrero Rocher",
+    "packSize": 48,
+    "allowUnits": false,
+    "category": "Confectionery",
+    "supplier": "Ferrero",
+    "price": 12.99
+  },
+  {
+    "sku": "11111",
+    "barcode": "3228857006720",
+    "name": "Doritos Nacho Cheese",
+    "packSize": 20,
+    "allowUnits": true,
+    "category": "Snacks",
+    "supplier": "PepsiCo",
+    "price": 3.49
+  },
+  {
+    "sku": "22222",
+    "barcode": "3228857006737",
+    "name": "Lay's Classic",
+    "packSize": 20,
+    "allowUnits": true,
+    "category": "Snacks",
+    "supplier": "PepsiCo",
+    "price": 3.29
+  },
+  {
+    "sku": "33333",
+    "barcode": "5900951018144",
+    "name": "Fanta Orange",
+    "packSize": 24,
+    "allowUnits": false,
+    "category": "Beverages",
+    "supplier": "Coca-Cola",
+    "price": 0.79
+  },
+  {
+    "sku": "44444",
+    "barcode": "5449000045625",
+    "name": "Minute Maid Orange Juice",
+    "packSize": 12,
+    "allowUnits": false,
+    "category": "Beverages",
+    "supplier": "Coca-Cola",
+    "price": 2.49
+  },
+  {
+    "sku": "55555",
+    "barcode": "8711000550000",
+    "name": "Hellmann's Mayonnaise",
+    "packSize": 6,
+    "allowUnits": true,
+    "category": "Condiments",
+    "supplier": "Unilever",
+    "price": 4.99
+  },
+  {
+    "sku": "66666",
+    "barcode": "8711000460017",
+    "name": "Hellmann's Ketchup",
+    "packSize": 12,
+    "allowUnits": true,
+    "category": "Condiments",
+    "supplier": "Unilever",
+    "price": 3.49
+  },
+  {
+    "sku": "77788",
+    "barcode": "5010477049857",
+    "name": "PG Tips Tea",
+    "packSize": 10,
+    "allowUnits": true,
+    "category": "Beverages",
+    "supplier": "Unilever",
+    "price": 2.99
+  }
+]

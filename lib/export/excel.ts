@@ -14,12 +14,20 @@ export async function exportToExcel(rows: ProductSummary[]) {
     { header: 'בודדים', key: 'units', width: 12 },
   ]
 
+  // Sort rows by SKU
+  rows.sort((a, b) => {
+    return Number(a.sku) - Number(b.sku)
+  })
+
+  // Add rows
   rows.forEach((row) => sheet.addRow(row))
 
+  // Format header row
   sheet.getRow(1).font = {
     bold: true,
   }
 
+  // Apply conditional formatting to units column
   sheet.eachRow((row, index) => {
     if (index === 1) return
 
@@ -34,6 +42,23 @@ export async function exportToExcel(rows: ProductSummary[]) {
     }
   })
 
+  // Add totals row
+  sheet.addRow([])
+
+  sheet.addRow({
+    name: 'סה״כ',
+    cases: rows.reduce((s, r) => s + r.cases, 0),
+    units: rows.reduce((s, r) => s + r.units, 0),
+  })
+
+  // Configure page setup for printing
+  sheet.pageSetup = {
+    orientation: 'landscape',
+    fitToPage: true,
+    fitToWidth: 1,
+  }
+
+  // Freeze header row
   sheet.views = [
     {
       state: 'frozen',

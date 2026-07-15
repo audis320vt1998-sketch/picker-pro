@@ -2,6 +2,7 @@
   "version": "1.0.0",
   "updatedAt": "2026-07-15T00:00:00Z",
   "updatedBy": "admin",
+  "_status": "SAMPLE-ONLY — this file contains a representative subset of Israeli localities for development and testing purposes only. Replace with the complete official Israel localities dataset (CBS / Misrad HaPnim locality codes) before production use.",
   "cities": [
     {
       "cityId": "TLV",

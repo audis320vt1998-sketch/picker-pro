@@ -26,7 +26,9 @@ ParsedRow + ResolvedProduct
 
 ## 3. Built-in Rule Types
 
-### 3.1 UNIT_TYPE_ENFORCEMENT
+The ten core rules are listed below in order of their rule ID. All are configurable in `catalogs/rules.json`.
+
+### Rule 1 — UNIT_TYPE_ENFORCEMENT (R001)
 
 Ensures the `unit` field on a `ParsedRow` is consistent with the resolved product's rules.
 
@@ -36,7 +38,7 @@ Ensures the `unit` field on a `ParsedRow` is consistent with the resolved produc
 | Name contains `1/N` AND `unit = 'unit'` | `fail` — full-case-only product |
 | `allowUnitPicking = true` AND `unit = 'case'` for `(N)` product | `warn` — unusual but allowed |
 
-### 3.2 QUANTITY_RANGE
+### Rule 2 — QUANTITY_RANGE (R002)
 
 Validates that quantity is within the configured min/max range for the product.
 
@@ -47,17 +49,44 @@ Validates that quantity is within the configured min/max range for the product.
 }
 ```
 
-### 3.3 PRODUCT_RESOLVED
+### Rule 3 — PRODUCT_RESOLVED (R003)
 
 Fails if `resolvedBy` is missing (product was not found in catalog).
 
-### 3.4 CONFIDENCE_THRESHOLD
+### Rule 4 — CONFIDENCE_THRESHOLD (R004)
 
 Warns if the `ParsedRow.confidence` is below the configured threshold (default 70).
 
-### 3.5 DUPLICATE_DETECTION
+### Rule 5 — DUPLICATE_DETECTION (R005)
 
 Warns if the same `productKey` + `unit` combination appears more than once on the same page (may indicate a double-scan).
+
+### Rule 6 — ZERO_TOTAL (R006)
+
+Warns when an aggregated product has both `cases = 0` and `units = 0` after all pages are merged.
+
+### Rule 7 — UNUSUALLY_HIGH_QUANTITY (R007)
+
+Warns when total cases or units for a single product exceed the configured threshold (default 500). The threshold has no statistical basis and **must be tuned** to match the actual order volumes for each deployment.
+
+```json
+{
+  "ruleType": "UNUSUALLY_HIGH_QUANTITY",
+  "params": { "threshold": 500 }
+}
+```
+
+### Rule 8 — CASE_ONLY_NAME_PATTERN (R008)
+
+Products whose names contain a fraction pattern (`1/8`, `1/12`, `1/20`, `1/24`) are treated as full-case only. When `catalogOverridesHeuristics = true`, the product catalog `caseOnly` flag takes precedence over this name heuristic.
+
+### Rule 9 — UNIT_PICKING_NAME_PATTERN (R009)
+
+Products whose names contain a parenthesised unit count (`(6)`, `(8)`, `(9)`, `(12)`, `(18)`, `(24)`) may allow individual-unit picking as defined in the product catalog. When `catalogOverridesHeuristics = true`, the catalog `allowUnitPicking` flag takes precedence over this name heuristic.
+
+### Rule 10 — CATALOG_OVERRIDES_HEURISTICS (R010)
+
+When a resolved product entry exists in the catalog, its `caseOnly` and `allowUnitPicking` flags take precedence over name-based heuristics (Rules 8 and 9). Name heuristics are applied only when no catalog entry is found. This rule enforces the precedence hierarchy and is controlled by `parserSettings.catalogOverridesHeuristics` in `catalogs/rules.json`.
 
 ## 4. Rule Catalog Format
 

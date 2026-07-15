@@ -4,12 +4,15 @@
   "updatedBy": "admin",
   "validationSettings": {
     "unusuallyHighQuantityThreshold": 500,
+    "_unusuallyHighQuantityThreshold_note": "Configurable — adjust to match actual order volumes for your distribution context. Default 500 is a starting point; no statistical basis is assumed.",
     "zeroTotalAction": "warn",
     "confidenceThreshold": 70
   },
   "parserSettings": {
     "skuPattern": "[A-Z]{2}\\d{4,6}",
-    "zeroQuantityAllowed": true
+    "zeroQuantityAllowed": true,
+    "catalogOverridesHeuristics": true,
+    "_catalogOverridesHeuristics_note": "When true, the product catalog's caseOnly/allowUnitPicking flags always take precedence over name-based heuristics (1/N pattern and (N) pattern). Set to false only if the name patterns should override catalog entries."
   },
   "rules": [
     {
@@ -69,7 +72,7 @@
       "params": {
         "threshold": 500
       },
-      "description": "Warn when total cases or units exceed 500 for a single product."
+      "description": "Warn when total cases or units exceed the configured threshold for a single product. Threshold is configurable; default 500 should be tuned to match actual order volumes."
     },
     {
       "id": "R008",
@@ -79,7 +82,7 @@
       "params": {
         "patterns": ["1/8", "1/12", "1/20", "1/24"]
       },
-      "description": "Products whose names contain a fraction pattern (1/N) are full-case only."
+      "description": "Products whose names contain a fraction pattern (1/N) are full-case only. Overridden by the product catalog caseOnly flag when parserSettings.catalogOverridesHeuristics is true."
     },
     {
       "id": "R009",
@@ -89,7 +92,14 @@
       "params": {
         "patterns": ["(6)", "(8)", "(9)", "(12)", "(18)", "(24)"]
       },
-      "description": "Products whose names contain a parenthesised unit count may allow individual-unit picking per product rules."
+      "description": "Products whose names contain a parenthesised unit count may allow individual-unit picking per product rules. Overridden by the product catalog allowUnitPicking flag when parserSettings.catalogOverridesHeuristics is true."
+    },
+    {
+      "id": "R010",
+      "ruleType": "CATALOG_OVERRIDES_HEURISTICS",
+      "enabled": true,
+      "severity": "fail",
+      "description": "When a resolved product entry exists in the catalog, its caseOnly and allowUnitPicking flags take precedence over name-based heuristics (R008, R009). Name heuristics are applied only when no catalog entry is found."
     }
   ]
 }

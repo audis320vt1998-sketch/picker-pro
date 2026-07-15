@@ -10,6 +10,7 @@ The Calculator Engine (`lib/calculator/`) accumulates case and unit quantities s
 |---|---|
 | **Separation** | Case quantities and unit quantities are summed independently; the totals are stored in separate fields. |
 | **No mixing** | A product's `cases` total is never added to its `units` total under any circumstance. |
+| **No auto-division** | A single quantity value is never automatically split into cases and a remainder (e.g. `313` is not interpreted as 26 cases + 1 unit). Division only occurs when the source document provides explicit separate sub-columns (see Parser Engine §3.4.2). |
 | **Traceability** | Every row that contributes to a total appends its `{ page, row }` reference to `sources`. |
 | **Zero quantities** | Rows with `quantity = 0` are included in `sources` but do not change the numeric total. |
 | **Negative quantities** | Not permitted; rows with negative quantities produce a `fail` from the Rules Engine before reaching the Calculator. |

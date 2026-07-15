@@ -13,6 +13,7 @@
 7. Every reported number must be traceable to its original page and source row.
 8. Never guess when verified data exists.
 9. All business rules are versioned and configurable.
+10. Product catalog rules (`caseOnly`, `allowUnitPicking`) override name-based heuristics (rules 3–4) when a catalog entry is resolved.
 
 ## Features
 

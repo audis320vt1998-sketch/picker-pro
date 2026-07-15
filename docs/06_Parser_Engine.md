@@ -42,16 +42,55 @@ ParsedRow emission  ─── ParseWarning if incomplete
 - Remaining non-numeric Hebrew / Latin tokens after barcode/SKU removal constitute the product name hint.
 - The hint is normalised (trim, collapse whitespace, lowercase Latin) before passing to the Product Engine.
 
-### 3.4 Quantity Extraction
+### 3.4 Quantity Column Interpretation
 
-- The rightmost standalone integer or decimal in the line is treated as the quantity.
-- Values of zero are allowed (product present but not ordered).
+Order sheets used by Picker Pro distributors may present quantities in several formats within a single row. The parser must read each column independently and must **never** automatically divide one quantity value into cases and a remainder.
+
+#### 3.4.1 Single-value column
+
+A single standalone integer or decimal is a raw quantity in the unit type implied by the row's unit column (case or individual unit).
+
+```
+נוטלה   5
+→ quantity = 5, unit from product rules
+```
+
+#### 3.4.2 Multi-value quantity column (e.g. "3 1 3")
+
+Some physical order sheets have a quantity column that is printed as three adjacent sub-columns:
+
+| Sub-column | Meaning |
+|---|---|
+| First number | Full cases |
+| Middle number | Intermediate packs (display boxes, partial cases, or a pack-size multiplier) |
+| Last number | Individual units |
+
+Example: OCR reads `3 1 3`
+
+| Value | Interpretation |
+|---|---|
+| `3` (first) | 3 full cases |
+| `1` (middle) | 1 intermediate pack (e.g. a display tray) |
+| `3` (last) | 3 individual units |
+
+**These three values are emitted as separate fields** (`cases`, `packSize`, `units`). They are never combined by the parser. The Calculator Engine sums each column independently across pages.
+
+> **Do not** divide a single integer (e.g. `313`) into cases + remainder. That calculation is not supported unless the source column layout explicitly provides separate sub-columns.
+
+#### 3.4.3 Pack-size column
+
+When the order sheet has a separate "pack size" column (the number of units per pack, e.g. 12), this is a product property, not an order quantity. The parser reads it as a `packSizeHint` and passes it to the Product Engine for cross-reference only.
 
 ### 3.5 Unit-Type Classification
 
-- If the product name hint contains `(6)`, `(8)`, `(9)`, `(12)`, `(18)`, `(24)` — unit type is `unit` (individual picking allowed per product rules).
-- If the product name hint contains `1/8`, `1/12`, `1/20`, `1/24` — unit type is `case` (full-case only).
-- Otherwise, unit type is determined by the product catalog entry; defaults to `case`.
+Unit-type classification applies the following precedence (highest to lowest):
+
+1. **Product catalog** — if `parserSettings.catalogOverridesHeuristics = true` (default) and the product is resolved, the catalog's `caseOnly` / `allowUnitPicking` flags are authoritative.
+2. **Name heuristic — case-only** — if the product name hint contains `1/8`, `1/12`, `1/20`, `1/24`, unit type is `case`.
+3. **Name heuristic — unit-picking** — if the product name hint contains `(6)`, `(8)`, `(9)`, `(12)`, `(18)`, `(24)`, unit type is `unit` (individual picking allowed).
+4. **Default** — `case` when no other signal is available.
+
+Setting `catalogOverridesHeuristics = false` causes name heuristics to override the catalog, which is not recommended.
 
 ## 4. Data Contracts
 
@@ -101,6 +140,7 @@ The following parser settings are configurable in `catalogs/rules.json`:
 
 | Key | Default | Description |
 |---|---|---|
-| `sku_pattern` | `[A-Z]{2}\\d{4,6}` | Regex for SKU detection |
-| `confidence_threshold` | `70` | Minimum OCR confidence to attempt parsing |
-| `zero_quantity_allowed` | `true` | Allow rows with quantity = 0 |
+| `skuPattern` | `[A-Z]{2}\\d{4,6}` | Regex for SKU detection |
+| `confidenceThreshold` | `70` | Minimum OCR confidence to attempt parsing |
+| `zeroQuantityAllowed` | `true` | Allow rows with quantity = 0 |
+| `catalogOverridesHeuristics` | `true` | When true, resolved catalog entry flags take precedence over name-based 1/N and (N) heuristics |

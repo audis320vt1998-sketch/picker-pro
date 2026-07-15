@@ -1,0 +1,7 @@
+{
+  "version": "1.0.0",
+  "updatedAt": "2026-07-15T00:00:00Z",
+  "updatedBy": "admin",
+  "_status": "SAMPLE-ONLY — route definitions must be sourced from verified operational documents or administrator configuration. Do not invent or assume delivery routes. Remove this file's entries and replace with actual routes before production use.",
+  "routes": []
+}

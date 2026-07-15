@@ -1,0 +1,105 @@
+{
+  "version": "1.2.0",
+  "updatedAt": "2026-07-15T00:00:00Z",
+  "updatedBy": "admin",
+  "validationSettings": {
+    "unusuallyHighQuantityThreshold": null,
+    "_unusuallyHighQuantityThreshold_note": "Set to null until real operational data establishes a meaningful threshold. Enable R007 and set this value once actual order-volume data is available.",
+    "zeroTotalAction": "warn",
+    "confidenceThreshold": 70
+  },
+  "parserSettings": {
+    "skuPattern": "[A-Z]{2}\\d{4,6}",
+    "zeroQuantityAllowed": true,
+    "catalogOverridesHeuristics": true,
+    "_catalogOverridesHeuristics_note": "When true, the product catalog's caseOnly/allowUnitPicking flags always take precedence over name-based heuristics (1/N pattern and (N) pattern). Set to false only if the name patterns should override catalog entries."
+  },
+  "rules": [
+    {
+      "id": "R001",
+      "ruleType": "UNIT_TYPE_ENFORCEMENT",
+      "enabled": true,
+      "severity": "fail",
+      "description": "Enforce case/unit separation per product rules. Case-only products must not have unit = 'unit'."
+    },
+    {
+      "id": "R002",
+      "ruleType": "QUANTITY_RANGE",
+      "enabled": true,
+      "severity": "fail",
+      "params": {
+        "min": 0,
+        "max": 9999
+      },
+      "description": "Quantity must be between 0 and 9999."
+    },
+    {
+      "id": "R003",
+      "ruleType": "PRODUCT_RESOLVED",
+      "enabled": true,
+      "severity": "fail",
+      "description": "Product must be resolvable in the product catalog."
+    },
+    {
+      "id": "R004",
+      "ruleType": "CONFIDENCE_THRESHOLD",
+      "enabled": true,
+      "severity": "warn",
+      "params": {
+        "threshold": 70
+      },
+      "description": "Warn when OCR confidence is below the threshold."
+    },
+    {
+      "id": "R005",
+      "ruleType": "DUPLICATE_DETECTION",
+      "enabled": true,
+      "severity": "warn",
+      "description": "Warn when the same product+unit combination appears more than once on the same page."
+    },
+    {
+      "id": "R006",
+      "ruleType": "ZERO_TOTAL",
+      "enabled": true,
+      "severity": "warn",
+      "description": "Warn when an aggregated product has both cases = 0 and units = 0."
+    },
+    {
+      "id": "R007",
+      "ruleType": "UNUSUALLY_HIGH_QUANTITY",
+      "enabled": false,
+      "severity": "warn",
+      "params": {
+        "threshold": null
+      },
+      "description": "Disabled until real operational order-volume data is available. Enable this rule and set a meaningful threshold before production use. Do not use an arbitrary default."
+    },
+    {
+      "id": "R008",
+      "ruleType": "CASE_ONLY_NAME_PATTERN",
+      "enabled": true,
+      "severity": "fail",
+      "params": {
+        "patterns": ["1/8", "1/12", "1/20", "1/24"]
+      },
+      "description": "Products whose names contain a fraction pattern (1/N) are full-case only. Overridden by the product catalog caseOnly flag when parserSettings.catalogOverridesHeuristics is true."
+    },
+    {
+      "id": "R009",
+      "ruleType": "UNIT_PICKING_NAME_PATTERN",
+      "enabled": true,
+      "severity": "pass",
+      "params": {
+        "patterns": ["(6)", "(8)", "(9)", "(12)", "(18)", "(24)"]
+      },
+      "description": "Products whose names contain a parenthesised unit count may allow individual-unit picking per product rules. Overridden by the product catalog allowUnitPicking flag when parserSettings.catalogOverridesHeuristics is true."
+    },
+    {
+      "id": "R010",
+      "ruleType": "CATALOG_OVERRIDES_HEURISTICS",
+      "enabled": true,
+      "severity": "fail",
+      "description": "When a resolved product entry exists in the catalog, its caseOnly and allowUnitPicking flags take precedence over name-based heuristics (R008, R009). Name heuristics are applied only when no catalog entry is found."
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+{
+  "version": "1.2.0",
+  "updatedAt": "2026-07-15T00:00:00Z",
+  "updatedBy": "admin",
+  "validationSettings": {
+    "unusuallyHighQuantityThreshold": 500,
+    "zeroTotalAction": "warn",
+    "confidenceThreshold": 70
+  },
+  "parserSettings": {
+    "skuPattern": "[A-Z]{2}\\d{4,6}",
+    "zeroQuantityAllowed": true
+  },
+  "rules": [
+    {
+      "id": "R001",
+      "ruleType": "UNIT_TYPE_ENFORCEMENT",
+      "enabled": true,
+      "severity": "fail",
+      "description": "Enforce case/unit separation per product rules. Case-only products must not have unit = 'unit'."
+    },
+    {
+      "id": "R002",
+      "ruleType": "QUANTITY_RANGE",
+      "enabled": true,
+      "severity": "fail",
+      "params": {
+        "min": 0,
+        "max": 9999
+      },
+      "description": "Quantity must be between 0 and 9999."
+    },
+    {
+      "id": "R003",
+      "ruleType": "PRODUCT_RESOLVED",
+      "enabled": true,
+      "severity": "fail",
+      "description": "Product must be resolvable in the product catalog."
+    },
+    {
+      "id": "R004",
+      "ruleType": "CONFIDENCE_THRESHOLD",
+      "enabled": true,
+      "severity": "warn",
+      "params": {
+        "threshold": 70
+      },
+      "description": "Warn when OCR confidence is below the threshold."
+    },
+    {
+      "id": "R005",
+      "ruleType": "DUPLICATE_DETECTION",
+      "enabled": true,
+      "severity": "warn",
+      "description": "Warn when the same product+unit combination appears more than once on the same page."
+    },
+    {
+      "id": "R006",
+      "ruleType": "ZERO_TOTAL",
+      "enabled": true,
+      "severity": "warn",
+      "description": "Warn when an aggregated product has both cases = 0 and units = 0."
+    },
+    {
+      "id": "R007",
+      "ruleType": "UNUSUALLY_HIGH_QUANTITY",
+      "enabled": true,
+      "severity": "warn",
+      "params": {
+        "threshold": 500
+      },
+      "description": "Warn when total cases or units exceed 500 for a single product."
+    },
+    {
+      "id": "R008",
+      "ruleType": "CASE_ONLY_NAME_PATTERN",
+      "enabled": true,
+      "severity": "fail",
+      "params": {
+        "patterns": ["1/8", "1/12", "1/20", "1/24"]
+      },
+      "description": "Products whose names contain a fraction pattern (1/N) are full-case only."
+    },
+    {
+      "id": "R009",
+      "ruleType": "UNIT_PICKING_NAME_PATTERN",
+      "enabled": true,
+      "severity": "pass",
+      "params": {
+        "patterns": ["(6)", "(8)", "(9)", "(12)", "(18)", "(24)"]
+      },
+      "description": "Products whose names contain a parenthesised unit count may allow individual-unit picking per product rules."
+    }
+  ]
+}

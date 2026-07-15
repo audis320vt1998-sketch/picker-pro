@@ -1,0 +1,95 @@
+{
+  "version": "1.0.0",
+  "updatedAt": "2026-07-15T00:00:00Z",
+  "updatedBy": "admin",
+  "routes": [
+    {
+      "routeId": "TLV-N",
+      "cityId": "TLV",
+      "name": "תל אביב צפון",
+      "nameEn": "Tel Aviv North",
+      "sortOrder": 1,
+      "active": true
+    },
+    {
+      "routeId": "TLV-S",
+      "cityId": "TLV",
+      "name": "תל אביב דרום",
+      "nameEn": "Tel Aviv South",
+      "sortOrder": 2,
+      "active": true
+    },
+    {
+      "routeId": "TLV-C",
+      "cityId": "TLV",
+      "name": "תל אביב מרכז",
+      "nameEn": "Tel Aviv Centre",
+      "sortOrder": 3,
+      "active": true
+    },
+    {
+      "routeId": "JLM-E",
+      "cityId": "JLM",
+      "name": "ירושלים מזרח",
+      "nameEn": "Jerusalem East",
+      "sortOrder": 1,
+      "active": true
+    },
+    {
+      "routeId": "JLM-W",
+      "cityId": "JLM",
+      "name": "ירושלים מערב",
+      "nameEn": "Jerusalem West",
+      "sortOrder": 2,
+      "active": true
+    },
+    {
+      "routeId": "HFA-N",
+      "cityId": "HFA",
+      "name": "חיפה צפון",
+      "nameEn": "Haifa North",
+      "sortOrder": 1,
+      "active": true
+    },
+    {
+      "routeId": "HFA-S",
+      "cityId": "HFA",
+      "name": "חיפה דרום",
+      "nameEn": "Haifa South",
+      "sortOrder": 2,
+      "active": true
+    },
+    {
+      "routeId": "BSH-1",
+      "cityId": "BSH",
+      "name": "באר שבע מסלול 1",
+      "nameEn": "Beer Sheva Route 1",
+      "sortOrder": 1,
+      "active": true
+    },
+    {
+      "routeId": "PTH-1",
+      "cityId": "PTH",
+      "name": "פתח תקווה מסלול 1",
+      "nameEn": "Petah Tikva Route 1",
+      "sortOrder": 1,
+      "active": true
+    },
+    {
+      "routeId": "RHN-1",
+      "cityId": "RHN",
+      "name": "ראשון לציון מסלול 1",
+      "nameEn": "Rishon LeZion Route 1",
+      "sortOrder": 1,
+      "active": true
+    },
+    {
+      "routeId": "ASH-1",
+      "cityId": "ASH",
+      "name": "אשדוד מסלול 1",
+      "nameEn": "Ashdod Route 1",
+      "sortOrder": 1,
+      "active": true
+    }
+  ]
+}

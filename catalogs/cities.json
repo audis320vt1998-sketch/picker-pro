@@ -1,0 +1,55 @@
+{
+  "version": "1.0.0",
+  "updatedAt": "2026-07-15T00:00:00Z",
+  "updatedBy": "admin",
+  "cities": [
+    {
+      "cityId": "TLV",
+      "name": "תל אביב",
+      "nameEn": "Tel Aviv",
+      "active": true
+    },
+    {
+      "cityId": "JLM",
+      "name": "ירושלים",
+      "nameEn": "Jerusalem",
+      "active": true
+    },
+    {
+      "cityId": "HFA",
+      "name": "חיפה",
+      "nameEn": "Haifa",
+      "active": true
+    },
+    {
+      "cityId": "BSH",
+      "name": "באר שבע",
+      "nameEn": "Beer Sheva",
+      "active": true
+    },
+    {
+      "cityId": "PTH",
+      "name": "פתח תקווה",
+      "nameEn": "Petah Tikva",
+      "active": true
+    },
+    {
+      "cityId": "NSR",
+      "name": "נצרת",
+      "nameEn": "Nazareth",
+      "active": true
+    },
+    {
+      "cityId": "RHN",
+      "name": "ראשון לציון",
+      "nameEn": "Rishon LeZion",
+      "active": true
+    },
+    {
+      "cityId": "ASH",
+      "name": "אשדוד",
+      "nameEn": "Ashdod",
+      "active": true
+    }
+  ]
+}

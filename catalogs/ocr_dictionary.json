@@ -1,0 +1,113 @@
+{
+  "version": "1.0.0",
+  "updatedAt": "2026-07-15T00:00:00Z",
+  "updatedBy": "admin",
+  "description": "OCR correction dictionary for common misreads in Hebrew beverage/FMCG order sheets.",
+  "entries": [
+    {
+      "id": "D001",
+      "misread": "ב1ר",
+      "correction": "בירה",
+      "context": "hebrew_product_name",
+      "notes": "Common OCR misread of the Hebrew word for beer"
+    },
+    {
+      "id": "D002",
+      "misread": "מ1ץ",
+      "correction": "מיץ",
+      "context": "hebrew_product_name",
+      "notes": "Common misread of the Hebrew word for juice"
+    },
+    {
+      "id": "D003",
+      "misread": "0",
+      "correction": "O",
+      "context": "hebrew_letter_in_numeric_field",
+      "notes": "Zero misread as Latin letter O in numeric context — apply only when surrounded by Hebrew characters"
+    },
+    {
+      "id": "D004",
+      "misread": "מ\"ל",
+      "correction": "מ\"ל",
+      "context": "unit_ml",
+      "notes": "Ensure millilitre abbreviation is not split by OCR"
+    },
+    {
+      "id": "D005",
+      "misread": "ליטד",
+      "correction": "ליטר",
+      "context": "hebrew_unit",
+      "notes": "ד/ר confusion in the Hebrew word for litre"
+    },
+    {
+      "id": "D006",
+      "misread": "שתיה",
+      "correction": "שתייה",
+      "context": "hebrew_product_name",
+      "notes": "Missing yod in the Hebrew word for drink"
+    },
+    {
+      "id": "D007",
+      "misread": "מינרלי",
+      "correction": "מינרלים",
+      "context": "hebrew_product_name",
+      "notes": "Truncated plural form of mineral"
+    },
+    {
+      "id": "D008",
+      "misread": "1.5L",
+      "correction": "1.5 ליטר",
+      "context": "mixed_hebrew_latin",
+      "notes": "Normalise Latin litre abbreviation to Hebrew form"
+    },
+    {
+      "id": "D009",
+      "misread": "0.5L",
+      "correction": "0.5 ליטר",
+      "context": "mixed_hebrew_latin",
+      "notes": "Normalise Latin litre abbreviation to Hebrew form"
+    },
+    {
+      "id": "D010",
+      "misread": "0.33L",
+      "correction": "0.33 ליטר",
+      "context": "mixed_hebrew_latin",
+      "notes": "Normalise Latin litre abbreviation to Hebrew form"
+    },
+    {
+      "id": "D011",
+      "misread": "אנרגיות",
+      "correction": "אנרגיה",
+      "context": "hebrew_product_name",
+      "notes": "Incorrect plural of energy drink"
+    },
+    {
+      "id": "D012",
+      "misread": "ין",
+      "correction": "יין",
+      "context": "hebrew_product_name",
+      "notes": "Missing yod in the Hebrew word for wine"
+    },
+    {
+      "id": "D013",
+      "misread": "1 /",
+      "correction": "1/",
+      "context": "case_fraction_pattern",
+      "notes": "Space erroneously inserted before the slash in case fraction patterns like 1/12"
+    },
+    {
+      "id": "D014",
+      "misread": "( ",
+      "correction": "(",
+      "context": "unit_count_pattern",
+      "notes": "Space after opening parenthesis in unit-count pattern like (24)"
+    },
+    {
+      "id": "D015",
+      "misread": " )",
+      "correction": ")",
+      "context": "unit_count_pattern",
+      "notes": "Space before closing parenthesis in unit-count pattern like (24)"
+    }
+  ]
+}

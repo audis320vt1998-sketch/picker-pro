@@ -67,12 +67,13 @@ Warns when an aggregated product has both `cases = 0` and `units = 0` after all 
 
 ### Rule 7 — UNUSUALLY_HIGH_QUANTITY (R007)
 
-Warns when total cases or units for a single product exceed the configured threshold (default 500). The threshold has no statistical basis and **must be tuned** to match the actual order volumes for each deployment.
+**Disabled by default.** Warns when total cases or units for a single product exceed a configured threshold. This rule is disabled until real operational order-volume data is available to establish a meaningful threshold. Enable it in `catalogs/rules.json` and set `threshold` to a value derived from actual data before production use.
 
 ```json
 {
   "ruleType": "UNUSUALLY_HIGH_QUANTITY",
-  "params": { "threshold": 500 }
+  "enabled": false,
+  "params": { "threshold": null }
 }
 ```
 

@@ -3,8 +3,8 @@
   "updatedAt": "2026-07-15T00:00:00Z",
   "updatedBy": "admin",
   "validationSettings": {
-    "unusuallyHighQuantityThreshold": 500,
-    "_unusuallyHighQuantityThreshold_note": "Configurable — adjust to match actual order volumes for your distribution context. Default 500 is a starting point; no statistical basis is assumed.",
+    "unusuallyHighQuantityThreshold": null,
+    "_unusuallyHighQuantityThreshold_note": "Set to null until real operational data establishes a meaningful threshold. Enable R007 and set this value once actual order-volume data is available.",
     "zeroTotalAction": "warn",
     "confidenceThreshold": 70
   },
@@ -67,12 +67,12 @@
     {
       "id": "R007",
       "ruleType": "UNUSUALLY_HIGH_QUANTITY",
-      "enabled": true,
+      "enabled": false,
       "severity": "warn",
       "params": {
-        "threshold": 500
+        "threshold": null
       },
-      "description": "Warn when total cases or units exceed the configured threshold for a single product. Threshold is configurable; default 500 should be tuned to match actual order volumes."
+      "description": "Disabled until real operational order-volume data is available. Enable this rule and set a meaningful threshold before production use. Do not use an arbitrary default."
     },
     {
       "id": "R008",

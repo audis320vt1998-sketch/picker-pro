@@ -62,11 +62,13 @@ Post-aggregation thresholds are configurable in `catalogs/rules.json`:
 ```json
 {
   "validationSettings": {
-    "unusuallyHighQuantityThreshold": 500,
+    "unusuallyHighQuantityThreshold": null,
     "zeroTotalAction": "warn"
   }
 }
 ```
+
+`unusuallyHighQuantityThreshold` remains `null` by default so unusually-high-quantity validation stays disabled until real operational order-volume data defines a meaningful threshold.
 
 ## 7. Error Handling
 

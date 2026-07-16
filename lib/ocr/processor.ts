@@ -29,3 +29,23 @@ export async function processPDF(file: File): Promise<OCRResult[]> {
   
   return []
 }
+
+export async function extractText(file: File): Promise<OCRResult> {
+  const isPdf =
+    file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+
+  if (isPdf) {
+    const pages = await processPDF(file)
+    if (pages.length > 0) {
+      return pages[0]
+    }
+
+    return {
+      text: '',
+      confidence: 0,
+      blocks: [],
+    }
+  }
+
+  return processImage(file)
+}

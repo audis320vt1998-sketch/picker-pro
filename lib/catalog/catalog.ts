@@ -1,4 +1,12 @@
-import type { CatalogEntry } from '../engine/types'
+export interface CatalogEntry {
+  sku: string
+  name: string
+  barcode?: string
+  category?: string
+  supplier?: string
+  packSize: number
+  allowUnits: boolean
+}
 
 /**
  * Catalog Service - In-memory catalog with persistence
@@ -247,4 +255,18 @@ export function getCatalog(): CatalogService {
  */
 export function setCatalog(catalog: CatalogService): void {
   globalCatalog = catalog
+}
+
+/**
+ * Backwards-compatible synchronous product lookup helper.
+ */
+export function getProduct(sku: string): CatalogEntry | undefined {
+  return getCatalog().getAsMap().get(sku)
+}
+
+/**
+ * Backwards-compatible synchronous catalog membership helper.
+ */
+export function hasProduct(sku: string): boolean {
+  return getCatalog().getAsMap().has(sku)
 }

@@ -50,7 +50,7 @@ export function parseRow(row: Partial<ProductRow>): ProductRow {
 
   if (product) {
     productRow.name = product.name
-    productRow.barcode = product.barcode
+    productRow.barcode = product.barcode ?? ''
 
     if (product.allowUnits) {
       productRow.units = productRow.quantity
@@ -122,7 +122,7 @@ export function summarize(
   }))
 }
 
-export function parseOCRText(text: string): ParsedData {
+export function parseOCRText(_text: string): ParsedData {
   // TODO: Implement parsing logic
   console.log('Parsing OCR text')
 

@@ -1,3 +1,4 @@
+import { describe, expect, it } from '@jest/globals'
 import { loadConfig } from '../../lib/config'
 
 describe('foundation domain contracts', () => {

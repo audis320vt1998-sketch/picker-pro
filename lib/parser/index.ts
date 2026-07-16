@@ -122,7 +122,7 @@ export function summarize(
   }))
 }
 
-export function parseOCRText(text: string): ParsedData {
+export function parseOCRText(_text: string): ParsedData {
   // TODO: Implement parsing logic
   console.log('Parsing OCR text')
 

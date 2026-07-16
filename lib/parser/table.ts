@@ -68,7 +68,7 @@ export function parseTableWithTracking(
   const unknownProducts: ProductRow[] = []
   const lines = text.split('\n')
 
-  lines.forEach((line, lineIndex) => {
+  lines.forEach((line) => {
     if (!line.match(/\d{5}/)) return
 
     const sku = line.match(/\b\d{5}\b/)?.[0]

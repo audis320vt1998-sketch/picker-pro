@@ -1,4 +1,8 @@
 import type { CatalogEntry } from '../engine/types'
+import productsData from './products.json'
+
+const defaultCatalogEntries = productsData as CatalogEntry[]
+const defaultCatalogBySku = new Map(defaultCatalogEntries.map((entry) => [entry.sku, entry]))
 
 /**
  * Catalog Service - In-memory catalog with persistence
@@ -247,4 +251,17 @@ export function getCatalog(): CatalogService {
  */
 export function setCatalog(catalog: CatalogService): void {
   globalCatalog = catalog
+}
+
+export function getProduct(sku: string): CatalogEntry | undefined {
+  const globalEntry = globalCatalog?.getAsMap().get(sku)
+  if (globalEntry) {
+    return globalEntry
+  }
+
+  return defaultCatalogBySku.get(sku)
+}
+
+export function hasProduct(sku: string): boolean {
+  return getProduct(sku) !== undefined
 }

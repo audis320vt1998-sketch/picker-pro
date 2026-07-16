@@ -17,7 +17,7 @@ export class Database {
 
   async connect(): Promise<void> {
     // TODO: Implement database connection
-    console.log('Connecting to database')
+    console.log('Connecting to database', this.config.url)
   }
 
   async disconnect(): Promise<void> {
@@ -27,7 +27,7 @@ export class Database {
 
   async saveResult(data: any): Promise<string> {
     // TODO: Implement save operation
-    console.log('Saving result to database')
+    console.log('Saving result to database', data)
     return 'result_id'
   }
 
@@ -39,7 +39,7 @@ export class Database {
 
   async listResults(limit: number = 10): Promise<any[]> {
     // TODO: Implement list operation
-    console.log('Listing results from database')
+    console.log('Listing results from database', limit)
     return []
   }
 }

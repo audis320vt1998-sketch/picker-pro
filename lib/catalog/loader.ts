@@ -51,7 +51,7 @@ export class CatalogLoader {
 
       for (let j = 0; j < headers.length; j++) {
         const header = headers[j]
-        let value = values[j]
+        let value: string | boolean | number = values[j] ?? ''
 
         // Parse types
         if (value === 'true') value = true
@@ -104,7 +104,7 @@ export class CatalogLoader {
   /**
    * Export catalog to CSV
    */
-  static exportToCSV(catalog: CatalogService, entries: CatalogEntry[]): string {
+  static exportToCSV(entries: CatalogEntry[]): string {
     const headers = ['sku', 'barcode', 'name', 'packSize', 'allowUnits', 'category', 'supplier', 'price']
     const csvHeaders = headers.join(',')
 

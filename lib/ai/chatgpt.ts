@@ -6,9 +6,11 @@
 import OpenAI from 'openai'
 import { createDatabase } from '../database'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+function getOpenAIClient(): OpenAI {
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  })
+}
 
 /** Tool definitions exposed to ChatGPT */
 const tools: OpenAI.Chat.ChatCompletionTool[] = [
@@ -104,6 +106,7 @@ export async function chat(
   userMessage: string,
   conversationHistory: OpenAI.Chat.ChatCompletionMessageParam[] = []
 ): Promise<ChatGPTResponse> {
+  const openai = getOpenAIClient()
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
     {
       role: 'system',
@@ -141,6 +144,10 @@ export async function chat(
 
     // Execute each requested tool call and feed results back
     for (const toolCall of assistantMessage.tool_calls) {
+      if (!('function' in toolCall)) {
+        continue
+      }
+
       const args = JSON.parse(toolCall.function.arguments) as Record<string, unknown>
       const result = await executeTool(toolCall.function.name, args)
       toolCallsMade.push(toolCall.function.name)

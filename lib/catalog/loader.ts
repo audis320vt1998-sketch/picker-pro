@@ -51,14 +51,16 @@ export class CatalogLoader {
 
       for (let j = 0; j < headers.length; j++) {
         const header = headers[j]
-        let value = values[j]
+        const raw = values[j]
 
-        // Parse types
-        if (value === 'true') value = true
-        else if (value === 'false') value = false
-        else if (!isNaN(Number(value))) value = Number(value)
+        // Parse types into the correct shape
+        let parsed: boolean | number | string
+        if (raw === 'true') parsed = true
+        else if (raw === 'false') parsed = false
+        else if (raw !== undefined && raw !== '' && !isNaN(Number(raw))) parsed = Number(raw)
+        else parsed = raw ?? ''
 
-        entry[header] = value
+        entry[header] = parsed
       }
 
       entries.push(entry as CatalogEntry)
@@ -104,7 +106,7 @@ export class CatalogLoader {
   /**
    * Export catalog to CSV
    */
-  static exportToCSV(catalog: CatalogService, entries: CatalogEntry[]): string {
+  static exportToCSV(_catalog: CatalogService, entries: CatalogEntry[]): string {
     const headers = ['sku', 'barcode', 'name', 'packSize', 'allowUnits', 'category', 'supplier', 'price']
     const csvHeaders = headers.join(',')
 

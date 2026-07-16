@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import { useState } from 'react'
 import UploadBox from '@/components/UploadBox'
 import ProgressBar from '@/components/ProgressBar'
 
@@ -9,7 +9,9 @@ export default function UploadPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
-  const handleFileSelect = (file: File) => {
+  const handleFileSelect = (files: File[]) => {
+    const file = files[0]
+    if (!file) return
     setSelectedFile(file)
     setIsProcessing(true)
     

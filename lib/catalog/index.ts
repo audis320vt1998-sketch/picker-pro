@@ -7,7 +7,7 @@
  * - Product database
  */
 
-export { CatalogService, getCatalog, setCatalog } from './catalog'
+export { CatalogService, getCatalog, setCatalog, getProduct, hasProduct } from './catalog'
 
 export {
   CatalogLoader,

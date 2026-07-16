@@ -69,8 +69,8 @@ export function correctSKU(raw: string): CorrectionResult {
     const isValid = text.length === 13 ? validateEAN13(text) : false
     if (!isValid) {
       const correctedEAN = correctEAN13(text)
-      corrections.push(`EAN-13: "${text}" → "${correctedEAN}"`)
-      text = correctedEAN
+      corrections.push(`EAN-13: "${text}" → "${correctedEAN ?? text}"`)
+      text = correctedEAN ?? text
     }
   }
 

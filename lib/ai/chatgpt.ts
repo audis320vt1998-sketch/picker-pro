@@ -6,9 +6,11 @@
 import OpenAI from 'openai'
 import { createDatabase } from '../database'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+function getOpenAIClient(): OpenAI {
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  })
+}
 
 /** Tool definitions exposed to ChatGPT */
 const tools: OpenAI.Chat.ChatCompletionTool[] = [
@@ -120,6 +122,7 @@ export async function chat(
 
   // Agentic loop: keep running until the model stops requesting tool calls
   while (true) {
+    const openai = getOpenAIClient()
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages,
@@ -141,6 +144,7 @@ export async function chat(
 
     // Execute each requested tool call and feed results back
     for (const toolCall of assistantMessage.tool_calls) {
+      if (toolCall.type !== 'function') continue
       const args = JSON.parse(toolCall.function.arguments) as Record<string, unknown>
       const result = await executeTool(toolCall.function.name, args)
       toolCallsMade.push(toolCall.function.name)

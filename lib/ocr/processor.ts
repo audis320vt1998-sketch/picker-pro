@@ -29,3 +29,20 @@ export async function processPDF(file: File): Promise<OCRResult[]> {
   
   return []
 }
+
+/**
+ * Extract text from an image or PDF file.
+ * Returns a single OCRResult with merged text across all pages.
+ */
+export async function extractText(file: File): Promise<OCRResult> {
+  if (file.type === 'application/pdf') {
+    const pages = await processPDF(file)
+    const text = pages.map((p) => p.text).join('\n')
+    const confidence =
+      pages.length > 0
+        ? pages.reduce((sum, p) => sum + p.confidence, 0) / pages.length
+        : 0
+    return { text, confidence, blocks: pages.flatMap((p) => p.blocks) }
+  }
+  return processImage(file)
+}

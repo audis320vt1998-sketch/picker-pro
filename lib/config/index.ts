@@ -5,7 +5,7 @@ export interface AppConfig {
   env: RuntimeEnvironment
   logLevel: LogLevel
   validation: {
-    unusuallyHighQuantityThreshold: number
+    unusuallyHighQuantityThreshold: number | null
   }
 }
 
@@ -13,7 +13,7 @@ const DEFAULT_CONFIG: AppConfig = {
   env: 'development',
   logLevel: 'info',
   validation: {
-    unusuallyHighQuantityThreshold: 500,
+    unusuallyHighQuantityThreshold: null,
   },
 }
 

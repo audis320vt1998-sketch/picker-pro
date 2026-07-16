@@ -1,3 +1,5 @@
+import { loadConfig } from '@/lib/config'
+
 describe('foundation domain contracts', () => {
   it('keeps case and unit totals as separate numeric fields in fixtures', () => {
     const fixture = {
@@ -22,5 +24,11 @@ describe('foundation domain contracts', () => {
 
     expect(sourceRef.page.pageNumber).toBe(1)
     expect(sourceRef.row.rowNumber).toBe(8)
+  })
+
+  it('keeps unusually high quantity threshold disabled by default', () => {
+    const config = loadConfig()
+
+    expect(config.validation.unusuallyHighQuantityThreshold).toBeNull()
   })
 })

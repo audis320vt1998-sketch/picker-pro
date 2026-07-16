@@ -116,6 +116,7 @@ See the [`docs/`](./docs/) directory for the full documentation suite:
 | 20 | [Developer Guide](./docs/20_Developer_Guide.md) |
 | 21 | [User Manual](./docs/21_User_Manual.md) |
 | 22 | [Roadmap](./docs/22_Roadmap.md) |
+| 23 | [GPT Codex Workflow](./docs/23_Codex_Workflow.md) |
 
 Reference catalogs are in [`catalogs/`](./catalogs/).
 

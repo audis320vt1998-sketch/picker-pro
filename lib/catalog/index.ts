@@ -15,3 +15,12 @@ export {
   getInitializedCatalog,
   resetCatalog
 } from './loader'
+
+export {
+  VerifiedProductCatalog,
+  type CatalogVerificationStatus,
+  type ProductLookupInput,
+  type ProductResolution,
+  type ProductResolutionMethod,
+  type VerifiedCatalogProduct,
+} from './verified-catalog'

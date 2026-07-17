@@ -17,6 +17,7 @@ coverage/
 .DS_Store
 *.pem
 *.log
+*.traineddata
 *.tsbuildinfo
 npm-debug.log*
 yarn-debug.log*

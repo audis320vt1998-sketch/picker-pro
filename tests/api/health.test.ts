@@ -11,7 +11,7 @@ describe('GET /api/health', () => {
       version: '0.1.0',
       capabilities: {
         manualReview: 'available',
-        documentProcessing: 'unavailable',
+        documentProcessing: 'preflight-only',
         aiAssistance: 'unavailable',
       },
     })

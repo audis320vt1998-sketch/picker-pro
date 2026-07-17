@@ -2,7 +2,14 @@
 
 ## Operational workflow
 
-The only active Picker Pro workflow is **manual review** at `/review`.
+Picker Pro has two active, non-persistent workflows:
+
+- **Manual review** at `/review`.
+- **Maayan OCR preflight** at `/upload`, which returns a table draft that must
+  be checked before any manual-review entry.
+
+Manual review remains the only workflow that can evaluate an explicit row
+against the catalog.
 
 1. Enter the source page, source row, raw text, and at least one product
    identifier (barcode, SKU, or product name).
@@ -13,6 +20,21 @@ The only active Picker Pro workflow is **manual review** at `/review`.
 
 The request is not stored. Its generated review ID exists only to connect the
 returned page/row source references to that response.
+
+## OCR preflight boundary
+
+- `/api/intake/preflight` accepts one JPEG, PNG, or WebP image at a time.
+- It accepts at most a 12 MB image with at most 24 million pixels and runs one
+  OCR worker per Node process at a time.
+- It requires a sufficiently high-resolution table image and reports
+  `IMAGE_TOO_LOW_RESOLUTION` rather than parsing low-resolution full-page
+  photos.
+- It returns only table-body fields: product identifiers, product name, the
+  three source quantity columns, confidence, row bounds, and parser issues.
+- It never returns the filename, document header, customer information, full
+  OCR text, original image, catalog match, totals, or a pick list.
+- The result is `NEEDS_REVIEW`; its source quantities are not sent to manual
+  review or converted automatically.
 
 ## Quantity policy
 
@@ -34,7 +56,8 @@ returned page/row source references to that response.
 
 ## Unavailable capabilities
 
-- Camera capture, image/PDF upload processing, OCR, and parser automation.
+- Camera capture, PDF processing, perspective correction, stored OCR jobs,
+  and operational or automatic image-to-pick-list processing.
 - Persisted jobs, review decisions, export files, cities, routes, and offline
   recovery.
 - AI assistance.

@@ -17,8 +17,8 @@ describe('POST /api/manual-review', () => {
           {
             pageNumber: 1,
             rowNumber: 1,
-            rawText: 'loacker red',
-            productName: 'loacker red',
+            rawText: '8000380213498',
+            barcode: '8000380213498',
             cases: '1',
             units: 0,
           },
@@ -40,8 +40,8 @@ describe('POST /api/manual-review', () => {
           {
             pageNumber: 1,
             rowNumber: 1,
-            rawText: 'loacker red',
-            productName: 'loacker red',
+            rawText: '8000380213498',
+            barcode: '8000380213498',
             cases: 1,
             units: 0,
           },
@@ -54,9 +54,7 @@ describe('POST /api/manual-review', () => {
     await expect(response.json()).resolves.toMatchObject({
       reviewId: expect.stringMatching(/^manual-review-/),
       catalog: {
-        totalProducts: 9,
         verifiedProducts: 0,
-        unverifiedProducts: 9,
       },
       totals: [],
       acceptedRowCount: 0,

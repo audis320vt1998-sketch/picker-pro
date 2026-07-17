@@ -8,13 +8,20 @@ Picker Pro has two active, non-persistent workflows:
 - **Maayan OCR preflight** at `/upload`, which returns a table draft that must
   be checked before any manual-review entry.
 
+The upload screen accepts up to 20 images as a browser-only batch and sends
+them to the one-image preflight endpoint sequentially. It assigns stable
+page numbers in the selected order; a failure on one image does not discard
+the drafts from other images. It does not display or retain file names in the
+result.
+
 After explicitly checking selected OCR rows against the source document, a
 user may transfer a minimal, one-time browser draft from `/upload` to
 `/review`. The transfer is held in session storage for at most 15 minutes and
-is removed as soon as the review screen reads it. It carries source page/row
-and product identifiers only, plus the three OCR source quantities for visual
-comparison. It does not carry a filename, original image, customer/header
-text, full OCR trace, catalog result, or an API request.
+is removed as soon as the review screen reads it. It carries an opaque,
+random document reference, source page/row, and product identifiers only,
+plus the three OCR source quantities for visual comparison. It does not carry
+a filename, original image, customer/header text, full OCR trace, catalog
+result, or an API request.
 
 Manual review remains the only workflow that can evaluate an explicit row
 against the catalog.
@@ -26,12 +33,19 @@ against the catalog.
 4. Only verified, unambiguous matches with an allowed unit type are aggregated.
 5. All other rows are returned as review issues and remain outside totals.
 
+When a row carries the opaque document reference from OCR, the client and API
+reject a duplicate combination of document reference, page, and printed row.
+This prevents a checked OCR row from being aggregated twice. Direct manual
+rows without that reference remain supported and are not assigned a document
+identity automatically.
+
 The request is not stored. Its generated review ID exists only to connect the
 returned page/row source references to that response.
 
 ## OCR preflight boundary
 
-- `/api/intake/preflight` accepts one JPEG, PNG, or WebP image at a time.
+- `/api/intake/preflight` accepts one JPEG, PNG, or WebP image at a time; the
+  upload screen calls it sequentially for a selected batch of up to 20 images.
 - It accepts at most a 12 MB image with at most 24 million pixels and runs one
   OCR worker per Node process at a time.
 - It requires a sufficiently high-resolution table image and reports

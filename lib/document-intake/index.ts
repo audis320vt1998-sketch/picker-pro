@@ -6,6 +6,12 @@ export {
 } from './maayan-layout'
 export { readImageDimensions } from './image-metadata'
 export { preflightMaayanOcrPage } from './preflight-service'
+export {
+  createOcrPreflightBatchPage,
+  createOcrSourceDocumentRef,
+  isOcrSourceDocumentRef,
+  reassignPreflightPageNumber,
+} from './preflight-batch'
 export type {
   BoundingBox,
   ColumnBand,
@@ -23,3 +29,4 @@ export type {
   OcrWord,
 } from './types'
 export type { ImageDimensions } from './image-metadata'
+export type { OcrPreflightBatchPage } from './preflight-batch'

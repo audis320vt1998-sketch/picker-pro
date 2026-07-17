@@ -51,12 +51,15 @@ turn them into operational case/unit totals or split a value by pack size.
   quantity-only tokens as alignment evidence.
 - The current endpoint is `/api/intake/preflight`. Its response is always
   `NEEDS_REVIEW`; it does not resolve a catalog or create pick totals.
+- The upload screen may call that one-image endpoint sequentially for up to
+  20 selected images. It assigns a page number in browser memory and keeps an
+  opaque random document reference per image, not a filename.
 - A user may explicitly confirm selected, traceable rows and pass a minimal
   draft to `/review` through one-time session storage. The draft excludes the
   image, filename, document/header OCR trace, and customer data. Its three
   source quantity fields are comparison-only; they are not copied into the
-  manual `cases` or `units` inputs and are not part of the manual-review API
-  request.
+  manual `cases` or `units` inputs. The opaque document reference is sent only
+  to prevent a duplicate document/page/row in the same manual-review request.
 
 ## OCR runtime
 

@@ -2,6 +2,7 @@ import type {
   DocumentPreflightRow,
   MaayanRawQuantities,
 } from '@/lib/document-intake'
+import { isOcrSourceDocumentRef } from '@/lib/document-intake'
 
 export const OCR_MANUAL_REVIEW_HANDOFF_STORAGE_KEY =
   'picker-pro.ocr-manual-review-handoff.v1'
@@ -16,6 +17,7 @@ export interface SessionStorageLike {
 
 export interface OcrManualReviewHandoffRow {
   source: {
+    sourceDocumentRef: string
     pageNumber: number
     printedRowNumber: number
     parserRowIndex: number
@@ -30,6 +32,16 @@ export interface OcrManualReviewHandoffRow {
   sourceQuantities: MaayanRawQuantities
 }
 
+/**
+ * The browser supplies one opaque source-document reference for each uploaded
+ * image. The reference is intentionally not a filename and does not identify
+ * a customer or order.
+ */
+export interface OcrManualReviewHandoffCandidate {
+  sourceDocumentRef: string
+  row: DocumentPreflightRow
+}
+
 export interface OcrManualReviewHandoffV1 {
   kind: 'OCR_MANUAL_REVIEW_HANDOFF_V1'
   createdAtMs: number
@@ -37,6 +49,7 @@ export interface OcrManualReviewHandoffV1 {
 }
 
 export interface ManualReviewOcrDraft {
+  sourceDocumentRef: string
   pageNumber: number
   rowNumber: number
   rawText: string
@@ -81,6 +94,7 @@ function isHandoffRow(value: unknown): value is OcrManualReviewHandoffRow {
   }
 
   return (
+    isOcrSourceDocumentRef(value.source.sourceDocumentRef) &&
     isPositiveInteger(value.source.pageNumber) &&
     isPositiveInteger(value.source.printedRowNumber) &&
     isParserRowIndex(value.source.parserRowIndex) &&
@@ -125,13 +139,15 @@ function copySourceQuantities(
  * handoff.
  */
 export function toOcrManualReviewHandoffRow(
-  row: DocumentPreflightRow
+  candidate: OcrManualReviewHandoffCandidate
 ): OcrManualReviewHandoffRow | null {
+  const { row, sourceDocumentRef } = candidate
   const printedRowNumber = row.source.printedRowNumber
   const productName = cleanOptionalText(row.productName)
   const barcode = cleanOptionalText(row.barcode)
   const sku = cleanOptionalText(row.sku)
   if (
+    !isOcrSourceDocumentRef(sourceDocumentRef) ||
     !isPositiveInteger(row.source.pageNumber) ||
     !isPositiveInteger(printedRowNumber) ||
     !isParserRowIndex(row.source.parserRowIndex)
@@ -141,6 +157,7 @@ export function toOcrManualReviewHandoffRow(
 
   return {
     source: {
+      sourceDocumentRef,
       pageNumber: row.source.pageNumber,
       printedRowNumber,
       parserRowIndex: row.source.parserRowIndex,
@@ -153,10 +170,10 @@ export function toOcrManualReviewHandoffRow(
 }
 
 export function createOcrManualReviewHandoff(
-  rows: readonly DocumentPreflightRow[],
+  candidates: readonly OcrManualReviewHandoffCandidate[],
   createdAtMs = Date.now()
 ): OcrManualReviewHandoffV1 | null {
-  const handoffRows = rows
+  const handoffRows = candidates
     .map(toOcrManualReviewHandoffRow)
     .filter((row): row is OcrManualReviewHandoffRow => row !== null)
 
@@ -225,6 +242,7 @@ export function toManualReviewOcrDraft(
   ].filter(Boolean)
 
   return {
+    sourceDocumentRef: row.source.sourceDocumentRef,
     pageNumber: row.source.pageNumber,
     rowNumber: row.source.printedRowNumber,
     rawText: ['טיוטת OCR — יש לאמת מול מסמך המקור', ...identifiers].join(' | '),

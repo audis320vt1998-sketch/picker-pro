@@ -168,8 +168,14 @@ nav a:hover {
 }
 
 .document-preflight__selected,
-.document-preflight__issue {
+.document-preflight__issue,
+.document-preflight__progress {
   margin-top: 0.75rem;
+}
+
+.document-preflight__progress {
+  color: #1e3a5f;
+  font-weight: 700;
 }
 
 .document-preflight__issue {
@@ -182,6 +188,10 @@ nav a:hover {
 
 .document-preflight__page {
   margin-top: 1rem;
+}
+
+.document-preflight__page h3 {
+  color: #1e3a5f;
 }
 
 .document-preflight__trace {
@@ -211,7 +221,7 @@ nav a:hover {
 }
 
 .document-preflight__handoff label {
-  align-items: start;
+  align-items: flex-start;
   display: flex;
   font-weight: 600;
   gap: 0.5rem;

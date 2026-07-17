@@ -2,16 +2,21 @@
 
 import Link from 'next/link'
 import { type ChangeEvent, type FormEvent, useState } from 'react'
-import type {
-  DocumentPreflightIssue,
-  DocumentPreflightResult,
-  DocumentPreflightRow,
+import {
+  createOcrPreflightBatchPage,
+  createOcrSourceDocumentRef,
+  type DocumentPreflightIssue,
+  type DocumentPreflightResult,
+  type DocumentPreflightRow,
+  type OcrPreflightBatchPage,
 } from '@/lib/document-intake'
 import {
   createOcrManualReviewHandoff,
   saveOcrManualReviewHandoff,
   toOcrManualReviewHandoffRow,
 } from '@/lib/manual-review'
+
+const MAX_BATCH_IMAGES = 20
 
 const ISSUE_TEXT: Record<DocumentPreflightIssue['code'], string> = {
   OCR_DRAFT_REQUIRES_REVIEW:
@@ -22,6 +27,11 @@ const ISSUE_TEXT: Record<DocumentPreflightIssue['code'], string> = {
     'מבנה טבלת מעיין לא זוהה באופן שניתן לעקוב אחריו. לא נוצרו שורות OCR.',
   NO_TRACEABLE_ROWS:
     'זוהתה טבלה, אך לא נמצאה שורה עם מק״ט וברקוד מוצר יחד. לא נוצרו שורות OCR.',
+}
+
+interface SelectedSourceImage {
+  file: File
+  sourceDocumentRef: string
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -38,10 +48,6 @@ function isDocumentPreflightResult(value: unknown): value is DocumentPreflightRe
   )
 }
 
-function responseError(value: unknown): string | null {
-  return isRecord(value) && typeof value.error === 'string' ? value.error : null
-}
-
 function displayQuantity(value: number | null): string {
   return value === null ? 'לא זוהה' : String(value)
 }
@@ -50,64 +56,111 @@ function rowKey(pageNumber: number, row: DocumentPreflightRow): string {
   return `${pageNumber}:${row.source.parserRowIndex}`
 }
 
-function canTransferRow(row: DocumentPreflightRow): boolean {
-  return toOcrManualReviewHandoffRow(row) !== null
+function createSourceDocumentRef(): string {
+  const randomBytes = new Uint8Array(16)
+  globalThis.crypto.getRandomValues(randomBytes)
+  return createOcrSourceDocumentRef(randomBytes)
+}
+
+function canTransferRow(
+  row: DocumentPreflightRow,
+  sourceDocumentRef: string
+): boolean {
+  return toOcrManualReviewHandoffRow({ row, sourceDocumentRef }) !== null
 }
 
 export default function DocumentPreflightWorkspace() {
-  const [file, setFile] = useState<File | null>(null)
-  const [result, setResult] = useState<DocumentPreflightResult | null>(null)
+  const [files, setFiles] = useState<readonly SelectedSourceImage[]>([])
+  const [pages, setPages] = useState<readonly OcrPreflightBatchPage[] | null>(null)
+  const [failedPageNumbers, setFailedPageNumbers] = useState<readonly number[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [progress, setProgress] = useState<{ current: number; total: number } | null>(
+    null
+  )
   const [selectedRowKeys, setSelectedRowKeys] = useState<Record<string, boolean>>({})
   const [hasConfirmedSourceCheck, setHasConfirmedSourceCheck] = useState(false)
 
-  const selectFile = (event: ChangeEvent<HTMLInputElement>) => {
+  const selectFiles = (event: ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.target.files ?? [])
+    event.currentTarget.value = ''
+
     setError(null)
-    setResult(null)
+    setPages(null)
+    setFailedPageNumbers([])
     setSelectedRowKeys({})
     setHasConfirmedSourceCheck(false)
-    setFile(event.target.files?.[0] ?? null)
+
+    if (selectedFiles.length > MAX_BATCH_IMAGES) {
+      setFiles([])
+      setError(`אפשר לבחור עד ${MAX_BATCH_IMAGES} תמונות בכל אצווה.`)
+      return
+    }
+
+    try {
+      setFiles(
+        selectedFiles.map((file) => ({
+          file,
+          sourceDocumentRef: createSourceDocumentRef(),
+        }))
+      )
+    } catch {
+      setFiles([])
+      setError('הדפדפן לא הצליח ליצור מזהה זמני ובטוח למסמך. נסה שוב.')
+    }
   }
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!file) {
-      setError('יש לבחור תמונת JPEG, PNG או WebP אחת.')
+    if (files.length === 0) {
+      setError('יש לבחור לפחות תמונת JPEG, PNG או WebP אחת.')
       return
     }
 
     setError(null)
-    setResult(null)
+    setPages([])
+    setFailedPageNumbers([])
     setSelectedRowKeys({})
     setHasConfirmedSourceCheck(false)
     setIsSubmitting(true)
 
+    const completedPages: OcrPreflightBatchPage[] = []
+    const failures: number[] = []
+
     try {
-      const form = new FormData()
-      form.append('file', file)
-      const response = await fetch('/api/intake/preflight', {
-        method: 'POST',
-        body: form,
-      })
-      const body: unknown = await response.json()
+      for (const [index, selectedFile] of files.entries()) {
+        const pageNumber = index + 1
+        setProgress({ current: pageNumber, total: files.length })
 
-      if (!response.ok) {
-        throw new Error(responseError(body) ?? 'לא ניתן היה ליצור טיוטת OCR.')
-      }
-      if (!isDocumentPreflightResult(body)) {
-        throw new Error('התקבלה תשובה לא תקינה משירות ה-OCR.')
-      }
+        try {
+          const form = new FormData()
+          form.append('file', selectedFile.file)
+          const response = await fetch('/api/intake/preflight', {
+            method: 'POST',
+            body: form,
+          })
+          const body: unknown = await response.json()
 
-      setResult(body)
-    } catch (submissionError) {
-      setError(
-        submissionError instanceof Error
-          ? submissionError.message
-          : 'אירעה שגיאה לא צפויה בעת קריאת התמונה.'
-      )
+          if (!response.ok || !isDocumentPreflightResult(body) || body.pages.length !== 1) {
+            throw new Error('Invalid OCR preflight response.')
+          }
+
+          completedPages.push(
+            createOcrPreflightBatchPage(
+              body.pages[0],
+              pageNumber,
+              selectedFile.sourceDocumentRef
+            )
+          )
+          setPages([...completedPages])
+        } catch {
+          failures.push(pageNumber)
+          setFailedPageNumbers([...failures])
+        }
+      }
     } finally {
       setIsSubmitting(false)
+      setProgress(null)
     }
   }
 
@@ -116,13 +169,15 @@ export default function DocumentPreflightWorkspace() {
     setHasConfirmedSourceCheck(false)
   }
 
-  const selectedRows = result
-    ? result.pages.flatMap((page) =>
-        page.rows.filter(
-          (row) => selectedRowKeys[rowKey(page.pageNumber, row)] && canTransferRow(row)
-        )
+  const selectedRows = (pages ?? []).flatMap(({ page, sourceDocumentRef }) =>
+    page.rows
+      .filter(
+        (row) =>
+          selectedRowKeys[rowKey(page.pageNumber, row)] &&
+          canTransferRow(row, sourceDocumentRef)
       )
-    : []
+      .map((row) => ({ row, sourceDocumentRef }))
+  )
 
   const transferToManualReview = () => {
     const handoff = createOcrManualReviewHandoff(selectedRows)
@@ -142,46 +197,66 @@ export default function DocumentPreflightWorkspace() {
   return (
     <div className="manual-review document-preflight" dir="rtl">
       <section className="manual-review__intro">
-        <h1>קריאת מסמך לביקורת</h1>
+        <h1>קריאת מסמכים לביקורת</h1>
         <p>
-          העלה תמונה חדה אחת של טבלת ההזמנה. המערכת מחזירה טיוטת OCR של שורות
-          הטבלה בלבד, ללא יצירת ליקוט, ללא התאמת קטלוג וללא שמירת המסמך.
+          העלה תמונה אחת או יותר של טבלאות הזמנה. כל תמונה מעובדת בנפרד ובסדר
+          שנבחר, ומוחזרת רק כטיוטת OCR לביקורת — ללא יצירת ליקוט, התאמת קטלוג או
+          שמירת המסמך.
         </p>
       </section>
 
       <form className="manual-review__form" onSubmit={submit}>
         <label className="document-preflight__file-label">
-          תמונת מסמך
+          תמונות מסמך
           <input
             accept="image/jpeg,image/png,image/webp"
-            onChange={selectFile}
-            type="file"
             disabled={isSubmitting}
+            multiple
+            onChange={selectFiles}
+            type="file"
           />
         </label>
-        {file && <p className="document-preflight__selected">נבחרה תמונה אחת לבדיקה.</p>}
+        {files.length > 0 && (
+          <p className="document-preflight__selected">
+            נבחרו {files.length} תמונות. שמות הקבצים אינם מוצגים או נשמרים
+            בתוצאה.
+          </p>
+        )}
+        {progress && (
+          <p className="document-preflight__progress" role="status">
+            מעבד תמונה {progress.current} מתוך {progress.total}…
+          </p>
+        )}
         <button
           className="manual-review__primary-button"
           type="submit"
-          disabled={!file || isSubmitting}
+          disabled={files.length === 0 || isSubmitting}
         >
-          {isSubmitting ? 'קורא את הטבלה…' : 'צור טיוטת OCR'}
+          {isSubmitting ? 'קורא את התמונות…' : 'צור טיוטות OCR'}
         </button>
       </form>
 
-      {error && <p className="manual-review__error">{error}</p>}
+      {error && <p className="manual-review__error" role="alert">{error}</p>}
 
-      {result && (
+      {pages && (
         <section className="manual-review__result">
-          <h2>טיוטת OCR — נדרשת בדיקה ידנית</h2>
+          <h2>טיוטות OCR — נדרשת בדיקה ידנית</h2>
           <p className="manual-review__notice">
-            אין להשתמש בתוצאה זו כליקוט. בדוק את הברקוד, המק״ט ושלוש עמודות הכמות
-            מול המסמך המקורי, ואז הזן את הנתונים באופן מפורש במסך הבדיקה הידנית. אות
-            ה-OCR הוא סימן טכני בלבד ואינו מאשר נכונות של שדה כלשהו.
+            אין להשתמש בתוצאה זו כליקוט. בדוק את הברקוד, המק״ט ושלוש עמודות
+            הכמות מול המסמך המקורי, ואז הזן במפורש מארזים ובודדים במסך הבדיקה
+            הידנית. אות ה-OCR הוא סימן טכני בלבד ואינו מאשר נכונות של שדה כלשהו.
           </p>
 
-          {result.pages.map((page) => (
+          {failedPageNumbers.map((pageNumber) => (
+            <p className="document-preflight__issue" key={pageNumber}>
+              לא נוצרה טיוטת OCR לעמוד {pageNumber}. יש להזין אותו ידנית או לצלם
+              תקריב חד יותר.
+            </p>
+          ))}
+
+          {pages.map(({ page, sourceDocumentRef }) => (
             <div className="document-preflight__page" key={page.pageNumber}>
+              <h3>עמוד {page.pageNumber}</h3>
               {page.issues.map((issue) => (
                 <p className="document-preflight__issue" key={issue.code}>
                   {ISSUE_TEXT[issue.code]}
@@ -194,6 +269,7 @@ export default function DocumentPreflightWorkspace() {
                     <thead>
                       <tr>
                         <th>להעברה</th>
+                        <th>עמוד</th>
                         <th>שורת מקור</th>
                         <th>מק״ט</th>
                         <th>ברקוד</th>
@@ -207,14 +283,14 @@ export default function DocumentPreflightWorkspace() {
                     <tbody>
                       {page.rows.map((row) => {
                         const key = rowKey(page.pageNumber, row)
-                        const transferable = canTransferRow(row)
+                        const transferable = canTransferRow(row, sourceDocumentRef)
 
                         return (
                           <tr key={row.source.parserRowIndex}>
                             <td>
                               {transferable ? (
                                 <input
-                                  aria-label={`העבר שורת מקור ${row.source.printedRowNumber}`}
+                                  aria-label={`העבר עמוד ${page.pageNumber}, שורת מקור ${row.source.printedRowNumber}`}
                                   checked={selectedRowKeys[key] ?? false}
                                   onChange={(event) =>
                                     toggleRowSelection(key, event.target.checked)
@@ -225,6 +301,7 @@ export default function DocumentPreflightWorkspace() {
                                 'חסר מספר שורת מקור'
                               )}
                             </td>
+                            <td>{page.pageNumber}</td>
                             <td>{row.source.printedRowNumber ?? row.source.parserRowIndex}</td>
                             <td>{row.sku ?? 'לא זוהה'}</td>
                             <td>{row.barcode ?? 'לא זוהה'}</td>
@@ -253,7 +330,7 @@ export default function DocumentPreflightWorkspace() {
             <label>
               <input
                 checked={hasConfirmedSourceCheck}
-                disabled={selectedRows.length === 0}
+                disabled={selectedRows.length === 0 || isSubmitting}
                 onChange={(event) => setHasConfirmedSourceCheck(event.target.checked)}
                 type="checkbox"
               />
@@ -261,7 +338,9 @@ export default function DocumentPreflightWorkspace() {
             </label>
             <button
               className="manual-review__primary-button"
-              disabled={selectedRows.length === 0 || !hasConfirmedSourceCheck}
+              disabled={
+                isSubmitting || selectedRows.length === 0 || !hasConfirmedSourceCheck
+              }
               onClick={transferToManualReview}
               type="button"
             >

@@ -1,4 +1,5 @@
 export { reviewManualRows } from './service'
+export { findDuplicateSourceRows } from './source-duplicate'
 export {
   consumeOcrManualReviewHandoff,
   createOcrManualReviewHandoff,
@@ -12,8 +13,10 @@ export type {
   ManualReviewResult,
   ManualReviewRowInput,
 } from './types'
+export type { DuplicateSourceRow, SourceRowIdentity } from './source-duplicate'
 export type {
   ManualReviewOcrDraft,
+  OcrManualReviewHandoffCandidate,
   OcrManualReviewHandoffRow,
   OcrManualReviewHandoffV1,
   SessionStorageLike,

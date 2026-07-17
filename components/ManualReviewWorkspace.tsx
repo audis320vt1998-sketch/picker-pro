@@ -9,12 +9,14 @@ import type {
 } from '@/lib/manual-review'
 import {
   consumeOcrManualReviewHandoff,
+  findDuplicateSourceRows,
   toManualReviewOcrDraft,
   type ManualReviewOcrDraft,
 } from '@/lib/manual-review'
 
 interface EditableRow {
   id: number
+  sourceDocumentRef: string | null
   sourceFileName: string
   pageNumber: string
   rowNumber: string
@@ -34,6 +36,7 @@ function createEditableRow(
 ): EditableRow {
   return {
     id,
+    sourceDocumentRef: ocrDraft?.sourceDocumentRef ?? null,
     sourceFileName: '',
     pageNumber: ocrDraft ? String(ocrDraft.pageNumber) : '1',
     rowNumber: ocrDraft ? String(ocrDraft.rowNumber) : rowNumber,
@@ -65,6 +68,24 @@ function isManualReviewResult(value: unknown): value is ManualReviewResult {
 
 function errorFromResponse(value: unknown): string | null {
   return isRecord(value) && typeof value.error === 'string' ? value.error : null
+}
+
+function duplicateSourceError(value: unknown): string | null {
+  if (!isRecord(value) || !Array.isArray(value.details)) {
+    return null
+  }
+
+  const duplicate = value.details.find(
+    (detail) =>
+      isRecord(detail) &&
+      detail.code === 'DUPLICATE_SOURCE_ROW' &&
+      typeof detail.row === 'number' &&
+      typeof detail.duplicateOfRow === 'number'
+  )
+
+  return duplicate
+    ? `אותה שורת מקור נכללה פעמיים (שורות טופס ${duplicate.duplicateOfRow} ו-${duplicate.row}). הסר או תקן אחת מהן.`
+    : null
 }
 
 function displaySourceQuantity(value: number | null): string {
@@ -111,6 +132,9 @@ function validateAndConvertRow(row: EditableRow): ManualReviewRowInput | string 
   }
 
   return {
+    ...(row.sourceDocumentRef
+      ? { sourceDocumentRef: row.sourceDocumentRef }
+      : {}),
     ...(row.sourceFileName.trim()
       ? { sourceFileName: row.sourceFileName }
       : {}),
@@ -162,12 +186,14 @@ export default function ManualReviewWorkspace() {
     field: Field,
     value: EditableRow[Field]
   ) => {
+    setResult(null)
     setRows((currentRows) =>
       currentRows.map((row) => (row.id === id ? { ...row, [field]: value } : row))
     )
   }
 
   const addRow = () => {
+    setResult(null)
     setRows((currentRows) => [
       ...currentRows,
       createEditableRow(nextRowId, String(currentRows.length + 1)),
@@ -176,6 +202,7 @@ export default function ManualReviewWorkspace() {
   }
 
   const removeRow = (id: number) => {
+    setResult(null)
     setRows((currentRows) =>
       currentRows.length > 1
         ? currentRows.filter((row) => row.id !== id)
@@ -197,6 +224,14 @@ export default function ManualReviewWorkspace() {
       convertedRows.push(converted)
     }
 
+    const [duplicateSourceRow] = findDuplicateSourceRows(convertedRows)
+    if (duplicateSourceRow) {
+      setError(
+        `אותה שורת מקור נכללה פעמיים (שורות טופס ${duplicateSourceRow.firstInputIndex + 1} ו-${duplicateSourceRow.duplicateInputIndex + 1}). הסר או תקן אחת מהן.`
+      )
+      return
+    }
+
     setIsSubmitting(true)
     try {
       const response = await fetch('/api/manual-review', {
@@ -207,7 +242,11 @@ export default function ManualReviewWorkspace() {
       const body: unknown = await response.json()
 
       if (!response.ok) {
-        throw new Error(errorFromResponse(body) ?? 'הבדיקה לא הושלמה.')
+        throw new Error(
+          duplicateSourceError(body) ??
+            errorFromResponse(body) ??
+            'הבדיקה לא הושלמה.'
+        )
       }
 
       if (!isManualReviewResult(body)) {

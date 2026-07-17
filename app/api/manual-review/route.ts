@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import {
+  findDuplicateSourceRows,
   reviewManualRows,
   type ManualReviewRequest,
   type ManualReviewRowInput,
@@ -9,8 +10,18 @@ import {
 interface RequestValidationError {
   row?: number
   field?: string
+  code?: 'DUPLICATE_SOURCE_ROW'
+  duplicateOfRow?: number
   message: string
 }
+
+/**
+ * Document identity is deliberately limited to a random, lowercase UUID v4
+ * with a fixed prefix. This prevents callers from putting a filename, a
+ * customer identifier, or any other readable document metadata in the value.
+ */
+const OPAQUE_SOURCE_DOCUMENT_REF =
+  /^doc_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -29,6 +40,29 @@ function optionalString(
 
   if (typeof candidate !== 'string') {
     errors.push({ row, field, message: 'Must be a string when provided.' })
+    return undefined
+  }
+
+  return candidate
+}
+
+function optionalSourceDocumentRef(
+  value: Record<string, unknown>,
+  errors: RequestValidationError[],
+  row: number
+): string | undefined {
+  const candidate = value.sourceDocumentRef
+  if (candidate === undefined) {
+    return undefined
+  }
+
+  if (typeof candidate !== 'string' || !OPAQUE_SOURCE_DOCUMENT_REF.test(candidate)) {
+    errors.push({
+      row,
+      field: 'sourceDocumentRef',
+      message:
+        'Must be an opaque lowercase UUID v4 in the form doc_<uuid>; do not use filenames or customer identifiers.',
+    })
     return undefined
   }
 
@@ -90,6 +124,7 @@ function parseRow(
     return undefined
   }
 
+  const sourceDocumentRef = optionalSourceDocumentRef(value, errors, row)
   const sourceFileName = optionalString(value, 'sourceFileName', errors, row)
   const productName = optionalString(value, 'productName', errors, row)
   const barcode = optionalString(value, 'barcode', errors, row)
@@ -122,6 +157,7 @@ function parseRow(
   }
 
   return {
+    ...(sourceDocumentRef ? { sourceDocumentRef } : {}),
     ...(sourceFileName ? { sourceFileName } : {}),
     pageNumber,
     rowNumber,
@@ -131,6 +167,22 @@ function parseRow(
     ...(sku ? { sku } : {}),
     cases,
     units,
+  }
+}
+
+function validateDistinctSourceRows(
+  rows: readonly ManualReviewRowInput[],
+  errors: RequestValidationError[]
+): void {
+  for (const duplicate of findDuplicateSourceRows(rows)) {
+    errors.push({
+      row: duplicate.duplicateInputIndex + 1,
+      field: 'sourceDocumentRef',
+      code: 'DUPLICATE_SOURCE_ROW',
+      duplicateOfRow: duplicate.firstInputIndex + 1,
+      message:
+        'This sourceDocumentRef, pageNumber, and rowNumber combination is already included in the request.',
+    })
   }
 }
 
@@ -153,6 +205,10 @@ function parseRequest(value: unknown): {
   const rows = value.rows
     .map((row, index) => parseRow(row, index, errors))
     .filter((row): row is ManualReviewRowInput => row !== undefined)
+
+  if (errors.length === 0) {
+    validateDistinctSourceRows(rows, errors)
+  }
 
   return errors.length > 0 ? { errors } : { request: { rows }, errors }
 }

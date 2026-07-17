@@ -1,34 +1,36 @@
-'use client'
-
-import React from 'react'
+import type { ProductTotals } from '@/lib/domain/types'
 
 interface ResultsTableProps {
-  data?: Array<Record<string, any>>
+  totals?: readonly ProductTotals[]
 }
 
-export default function ResultsTable({ data = [] }: ResultsTableProps) {
-  if (data.length === 0) {
-    return <div className="results-table">No results to display</div>
+export default function ResultsTable({ totals = [] }: ResultsTableProps) {
+  if (totals.length === 0) {
+    return <div className="results-table">אין תוצאות מאומתות להצגה.</div>
   }
-
-  const columns = Object.keys(data[0])
 
   return (
     <div className="results-table">
       <table>
         <thead>
           <tr>
-            {columns.map((col) => (
-              <th key={col}>{col}</th>
-            ))}
+            <th>SKU</th>
+            <th>ברקוד</th>
+            <th>שם פריט</th>
+            <th>מארזים</th>
+            <th>בודדים</th>
+            <th>מקורות</th>
           </tr>
         </thead>
         <tbody>
-          {data.map((row, idx) => (
-            <tr key={idx}>
-              {columns.map((col) => (
-                <td key={`${idx}-${col}`}>{row[col]}</td>
-              ))}
+          {totals.map((total) => (
+            <tr key={total.product.productKey}>
+              <td>{total.product.sku ?? '—'}</td>
+              <td>{total.product.barcode ?? '—'}</td>
+              <td>{total.product.name}</td>
+              <td>{total.cases.value}</td>
+              <td>{total.units.value}</td>
+              <td>{total.cases.sources.length + total.units.sources.length}</td>
             </tr>
           ))}
         </tbody>

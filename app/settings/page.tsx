@@ -1,49 +1,34 @@
-'use client'
-
-import React, { useState } from 'react'
+const settings = {
+  appName: 'Picker Pro',
+  exportFormat: 'csv',
+  theme: 'light',
+}
 
 export default function SettingsPage() {
-  const [settings, setSettings] = useState({
-    appName: 'Picker Pro',
-    debugMode: false,
-    exportFormat: 'csv',
-    theme: 'light',
-  })
-
-  const handleChange = (key: string, value: any) => {
-    setSettings((prev) => ({
-      ...prev,
-      [key]: value,
-    }))
-  }
-
-  const handleSave = () => {
-    console.log('Saving settings:', settings)
-    // TODO: Implement save to backend
-  }
-
   return (
     <main>
-      <h1>Settings</h1>
-      
-      <form style={{ maxWidth: '500px', marginTop: '2rem' }}>
+      <h1>הגדרות</h1>
+      <p role="status">
+        שמירת הגדרות עדיין אינה זמינה. הערכים להלן מוצגים לקריאה בלבד.
+      </p>
+
+      <fieldset disabled style={{ maxWidth: '500px', marginTop: '2rem' }}>
         <div style={{ marginBottom: '1rem' }}>
-          <label htmlFor="appName">Application Name:</label>
+          <label htmlFor="appName">שם היישום:</label>
           <input
             id="appName"
             type="text"
             value={settings.appName}
-            onChange={(e) => handleChange('appName', e.target.value)}
+            readOnly
             style={{ width: '100%', padding: '0.5rem', marginTop: '0.5rem' }}
           />
         </div>
 
         <div style={{ marginBottom: '1rem' }}>
-          <label htmlFor="exportFormat">Default Export Format:</label>
+          <label htmlFor="exportFormat">פורמט ייצוא ברירת מחדל:</label>
           <select
             id="exportFormat"
             value={settings.exportFormat}
-            onChange={(e) => handleChange('exportFormat', e.target.value)}
             style={{ width: '100%', padding: '0.5rem', marginTop: '0.5rem' }}
           >
             <option value="csv">CSV</option>
@@ -53,45 +38,17 @@ export default function SettingsPage() {
         </div>
 
         <div style={{ marginBottom: '1rem' }}>
-          <label htmlFor="theme">Theme:</label>
+          <label htmlFor="theme">ערכת צבעים:</label>
           <select
             id="theme"
             value={settings.theme}
-            onChange={(e) => handleChange('theme', e.target.value)}
             style={{ width: '100%', padding: '0.5rem', marginTop: '0.5rem' }}
           >
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
+            <option value="light">בהירה</option>
+            <option value="dark">כהה</option>
           </select>
         </div>
-
-        <div style={{ marginBottom: '1rem' }}>
-          <label>
-            <input
-              type="checkbox"
-              checked={settings.debugMode}
-              onChange={(e) => handleChange('debugMode', e.target.checked)}
-            />
-            {' '}Enable Debug Mode
-          </label>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleSave}
-          style={{
-            padding: '0.75rem 1.5rem',
-            backgroundColor: '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '1rem',
-          }}
-        >
-          Save Settings
-        </button>
-      </form>
+      </fieldset>
     </main>
   )
 }

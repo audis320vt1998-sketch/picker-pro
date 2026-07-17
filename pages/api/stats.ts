@@ -1,1 +1,40 @@
-import type { NextApiRequest, NextApiResponse } from 'next'\nimport { initializeCatalog } from '../../lib/catalog'\n\ninterface StatsResponse {\n  success: boolean\n  data?: any\n  error?: string\n}\n\nexport default async function handler(\n  req: NextApiRequest,\n  res: NextApiResponse<StatsResponse>\n) {\n  if (req.method !== 'GET') {\n    return res.status(405).json({ success: false, error: 'Method not allowed' })\n  }\n\n  try {\n    const catalog = await initializeCatalog()\n\n    const statistics = await catalog.getStatistics()\n    const categories = await catalog.getCategories()\n    const suppliers = await catalog.getSuppliers()\n\n    res.status(200).json({\n      success: true,\n      data: {\n        statistics,\n        categories,\n        suppliers,\n        timestamp: new Date().toISOString()\n      }\n    })\n  } catch (error) {\n    console.error('Stats error:', error)\n    res.status(500).json({\n      success: false,\n      error: error instanceof Error ? error.message : 'Unknown error'\n    })\n  }\n}\n
+import type { NextApiRequest, NextApiResponse } from 'next'
+import { initializeCatalog } from '../../lib/catalog'
+
+interface StatsResponse {
+  success: boolean
+  data?: Record<string, unknown>
+  error?: string
+}
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<StatsResponse>
+) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ success: false, error: 'Method not allowed' })
+  }
+
+  try {
+    const catalog = await initializeCatalog()
+    const statistics = await catalog.getStatistics()
+    const categories = await catalog.getCategories()
+    const suppliers = await catalog.getSuppliers()
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        statistics,
+        categories,
+        suppliers,
+        timestamp: new Date().toISOString(),
+      },
+    })
+  } catch (error) {
+    console.error('Stats error:', error)
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    })
+  }
+}

@@ -39,6 +39,10 @@ returned page/row source references to that response.
   photos.
 - It returns only table-body fields: product identifiers, product name, the
   three source quantity columns, confidence, row bounds, and parser issues.
+- On a high-resolution Maayan close-up, it may first use a numeric-only
+  calibration pass. That pass requires at least four vertically aligned SKU
+  candidates, one unambiguous barcode per accepted row, and all three source
+  quantity values. It omits a row instead of guessing any missing value.
 - It never returns the filename, document header, customer information, full
   OCR text, original image, catalog match, totals, or a pick list.
 - The result is `NEEDS_REVIEW`. A user-initiated browser handoff can display
@@ -49,6 +53,9 @@ returned page/row source references to that response.
 
 - Cases and units are explicit fields; a transferred OCR draft leaves both
   blank until a user enters them.
+- A targeted numeric draft can have no readable printed source-row number. It
+  remains visible for comparison, but it cannot be transferred automatically
+  to manual review; enter that source row explicitly instead.
 - Values are checked only for being finite and non-negative.
 - The application never splits, converts, or infers quantities from pack size,
   parentheses, or a `1/N` pattern.

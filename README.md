@@ -12,6 +12,9 @@ Available now:
 - Explicit, separate input fields for cases and individual units.
 - A one-image Maayan OCR preflight at `/upload` that returns only a transient,
   review-required table draft.
+- For a sufficiently clear Maayan close-up, a calibrated numeric OCR pass can
+  recover repeated SKU/barcode/quantity rows as a review-only draft. It never
+  creates totals, resolves the catalog, or fills manual quantities.
 - A one-time, browser-only handoff of explicitly checked OCR identifiers to
   `/review`; source quantities are comparison-only and the manual case/unit
   fields remain blank.

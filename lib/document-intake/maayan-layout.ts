@@ -22,6 +22,28 @@ const NORMALIZED_COLUMNS = {
   totalUnits: [0.075, 0.175],
 } as const
 
+/**
+ * Close-up photos can be taken a few percent to either side of the canonical
+ * table position. We score these small horizontal offsets using the same
+ * strict printed-row/SKU/barcode anchors; an offset is never selected from
+ * product text or quantities alone.
+ */
+const HORIZONTAL_COLUMN_SHIFTS = [
+  0,
+  -0.01,
+  0.01,
+  -0.02,
+  0.02,
+  -0.03,
+  0.03,
+  -0.04,
+  0.04,
+  -0.05,
+  0.05,
+  -0.06,
+  0.06,
+] as const
+
 interface OcrLine {
   words: readonly OcrWord[]
   bounds: BoundingBox
@@ -50,11 +72,12 @@ function isInsideBand(word: OcrWord, band: ColumnBand): boolean {
 
 function normalizedBand(
   width: number,
-  range: readonly [number, number]
+  range: readonly [number, number],
+  horizontalShift = 0
 ): ColumnBand {
   return {
-    xMin: width * range[0],
-    xMax: width * range[1],
+    xMin: width * clamp(range[0] + horizontalShift, 0, 1),
+    xMax: width * clamp(range[1] + horizontalShift, 0, 1),
   }
 }
 
@@ -131,17 +154,56 @@ function median(values: readonly number[]): number {
     : sorted[middle]
 }
 
-function createColumns(width: number): MaayanTableLayout['columns'] {
+function createColumns(
+  width: number,
+  horizontalShift = 0
+): MaayanTableLayout['columns'] {
   return {
-    printedRowNumber: normalizedBand(width, NORMALIZED_COLUMNS.printedRowNumber),
-    sku: normalizedBand(width, NORMALIZED_COLUMNS.sku),
-    barcode: normalizedBand(width, NORMALIZED_COLUMNS.barcode),
-    productName: normalizedBand(width, NORMALIZED_COLUMNS.productName),
-    trayBarcode: normalizedBand(width, NORMALIZED_COLUMNS.trayBarcode),
-    caseQuantity: normalizedBand(width, NORMALIZED_COLUMNS.caseQuantity),
-    unitsPerCase: normalizedBand(width, NORMALIZED_COLUMNS.unitsPerCase),
-    totalUnits: normalizedBand(width, NORMALIZED_COLUMNS.totalUnits),
+    printedRowNumber: normalizedBand(
+      width,
+      NORMALIZED_COLUMNS.printedRowNumber,
+      horizontalShift
+    ),
+    sku: normalizedBand(width, NORMALIZED_COLUMNS.sku, horizontalShift),
+    barcode: normalizedBand(width, NORMALIZED_COLUMNS.barcode, horizontalShift),
+    productName: normalizedBand(
+      width,
+      NORMALIZED_COLUMNS.productName,
+      horizontalShift
+    ),
+    trayBarcode: normalizedBand(
+      width,
+      NORMALIZED_COLUMNS.trayBarcode,
+      horizontalShift
+    ),
+    caseQuantity: normalizedBand(
+      width,
+      NORMALIZED_COLUMNS.caseQuantity,
+      horizontalShift
+    ),
+    unitsPerCase: normalizedBand(
+      width,
+      NORMALIZED_COLUMNS.unitsPerCase,
+      horizontalShift
+    ),
+    totalUnits: normalizedBand(
+      width,
+      NORMALIZED_COLUMNS.totalUnits,
+      horizontalShift
+    ),
   }
+}
+
+function anchorsForColumns(
+  lines: readonly OcrLine[],
+  columns: MaayanTableLayout['columns']
+): OcrLine[] {
+  return lines.filter(
+    (line) =>
+      hasPrintedRowCandidate(line.words, columns.printedRowNumber) &&
+      hasSkuCandidate(line.words, columns.sku) &&
+      hasBarcodeCandidate(line.words, columns.barcode)
+  )
 }
 
 export function hasMinimumMaayanImageResolution(page: Pick<OcrPage, 'width' | 'height'>): boolean {
@@ -160,15 +222,24 @@ export function detectMaayanTableLayout(page: OcrPage): MaayanTableLayout | null
     return null
   }
 
-  const columns = createColumns(page.width)
   const lineMergeDistance = clamp(page.height * 0.004, 8, 22)
   const lines = groupLines(page.words, lineMergeDistance)
-  const anchors = lines.filter(
-    (line) =>
-      hasPrintedRowCandidate(line.words, columns.printedRowNumber) &&
-      hasSkuCandidate(line.words, columns.sku) &&
-      hasBarcodeCandidate(line.words, columns.barcode)
+  const bestCandidate = HORIZONTAL_COLUMN_SHIFTS.map((horizontalShift) => {
+    const columns = createColumns(page.width, horizontalShift)
+    return {
+      horizontalShift,
+      columns,
+      anchors: anchorsForColumns(lines, columns),
+    }
+  }).reduce(
+    (best, candidate) =>
+      candidate.anchors.length > best.anchors.length ||
+      (candidate.anchors.length === best.anchors.length &&
+        Math.abs(candidate.horizontalShift) < Math.abs(best.horizontalShift))
+        ? candidate
+        : best
   )
+  const { columns, anchors } = bestCandidate
 
   if (anchors.length === 0) {
     return null

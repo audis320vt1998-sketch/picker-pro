@@ -27,6 +27,16 @@ turn them into operational case/unit totals or split a value by pack size.
   concatenated.
 - Header, customer, and document-barcode text sit outside the configured table
   body and are not included in extracted row text.
+- When the normal full-page OCR cannot establish the table, the runtime first
+  scans a narrow numeric SKU area. It requires at least four vertically
+  aligned SKU candidates near the expected column, then accepts only an
+  unambiguous barcode and all three source quantities on each matching row.
+- This numeric recovery uses an in-memory, English/digits-only OCR worker and
+  never returns its full scan text. It may leave a product name or printed
+  source-row number empty; those fields must be checked manually.
+- A numeric recovery row is discarded if a barcode or quantity is missing or
+  ambiguous. It never joins fragments, repairs digits, converts quantities, or
+  creates a total.
 
 ## Preflight eligibility
 
@@ -35,7 +45,10 @@ turn them into operational case/unit totals or split a value by pack size.
   intentionally returned as `IMAGE_TOO_LOW_RESOLUTION`.
 - The x-column bands are normalized to the page width and the vertical table
   body is anchored to a same-line printed row number, SKU, and product barcode
-  trio. This avoids a fixed page crop across the supplied close-ups.
+  trio. This avoids a fixed page crop across the supplied close-ups. Small
+  horizontal shifts are scored only by that same strict anchor trio, so an
+  angled close-up can be calibrated without using customer/header text or
+  quantity-only tokens as alignment evidence.
 - The current endpoint is `/api/intake/preflight`. Its response is always
   `NEEDS_REVIEW`; it does not resolve a catalog or create pick totals.
 - A user may explicitly confirm selected, traceable rows and pass a minimal

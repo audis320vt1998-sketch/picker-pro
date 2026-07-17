@@ -60,6 +60,19 @@ export function preflightMaayanOcrPage(page: OcrPage): DocumentPreflightResult {
     ])
   }
 
+  if (page.recoveredRows && page.recoveredRows.length > 0) {
+    return createPage(
+      page.recoveredRows.map((row, index) => toPreflightRow(row, index + 1)),
+      [
+        {
+          code: 'OCR_DRAFT_REQUIRES_REVIEW',
+          message:
+            'These targeted OCR fields are a draft only. Verify every product identifier and each source quantity before manual review.',
+        },
+      ]
+    )
+  }
+
   const layout = detectMaayanTableLayout(page)
   if (!layout) {
     return createPage([], [

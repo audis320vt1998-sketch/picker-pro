@@ -15,6 +15,11 @@ export interface OcrPage {
   width: number
   height: number
   words: readonly OcrWord[]
+  /**
+   * Optional numeric-only recovery from a calibrated table pass. These rows
+   * remain OCR drafts and are never an operational result.
+   */
+  recoveredRows?: readonly MaayanParsedRow[]
 }
 
 export interface ColumnBand {

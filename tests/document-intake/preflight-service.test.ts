@@ -144,4 +144,75 @@ describe('preflightMaayanOcrPage', () => {
     expect(serialized).not.toContain('header-like')
     expect(serialized).not.toContain('12.23')
   })
+
+  it('calibrates a small horizontal table offset only when full row anchors agree', () => {
+    const shifted = preflightMaayanOcrPage({
+      width,
+      height,
+      words: [
+        word('1', 2570, 1000),
+        word('92101', 2320, 1000),
+        word('07290020531001', 1920, 1000),
+        word('Turbo', 1580, 1000),
+        word('Chocolate', 1400, 1000),
+        word('2.00', 680, 1000),
+        word('10.00', 500, 1000),
+        word('20.00', 300, 1000),
+      ],
+    })
+
+    expect(shifted.pages[0]?.rows).toEqual([
+      expect.objectContaining({
+        source: expect.objectContaining({ printedRowNumber: 1 }),
+        sku: '92101',
+        barcode: '07290020531001',
+        sourceQuantities: {
+          caseQuantity: 2,
+          unitsPerCase: 10,
+          totalUnits: 20,
+        },
+      }),
+    ])
+  })
+
+  it('uses a targeted numeric draft without exposing unrelated full-page OCR text', () => {
+    const result = preflightMaayanOcrPage({
+      width,
+      height,
+      words: [word('private-customer', 1600, 220)],
+      recoveredRows: [
+        {
+          printedRowNumber: null,
+          sku: '92101',
+          barcode: '07290020531001',
+          trayBarcode: null,
+          productName: null,
+          rawQuantities: {
+            caseQuantity: 2,
+            unitsPerCase: 10,
+            totalUnits: 20,
+          },
+          rawText: '92101 07290020531001 2 10 20',
+          confidence: 82,
+          boundingBox: { x0: 2000, y0: 1000, x1: 2500, y1: 1040 },
+          issues: [
+            {
+              code: 'MISSING_PRODUCT_NAME',
+              field: 'productName',
+              message: 'Product name must be checked manually.',
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(result.pages[0]?.rows).toEqual([
+      expect.objectContaining({
+        source: expect.objectContaining({ printedRowNumber: null }),
+        sku: '92101',
+        barcode: '07290020531001',
+      }),
+    ])
+    expect(JSON.stringify(result)).not.toContain('private-customer')
+  })
 })

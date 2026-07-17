@@ -1,11 +1,16 @@
 'use client'
 
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 import ResultsTable from '@/components/ResultsTable'
 import SummaryCards from '@/components/SummaryCards'
 import type {
   ManualReviewResult,
   ManualReviewRowInput,
+} from '@/lib/manual-review'
+import {
+  consumeOcrManualReviewHandoff,
+  toManualReviewOcrDraft,
+  type ManualReviewOcrDraft,
 } from '@/lib/manual-review'
 
 interface EditableRow {
@@ -19,20 +24,26 @@ interface EditableRow {
   sku: string
   cases: string
   units: string
+  ocrSourceQuantities: ManualReviewOcrDraft['sourceQuantities'] | null
 }
 
-function createEditableRow(id: number, rowNumber = '1'): EditableRow {
+function createEditableRow(
+  id: number,
+  rowNumber = '1',
+  ocrDraft?: ManualReviewOcrDraft
+): EditableRow {
   return {
     id,
     sourceFileName: '',
-    pageNumber: '1',
-    rowNumber,
-    rawText: '',
-    productName: '',
-    barcode: '',
-    sku: '',
-    cases: '0',
-    units: '0',
+    pageNumber: ocrDraft ? String(ocrDraft.pageNumber) : '1',
+    rowNumber: ocrDraft ? String(ocrDraft.rowNumber) : rowNumber,
+    rawText: ocrDraft?.rawText ?? '',
+    productName: ocrDraft?.productName ?? '',
+    barcode: ocrDraft?.barcode ?? '',
+    sku: ocrDraft?.sku ?? '',
+    cases: '',
+    units: '',
+    ocrSourceQuantities: ocrDraft?.sourceQuantities ?? null,
   }
 }
 
@@ -54,6 +65,10 @@ function isManualReviewResult(value: unknown): value is ManualReviewResult {
 
 function errorFromResponse(value: unknown): string | null {
   return isRecord(value) && typeof value.error === 'string' ? value.error : null
+}
+
+function displaySourceQuantity(value: number | null): string {
+  return value === null ? 'לא זוהה' : String(value)
 }
 
 function validateAndConvertRow(row: EditableRow): ManualReviewRowInput | string {
@@ -116,6 +131,31 @@ export default function ManualReviewWorkspace() {
   const [result, setResult] = useState<ManualReviewResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [importedOcrRowCount, setImportedOcrRowCount] = useState(0)
+
+  useEffect(() => {
+    try {
+      const handoff = consumeOcrManualReviewHandoff(window.sessionStorage)
+      if (!handoff) {
+        return
+      }
+
+      const drafts = handoff.rows.map(toManualReviewOcrDraft)
+      if (drafts.length === 0) {
+        return
+      }
+
+      setRows(
+        drafts.map((draft, index) =>
+          createEditableRow(index + 1, String(draft.rowNumber), draft)
+        )
+      )
+      setNextRowId(drafts.length + 1)
+      setImportedOcrRowCount(drafts.length)
+    } catch {
+      // Session storage is optional. The manual workflow remains available.
+    }
+  }, [])
 
   const updateRow = <Field extends keyof EditableRow>(
     id: number,
@@ -203,10 +243,35 @@ export default function ManualReviewWorkspace() {
         </p>
       </section>
 
+      {importedOcrRowCount > 0 && (
+        <p className="manual-review__notice" role="status">
+          הועברו {importedOcrRowCount} טיוטות OCR לבדיקה. המזהים והטקסט ניתנים
+          לעריכה; שלוש כמויות המקור מוצגות להשוואה בלבד. שדות המארזים והבודדים
+          נשארו ריקים וחובה למלא אותם במפורש מול המסמך.
+        </p>
+      )}
+
       <form className="manual-review__form" onSubmit={submit}>
         {rows.map((row, index) => (
           <fieldset className="manual-review__row" key={row.id}>
             <legend>שורת מקור {index + 1}</legend>
+            {row.ocrSourceQuantities && (
+              <aside className="manual-review__ocr-draft">
+                <strong>טיוטת OCR להשוואה בלבד</strong>
+                <p>
+                  מארזים במסמך:{' '}
+                  {displaySourceQuantity(row.ocrSourceQuantities.caseQuantity)} ·
+                  יחידות באריזה:{' '}
+                  {displaySourceQuantity(row.ocrSourceQuantities.unitsPerCase)} ·
+                  כמות כוללת במסמך:{' '}
+                  {displaySourceQuantity(row.ocrSourceQuantities.totalUnits)}
+                </p>
+                <p>
+                  הערכים האלה אינם מוזנים לשירות. בדוק את המסמך והקלד מארזים
+                  ובודדים במפורש בשדות שלמטה.
+                </p>
+              </aside>
+            )}
             <div className="manual-review__grid">
               <label>
                 קובץ מקור (אופציונלי)

@@ -8,6 +8,14 @@ Picker Pro has two active, non-persistent workflows:
 - **Maayan OCR preflight** at `/upload`, which returns a table draft that must
   be checked before any manual-review entry.
 
+After explicitly checking selected OCR rows against the source document, a
+user may transfer a minimal, one-time browser draft from `/upload` to
+`/review`. The transfer is held in session storage for at most 15 minutes and
+is removed as soon as the review screen reads it. It carries source page/row
+and product identifiers only, plus the three OCR source quantities for visual
+comparison. It does not carry a filename, original image, customer/header
+text, full OCR trace, catalog result, or an API request.
+
 Manual review remains the only workflow that can evaluate an explicit row
 against the catalog.
 
@@ -33,12 +41,14 @@ returned page/row source references to that response.
   three source quantity columns, confidence, row bounds, and parser issues.
 - It never returns the filename, document header, customer information, full
   OCR text, original image, catalog match, totals, or a pick list.
-- The result is `NEEDS_REVIEW`; its source quantities are not sent to manual
-  review or converted automatically.
+- The result is `NEEDS_REVIEW`. A user-initiated browser handoff can display
+  its source quantities beside the manual form, but they are never mapped to,
+  or sent as, the manual-review `cases` or `units` fields.
 
 ## Quantity policy
 
-- Cases and units are explicit fields.
+- Cases and units are explicit fields; a transferred OCR draft leaves both
+  blank until a user enters them.
 - Values are checked only for being finite and non-negative.
 - The application never splits, converts, or infers quantities from pack size,
   parentheses, or a `1/N` pattern.

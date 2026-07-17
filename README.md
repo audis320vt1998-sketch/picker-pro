@@ -12,6 +12,9 @@ Available now:
 - Explicit, separate input fields for cases and individual units.
 - A one-image Maayan OCR preflight at `/upload` that returns only a transient,
   review-required table draft.
+- A one-time, browser-only handoff of explicitly checked OCR identifiers to
+  `/review`; source quantities are comparison-only and the manual case/unit
+  fields remain blank.
 - Product resolution in the order barcode → SKU → canonical name → alias.
 - Source traceability for every accepted quantity (page and row).
 - Validation for unresolved, conflicting, unverified, and case-only products.
@@ -38,6 +41,8 @@ for code that is deliberately outside the active build.
 
 1. Cases and individual units are separate source fields and separate totals.
 2. A quantity is never divided by pack size or converted into a remainder.
+   An OCR source quantity is never copied automatically into a manual case or
+   individual-unit field.
 3. Barcode has priority, followed by SKU, name, and alias. A product with a
    catalog barcode is not resolved by name alone.
 4. Only a `verified` catalog match can enter an operational total.

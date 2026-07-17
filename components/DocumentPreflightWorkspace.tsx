@@ -5,7 +5,13 @@ import { type ChangeEvent, type FormEvent, useState } from 'react'
 import type {
   DocumentPreflightIssue,
   DocumentPreflightResult,
+  DocumentPreflightRow,
 } from '@/lib/document-intake'
+import {
+  createOcrManualReviewHandoff,
+  saveOcrManualReviewHandoff,
+  toOcrManualReviewHandoffRow,
+} from '@/lib/manual-review'
 
 const ISSUE_TEXT: Record<DocumentPreflightIssue['code'], string> = {
   OCR_DRAFT_REQUIRES_REVIEW:
@@ -40,15 +46,27 @@ function displayQuantity(value: number | null): string {
   return value === null ? 'לא זוהה' : String(value)
 }
 
+function rowKey(pageNumber: number, row: DocumentPreflightRow): string {
+  return `${pageNumber}:${row.source.parserRowIndex}`
+}
+
+function canTransferRow(row: DocumentPreflightRow): boolean {
+  return toOcrManualReviewHandoffRow(row) !== null
+}
+
 export default function DocumentPreflightWorkspace() {
   const [file, setFile] = useState<File | null>(null)
   const [result, setResult] = useState<DocumentPreflightResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedRowKeys, setSelectedRowKeys] = useState<Record<string, boolean>>({})
+  const [hasConfirmedSourceCheck, setHasConfirmedSourceCheck] = useState(false)
 
   const selectFile = (event: ChangeEvent<HTMLInputElement>) => {
     setError(null)
     setResult(null)
+    setSelectedRowKeys({})
+    setHasConfirmedSourceCheck(false)
     setFile(event.target.files?.[0] ?? null)
   }
 
@@ -61,6 +79,8 @@ export default function DocumentPreflightWorkspace() {
 
     setError(null)
     setResult(null)
+    setSelectedRowKeys({})
+    setHasConfirmedSourceCheck(false)
     setIsSubmitting(true)
 
     try {
@@ -88,6 +108,34 @@ export default function DocumentPreflightWorkspace() {
       )
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const toggleRowSelection = (key: string, selected: boolean) => {
+    setSelectedRowKeys((current) => ({ ...current, [key]: selected }))
+    setHasConfirmedSourceCheck(false)
+  }
+
+  const selectedRows = result
+    ? result.pages.flatMap((page) =>
+        page.rows.filter(
+          (row) => selectedRowKeys[rowKey(page.pageNumber, row)] && canTransferRow(row)
+        )
+      )
+    : []
+
+  const transferToManualReview = () => {
+    const handoff = createOcrManualReviewHandoff(selectedRows)
+    if (!handoff || !hasConfirmedSourceCheck) {
+      setError('יש לבחור שורות עם מספר מקור ולאשר שבוצעה בדיקה מול המסמך.')
+      return
+    }
+
+    try {
+      saveOcrManualReviewHandoff(window.sessionStorage, handoff)
+      window.location.assign('/review')
+    } catch {
+      setError('לא ניתן לשמור את טיוטת הבדיקה בדפדפן. עבור להזנה ידנית.')
     }
   }
 
@@ -145,6 +193,7 @@ export default function DocumentPreflightWorkspace() {
                   <table>
                     <thead>
                       <tr>
+                        <th>להעברה</th>
                         <th>שורת מקור</th>
                         <th>מק״ט</th>
                         <th>ברקוד</th>
@@ -156,24 +205,43 @@ export default function DocumentPreflightWorkspace() {
                       </tr>
                     </thead>
                     <tbody>
-                      {page.rows.map((row) => (
-                        <tr key={row.source.parserRowIndex}>
-                          <td>{row.source.printedRowNumber ?? row.source.parserRowIndex}</td>
-                          <td>{row.sku ?? 'לא זוהה'}</td>
-                          <td>{row.barcode ?? 'לא זוהה'}</td>
-                          <td>
-                            {row.productName ?? 'לא זוהה'}
-                            <details className="document-preflight__trace">
-                              <summary>טקסט מקור</summary>
-                              <span>{row.traceText}</span>
-                            </details>
-                          </td>
-                          <td>{displayQuantity(row.sourceQuantities.caseQuantity)}</td>
-                          <td>{displayQuantity(row.sourceQuantities.unitsPerCase)}</td>
-                          <td>{displayQuantity(row.sourceQuantities.totalUnits)}</td>
-                          <td>{Math.round(row.confidence)}%</td>
-                        </tr>
-                      ))}
+                      {page.rows.map((row) => {
+                        const key = rowKey(page.pageNumber, row)
+                        const transferable = canTransferRow(row)
+
+                        return (
+                          <tr key={row.source.parserRowIndex}>
+                            <td>
+                              {transferable ? (
+                                <input
+                                  aria-label={`העבר שורת מקור ${row.source.printedRowNumber}`}
+                                  checked={selectedRowKeys[key] ?? false}
+                                  onChange={(event) =>
+                                    toggleRowSelection(key, event.target.checked)
+                                  }
+                                  type="checkbox"
+                                />
+                              ) : (
+                                'חסר מספר שורת מקור'
+                              )}
+                            </td>
+                            <td>{row.source.printedRowNumber ?? row.source.parserRowIndex}</td>
+                            <td>{row.sku ?? 'לא זוהה'}</td>
+                            <td>{row.barcode ?? 'לא זוהה'}</td>
+                            <td>
+                              {row.productName ?? 'לא זוהה'}
+                              <details className="document-preflight__trace">
+                                <summary>טקסט מקור</summary>
+                                <span>{row.traceText}</span>
+                              </details>
+                            </td>
+                            <td>{displayQuantity(row.sourceQuantities.caseQuantity)}</td>
+                            <td>{displayQuantity(row.sourceQuantities.unitsPerCase)}</td>
+                            <td>{displayQuantity(row.sourceQuantities.totalUnits)}</td>
+                            <td>{Math.round(row.confidence)}%</td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -181,8 +249,32 @@ export default function DocumentPreflightWorkspace() {
             </div>
           ))}
 
+          <div className="document-preflight__handoff">
+            <label>
+              <input
+                checked={hasConfirmedSourceCheck}
+                disabled={selectedRows.length === 0}
+                onChange={(event) => setHasConfirmedSourceCheck(event.target.checked)}
+                type="checkbox"
+              />
+              בדקתי מול המסמך את המזהים ואת שלוש כמויות המקור בכל השורות שנבחרו.
+            </label>
+            <button
+              className="manual-review__primary-button"
+              disabled={selectedRows.length === 0 || !hasConfirmedSourceCheck}
+              onClick={transferToManualReview}
+              type="button"
+            >
+              העבר {selectedRows.length} שורות לטיוטת בדיקה ידנית
+            </button>
+            <p>
+              ההעברה זמנית בדפדפן בלבד. המארזים והבודדים יישארו ריקים במסך
+              הבדיקה, ולא יישלחו אוטומטית לשירות.
+            </p>
+          </div>
+
           <Link className="manual-review__primary-button" href="/review">
-            עבור להזנה ידנית ובדיקה
+            עבור להזנה ידנית ללא העברת טיוטה
           </Link>
         </section>
       )}

@@ -38,6 +38,12 @@ turn them into operational case/unit totals or split a value by pack size.
   trio. This avoids a fixed page crop across the supplied close-ups.
 - The current endpoint is `/api/intake/preflight`. Its response is always
   `NEEDS_REVIEW`; it does not resolve a catalog or create pick totals.
+- A user may explicitly confirm selected, traceable rows and pass a minimal
+  draft to `/review` through one-time session storage. The draft excludes the
+  image, filename, document/header OCR trace, and customer data. Its three
+  source quantity fields are comparison-only; they are not copied into the
+  manual `cases` or `units` inputs and are not part of the manual-review API
+  request.
 
 ## OCR runtime
 

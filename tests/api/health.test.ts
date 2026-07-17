@@ -10,6 +10,7 @@ describe('GET /api/health', () => {
       status: 'degraded',
       version: '0.1.0',
       capabilities: {
+        manualReview: 'available',
         documentProcessing: 'unavailable',
         aiAssistance: 'unavailable',
       },

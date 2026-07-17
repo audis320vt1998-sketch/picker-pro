@@ -66,6 +66,17 @@ describe('VerifiedProductCatalog', () => {
     })
   })
 
+  it('does not resolve a catalog record by name alone when it has a barcode', () => {
+    const catalog = new VerifiedProductCatalog([verifiedProduct])
+
+    expect(catalog.resolve({ productName: verifiedProduct.name })).toEqual({
+      status: 'unresolved',
+    })
+    expect(catalog.resolve({ productName: 'Verified Product' })).toEqual({
+      status: 'unresolved',
+    })
+  })
+
   it('returns a conflict instead of choosing between contradictory identifiers', () => {
     const otherProduct: VerifiedCatalogProduct = {
       ...verifiedProduct,

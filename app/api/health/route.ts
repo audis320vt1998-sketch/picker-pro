@@ -7,6 +7,7 @@ export async function GET() {
       timestamp: new Date().toISOString(),
       version: '0.1.0',
       capabilities: {
+        manualReview: 'available',
         documentProcessing: 'unavailable',
         aiAssistance: 'unavailable',
       },

@@ -128,20 +128,32 @@ export class VerifiedProductCatalog {
     const productName = input.productName ? normalizeName(input.productName) : null
 
     for (const product of this.products) {
-      if (barcode && product.barcode === barcode) {
+      const catalogBarcode = product.barcode
+        ? normalizeIdentifier(product.barcode)
+        : null
+      const catalogSku = product.sku ? normalizeIdentifier(product.sku) : null
+
+      if (barcode && catalogBarcode === barcode) {
         matches.push({ product, method: 'barcode' })
       }
 
-      if (sku && product.sku === sku) {
+      if (sku && catalogSku === sku) {
         matches.push({ product, method: 'sku' })
       }
 
-      if (productName && normalizeName(product.name) === productName) {
+      // A catalog barcode is authoritative. Name/alias matching is only safe
+      // for catalog records whose barcode is still genuinely unknown.
+      if (
+        productName &&
+        !catalogBarcode &&
+        normalizeName(product.name) === productName
+      ) {
         matches.push({ product, method: 'canonical_name' })
       }
 
       if (
         productName &&
+        !catalogBarcode &&
         product.aliases.some((alias) => normalizeName(alias) === productName)
       ) {
         matches.push({ product, method: 'alias' })

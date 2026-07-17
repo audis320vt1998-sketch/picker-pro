@@ -1,21 +1,10 @@
 /**
- * Catalog Module - Main exports
- * 
- * Includes:
- * - Catalog service (in-memory)
- * - Catalog loader (JSON/CSV)
- * - Product database
+ * Operational catalog surface.
+ *
+ * Legacy catalog services are intentionally not exported here. They use an
+ * incompatible, non-traceable product model and are quarantined until they are
+ * rewritten against the Foundation contracts.
  */
-
-export { CatalogService, getCatalog, setCatalog } from './catalog'
-
-export {
-  CatalogLoader,
-  initializeCatalog,
-  getInitializedCatalog,
-  resetCatalog
-} from './loader'
-
 export {
   VerifiedProductCatalog,
   type CatalogVerificationStatus,
@@ -24,3 +13,10 @@ export {
   type ProductResolutionMethod,
   type VerifiedCatalogProduct,
 } from './verified-catalog'
+
+export {
+  loadVerifiedCatalog,
+  VerifiedCatalogConfigurationError,
+  type LoadedVerifiedCatalog,
+  type VerifiedCatalogReadiness,
+} from './verified-catalog-loader'

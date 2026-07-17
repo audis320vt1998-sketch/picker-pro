@@ -51,6 +51,16 @@
   ],
   "exclude": [
     "node_modules",
-    "tests"
+    "tests",
+    "lib/aggregator/**",
+    "lib/calculator/**",
+    "lib/database/**",
+    "lib/engine/**",
+    "lib/export/**",
+    "lib/ocr/**",
+    "lib/parser/**",
+    "lib/rules/**",
+    "lib/catalog/catalog.ts",
+    "lib/catalog/loader.ts"
   ]
 }

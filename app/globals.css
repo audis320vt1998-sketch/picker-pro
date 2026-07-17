@@ -46,3 +46,152 @@ nav a {
 nav a:hover {
   background-color: #0056b3;
 }
+
+.manual-review {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.manual-review__intro,
+.manual-review__form,
+.manual-review__result {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+}
+
+.manual-review__intro p,
+.manual-review__result > p {
+  line-height: 1.6;
+}
+
+.manual-review__row {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+}
+
+.manual-review__row legend {
+  color: #1e3a5f;
+  font-weight: 700;
+  padding: 0 0.5rem;
+}
+
+.manual-review__grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+.manual-review label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.manual-review input,
+.manual-review textarea {
+  border: 1px solid #94a3b8;
+  border-radius: 0.375rem;
+  font: inherit;
+  padding: 0.55rem 0.65rem;
+}
+
+.manual-review textarea {
+  min-height: 4.75rem;
+  resize: vertical;
+}
+
+.manual-review__raw-text {
+  margin-top: 0.75rem;
+}
+
+.manual-review__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.manual-review__primary-button,
+.manual-review__secondary-button {
+  border: 0;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  display: inline-block;
+  font: inherit;
+  padding: 0.65rem 1rem;
+  text-decoration: none;
+}
+
+.manual-review__primary-button {
+  background: #007bff;
+  color: #fff;
+}
+
+.manual-review__primary-button:disabled,
+.manual-review__secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.manual-review__secondary-button {
+  background: #e2e8f0;
+  color: #1e293b;
+  margin-top: 0.75rem;
+}
+
+.manual-review__error {
+  background: #fee2e2;
+  border: 1px solid #ef4444;
+  border-radius: 0.375rem;
+  color: #991b1b;
+  padding: 0.75rem;
+}
+
+.manual-review__notice {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 0.375rem;
+  color: #78350f;
+  margin-top: 1rem;
+  padding: 0.75rem;
+}
+
+.manual-review__issues {
+  margin-top: 1.5rem;
+}
+
+.manual-review__table-wrapper {
+  overflow-x: auto;
+}
+
+.manual-review table {
+  border-collapse: collapse;
+  margin-top: 0.75rem;
+  min-width: 38rem;
+  width: 100%;
+}
+
+.manual-review th,
+.manual-review td {
+  border: 1px solid #cbd5e1;
+  padding: 0.6rem;
+  text-align: right;
+}
+
+.manual-review th {
+  background: #eff6ff;
+}
+
+@media (max-width: 640px) {
+  main {
+    padding: 1rem;
+  }
+
+  nav ul {
+    flex-wrap: wrap;
+  }
+}

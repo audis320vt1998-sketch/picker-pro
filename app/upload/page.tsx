@@ -1,21 +1,20 @@
-'use client'
-
-import { useState } from 'react'
-import UploadBox from '@/components/UploadBox'
+import Link from 'next/link'
 
 export default function UploadPage() {
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
-
   return (
     <main>
       <h1>העלאת מסמכים</h1>
-      <UploadBox onFileSelect={setSelectedFiles} />
-
-      {selectedFiles.length > 0 && (
-        <p style={{ marginTop: '2rem' }}>
-          נבחרו {selectedFiles.length} קבצים לעיבוד.
-        </p>
-      )}
+      <p>
+        עיבוד תמונות ו‑PDF באמצעות OCR עדיין אינו זמין, ולכן העלאת מסמכים לא
+        תפיק תוצאת ליקוט בשלב זה.
+      </p>
+      <p style={{ marginTop: '1rem' }}>
+        בינתיים אפשר להזין את השורות שנקראו מהמסמך באופן ידני ולבדוק אותן מול
+        הקטלוג.
+      </p>
+      <Link href="/review" className="manual-review__primary-button">
+        עבור להזנה ידנית ובדיקה
+      </Link>
     </main>
   )
 }

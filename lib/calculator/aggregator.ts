@@ -1,5 +1,22 @@
-import type { AggregationResult } from './types'
-import type { PickingRow, Product, CatalogEntry } from '../engine/types'
+import type { AggregationResult, Totals } from './types'
+import type { Product, CatalogEntry } from '../engine/types'
+
+/** Create a zero-value Totals object. */
+export function initTotals(): Totals {
+  return { units: 0, cases: 0 }
+}
+
+/** Add a quantity to totals in the appropriate bucket. */
+export function addToTotals(totals: Totals, quantity: number, allowUnits: boolean): Totals {
+  return allowUnits
+    ? { ...totals, units: totals.units + quantity }
+    : { ...totals, cases: totals.cases + quantity }
+}
+
+/** Return the combined unit + case quantity. */
+export function getTotalQuantity(totals: Totals): number {
+  return totals.units + totals.cases
+}
 
 /**
  * Aggregator - Group and organize products

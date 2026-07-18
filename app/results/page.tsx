@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+
 import SummaryCards from '@/components/SummaryCards'
 import ResultsTable from '@/components/ResultsTable'
 

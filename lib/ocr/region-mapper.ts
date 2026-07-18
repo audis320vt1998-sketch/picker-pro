@@ -3,7 +3,6 @@
  * Extract text from specific regions of document images
  */
 
-import type Tesseract from 'tesseract.js'
 import type { Region, PickingListLayout } from './layouts'
 
 export interface ExtractedRegion {

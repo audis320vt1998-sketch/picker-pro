@@ -168,7 +168,7 @@ export class RulesEngine {
     for (const row of rows) {
       const { row: processedRow, results } = this.executeRules(row, catalog)
       resultRows.push(processedRow)
-      resultMap.set(row.index, results)
+      resultMap.set(row.index ?? resultRows.length - 1, results)
     }
 
     return { rows: resultRows, results: resultMap }

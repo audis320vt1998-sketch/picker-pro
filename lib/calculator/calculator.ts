@@ -3,20 +3,17 @@ import {
   CalculationResult,
   CalculatorInput,
   Product,
-  Totals,
   ProductTotals,
   ProductCalculationResult,
 } from './types'
 import {
   initTotals,
   addToTotals,
-  getTotalQuantity,
 } from './aggregator'
 import {
   validateProduct,
   validateRule,
   validateQuantity,
-  addWarning,
 } from './validation'
 
 /**
@@ -48,7 +45,7 @@ export function calculate(
   }
 
   // Rule and product must both allow units
-  const allowUnits = rule!.allowUnits && product!.allowUnits
+  const allowUnits = (rule!.allowUnits ?? false) && (product!.allowUnits ?? false)
 
   // Add quantity to appropriate total
   const updatedTotals = addToTotals(totals, input.quantity, allowUnits)
@@ -117,7 +114,7 @@ export function calculateProduct(
   packSize = product!.packSize
 
   // Rule and product must both allow units
-  const allowUnits = rule!.allowUnits && product!.allowUnits
+  const allowUnits = (rule!.allowUnits ?? false) && (product!.allowUnits ?? false)
 
   if (allowUnits) {
     units = input.quantity

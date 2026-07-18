@@ -248,3 +248,18 @@ export function getCatalog(): CatalogService {
 export function setCatalog(catalog: CatalogService): void {
   globalCatalog = catalog
 }
+
+/**
+ * Synchronous helper: look up a product by SKU using the global catalog.
+ * Returns undefined if the catalog is not yet initialized or the SKU is absent.
+ */
+export function getProduct(sku: string): CatalogEntry | undefined {
+  return globalCatalog?.getAsMap().get(sku)
+}
+
+/**
+ * Synchronous helper: check whether a SKU exists in the global catalog.
+ */
+export function hasProduct(sku: string): boolean {
+  return globalCatalog?.getAsMap().has(sku) ?? false
+}

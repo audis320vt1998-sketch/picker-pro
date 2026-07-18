@@ -74,7 +74,7 @@ export async function withRulesExample() {
   const engine = new PickingEngine(catalogEntries, '2026-07-12-002')
   
   // Load rules
-  engine.loadRules(rulesConfig.rules)
+  engine.loadRules(rulesConfig)
 
   const ocrText = `
     88135 Pringles Original 2 units

@@ -19,9 +19,11 @@ function toParsedRow(
       },
       row: {
         rowNumber: input.rowNumber,
-        rawText: input.rawText,
       },
     },
+    // rawText is needed while resolving this transient row, but source
+    // references are returned to the browser and therefore retain only the
+    // page/row location.
     rawText: input.rawText,
     productHint: input.productName ?? '',
     ...(input.barcode ? { barcode: input.barcode } : {}),

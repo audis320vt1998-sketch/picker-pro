@@ -1,6 +1,11 @@
 export { reviewManualRows } from './service'
 export { findDuplicateSourceRows } from './source-duplicate'
 export {
+  manualReviewDuplicateSourceErrorFromResponse,
+  manualReviewFailureCodeFromResponse,
+  manualReviewIssuePresentation,
+} from './failure'
+export {
   consumeOcrManualReviewHandoff,
   createOcrManualReviewHandoff,
   OCR_MANUAL_REVIEW_HANDOFF_STORAGE_KEY,
@@ -14,6 +19,12 @@ export type {
   ManualReviewRowInput,
 } from './types'
 export type { DuplicateSourceRow, SourceRowIdentity } from './source-duplicate'
+export type {
+  ManualReviewApiFailureCode,
+  ManualReviewDuplicateSourceError,
+  ManualReviewFailureCode,
+  ManualReviewIssuePresentation,
+} from './failure'
 export type {
   ManualReviewOcrDraft,
   OcrManualReviewHandoffCandidate,

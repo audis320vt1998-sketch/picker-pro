@@ -25,6 +25,22 @@ function validRow(overrides: Record<string, unknown> = {}) {
 }
 
 describe('POST /api/manual-review', () => {
+  it('does not cache malformed JSON responses', async () => {
+    const response = await POST(
+      new NextRequest('http://localhost/api/manual-review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{',
+      })
+    )
+
+    expect(response.status).toBe(400)
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
+    await expect(response.json()).resolves.toMatchObject({
+      code: 'INVALID_MANUAL_REVIEW_INPUT',
+    })
+  })
+
   it('rejects quantities that would require implicit conversion or guessing', async () => {
     const response = await POST(
       requestWithJson({
@@ -42,6 +58,7 @@ describe('POST /api/manual-review', () => {
     )
 
     expect(response.status).toBe(400)
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
     await expect(response.json()).resolves.toMatchObject({
       error: 'Manual review input is invalid.',
       code: 'INVALID_MANUAL_REVIEW_INPUT',
@@ -95,6 +112,7 @@ describe('POST /api/manual-review', () => {
     )
 
     expect(response.status).toBe(400)
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
     await expect(response.json()).resolves.toMatchObject({
       error: 'Manual review input is invalid.',
       code: 'INVALID_MANUAL_REVIEW_INPUT',
@@ -104,6 +122,26 @@ describe('POST /api/manual-review', () => {
           field: 'sourceDocumentRef',
           code: 'DUPLICATE_SOURCE_ROW',
           duplicateOfRow: 1,
+        },
+      ],
+    })
+  })
+
+  it('rejects an empty manual source text on the API boundary', async () => {
+    const response = await POST(
+      requestWithJson({
+        rows: [validRow({ rawText: '   ' })],
+      })
+    )
+
+    expect(response.status).toBe(400)
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
+    await expect(response.json()).resolves.toMatchObject({
+      code: 'INVALID_MANUAL_REVIEW_INPUT',
+      details: [
+        {
+          row: 1,
+          field: 'rawText',
         },
       ],
     })
@@ -145,6 +183,19 @@ describe('POST /api/manual-review', () => {
     expect(response.status).toBe(200)
     const body = await response.json()
     expect(JSON.stringify(body)).not.toContain(sourceDocumentRef)
+  })
+
+  it('does not return the manual source text in review results', async () => {
+    const manualSourceText = 'private-manual-source-text-sentinel'
+    const response = await POST(
+      requestWithJson({
+        rows: [validRow({ rawText: manualSourceText })],
+      })
+    )
+
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(JSON.stringify(body)).not.toContain(manualSourceText)
   })
 
   it('requires an opaque non-PII source document reference when one is provided', async () => {

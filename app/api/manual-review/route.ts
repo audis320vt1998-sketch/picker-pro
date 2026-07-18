@@ -35,6 +35,13 @@ const ALLOWED_ROW_FIELDS = new Set([
 const OPAQUE_SOURCE_DOCUMENT_REF =
   /^doc_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
+function noStoreJson(body: unknown, status = 200) {
+  return NextResponse.json(body, {
+    status,
+    headers: { 'Cache-Control': 'no-store' },
+  })
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
@@ -132,8 +139,12 @@ function requiredRawText(
   row: number
 ): string | undefined {
   const rawText = value.rawText
-  if (typeof rawText !== 'string') {
-    errors.push({ row, field: 'rawText', message: 'Must be a string.' })
+  if (typeof rawText !== 'string' || rawText.trim().length === 0) {
+    errors.push({
+      row,
+      field: 'rawText',
+      message: 'Must be a non-empty string.',
+    })
     return undefined
   }
 
@@ -244,24 +255,24 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json()
   } catch {
-    return NextResponse.json(
+    return noStoreJson(
       {
         error: 'Request body must be valid JSON.',
         code: 'INVALID_MANUAL_REVIEW_INPUT',
       },
-      { status: 400 }
+      400
     )
   }
 
   const parsed = parseRequest(body)
   if (!parsed.request) {
-    return NextResponse.json(
+    return noStoreJson(
       {
         error: 'Manual review input is invalid.',
         code: 'INVALID_MANUAL_REVIEW_INPUT',
         details: parsed.errors,
       },
-      { status: 400 }
+      400
     )
   }
 
@@ -271,16 +282,14 @@ export async function POST(request: NextRequest) {
       `manual-review-${randomUUID()}`
     )
 
-    return NextResponse.json(result, {
-      headers: { 'Cache-Control': 'no-store' },
-    })
+    return noStoreJson(result)
   } catch {
-    return NextResponse.json(
+    return noStoreJson(
       {
         error: 'The verified product catalog is unavailable.',
         code: 'CATALOG_UNAVAILABLE',
       },
-      { status: 503 }
+      503
     )
   }
 }

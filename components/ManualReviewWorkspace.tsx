@@ -1,6 +1,6 @@
 'use client'
 
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 import ResultsTable from '@/components/ResultsTable'
 import SummaryCards from '@/components/SummaryCards'
 import type {
@@ -10,8 +10,13 @@ import type {
 import {
   consumeOcrManualReviewHandoff,
   findDuplicateSourceRows,
+  manualReviewDuplicateSourceErrorFromResponse,
+  manualReviewFailureCodeFromResponse,
+  manualReviewIssuePresentation,
   toManualReviewOcrDraft,
   type ManualReviewOcrDraft,
+  type ManualReviewDuplicateSourceError,
+  type ManualReviewFailureCode,
 } from '@/lib/manual-review'
 
 interface EditableRow {
@@ -26,6 +31,15 @@ interface EditableRow {
   cases: string
   units: string
   ocrSourceQuantities: ManualReviewOcrDraft['sourceQuantities'] | null
+}
+
+const MANUAL_REVIEW_FAILURE_TEXT: Record<ManualReviewFailureCode, string> = {
+  INVALID_MANUAL_REVIEW_INPUT:
+    'לא ניתן לבדוק את השורות שנשלחו. יש לבדוק את השדות ולנסות שוב.',
+  CATALOG_UNAVAILABLE:
+    'קטלוג המוצרים המאומת אינו זמין כרגע. נסה שוב מאוחר יותר.',
+  UNKNOWN:
+    'לא ניתן להשלים את הבדיקה כרגע. נסה שוב מאוחר יותר.',
 }
 
 function createEditableRow(
@@ -64,26 +78,10 @@ function isManualReviewResult(value: unknown): value is ManualReviewResult {
   )
 }
 
-function errorFromResponse(value: unknown): string | null {
-  return isRecord(value) && typeof value.error === 'string' ? value.error : null
-}
-
-function duplicateSourceError(value: unknown): string | null {
-  if (!isRecord(value) || !Array.isArray(value.details)) {
-    return null
-  }
-
-  const duplicate = value.details.find(
-    (detail) =>
-      isRecord(detail) &&
-      detail.code === 'DUPLICATE_SOURCE_ROW' &&
-      typeof detail.row === 'number' &&
-      typeof detail.duplicateOfRow === 'number'
-  )
-
-  return duplicate
-    ? `אותה שורת מקור נכללה פעמיים (שורות טופס ${duplicate.duplicateOfRow} ו-${duplicate.row}). הסר או תקן אחת מהן.`
-    : null
+function duplicateSourceErrorText(
+  duplicate: ManualReviewDuplicateSourceError
+): string {
+  return `אותה שורת מקור נכללה פעמיים (שורות טופס ${duplicate.duplicateOfRow} ו-${duplicate.row}). הסר או תקן אחת מהן.`
 }
 
 function displaySourceQuantity(value: number | null): string {
@@ -151,6 +149,7 @@ export default function ManualReviewWorkspace() {
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [importedOcrRowCount, setImportedOcrRowCount] = useState(0)
+  const submitLock = useRef(false)
 
   useEffect(() => {
     try {
@@ -181,6 +180,10 @@ export default function ManualReviewWorkspace() {
     field: Field,
     value: EditableRow[Field]
   ) => {
+    if (isSubmitting) {
+      return
+    }
+
     setResult(null)
     setRows((currentRows) =>
       currentRows.map((row) => (row.id === id ? { ...row, [field]: value } : row))
@@ -188,6 +191,10 @@ export default function ManualReviewWorkspace() {
   }
 
   const addRow = () => {
+    if (isSubmitting) {
+      return
+    }
+
     setResult(null)
     setRows((currentRows) => [
       ...currentRows,
@@ -197,6 +204,10 @@ export default function ManualReviewWorkspace() {
   }
 
   const removeRow = (id: number) => {
+    if (isSubmitting) {
+      return
+    }
+
     setResult(null)
     setRows((currentRows) =>
       currentRows.length > 1
@@ -207,6 +218,10 @@ export default function ManualReviewWorkspace() {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (submitLock.current) {
+      return
+    }
+
     setError(null)
 
     const convertedRows: ManualReviewRowInput[] = []
@@ -227,35 +242,43 @@ export default function ManualReviewWorkspace() {
       return
     }
 
+    submitLock.current = true
     setIsSubmitting(true)
+    setResult(null)
     try {
       const response = await fetch('/api/manual-review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rows: convertedRows }),
       })
-      const body: unknown = await response.json()
+      const body: unknown = await response.json().catch(() => null)
 
       if (!response.ok) {
-        throw new Error(
-          duplicateSourceError(body) ??
-            errorFromResponse(body) ??
-            'הבדיקה לא הושלמה.'
+        const duplicate = manualReviewDuplicateSourceErrorFromResponse(
+          body,
+          convertedRows.length,
+          response.status
         )
+        setError(
+          duplicate
+            ? duplicateSourceErrorText(duplicate)
+            : MANUAL_REVIEW_FAILURE_TEXT[
+                manualReviewFailureCodeFromResponse(body, response.status)
+              ]
+        )
+        return
       }
 
       if (!isManualReviewResult(body)) {
-        throw new Error('התקבלה תשובה לא תקינה מהשירות.')
+        setError(MANUAL_REVIEW_FAILURE_TEXT.UNKNOWN)
+        return
       }
 
       setResult(body)
-    } catch (submissionError) {
-      setError(
-        submissionError instanceof Error
-          ? submissionError.message
-          : 'אירעה שגיאה לא צפויה בעת הבדיקה.'
-      )
+    } catch {
+      setError(MANUAL_REVIEW_FAILURE_TEXT.UNKNOWN)
     } finally {
+      submitLock.current = false
       setIsSubmitting(false)
     }
   }
@@ -287,7 +310,11 @@ export default function ManualReviewWorkspace() {
 
       <form className="manual-review__form" onSubmit={submit}>
         {rows.map((row, index) => (
-          <fieldset className="manual-review__row" key={row.id}>
+          <fieldset
+            className="manual-review__row"
+            disabled={isSubmitting}
+            key={row.id}
+          >
             <legend>שורת מקור {index + 1}</legend>
             {row.ocrSourceQuantities && (
               <aside className="manual-review__ocr-draft">
@@ -457,14 +484,18 @@ export default function ManualReviewWorkspace() {
                     </tr>
                   </thead>
                   <tbody>
-                    {result.issues.map((issue, index) => (
-                      <tr key={`${issue.code}-${index}`}>
-                        <td>{issue.source?.page.pageNumber ?? '—'}</td>
-                        <td>{issue.source?.row.rowNumber ?? '—'}</td>
-                        <td>{issue.code}</td>
-                        <td>{issue.message}</td>
-                      </tr>
-                    ))}
+                    {result.issues.map((issue, index) => {
+                      const presentation = manualReviewIssuePresentation(issue.code)
+
+                      return (
+                        <tr key={index}>
+                          <td>{issue.source?.page.pageNumber ?? '—'}</td>
+                          <td>{issue.source?.row.rowNumber ?? '—'}</td>
+                          <td>{presentation.label}</td>
+                          <td>{presentation.message}</td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

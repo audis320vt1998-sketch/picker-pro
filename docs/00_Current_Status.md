@@ -64,7 +64,12 @@ rows without that reference remain supported and are not assigned a document
 identity automatically.
 
 The request is not stored. Its generated review ID exists only to connect the
-returned page/row source references to that response.
+returned page/row source references to that response. The submitted manual
+source text is used only while evaluating that request and is never included
+in returned source references. Every manual-review response is non-cacheable;
+the review screen maps expected API failure codes to fixed Hebrew guidance
+instead of displaying server error text. Review-issue labels and explanations
+are likewise fixed by their known code rather than copied from API messages.
 
 ## OCR preflight boundary
 

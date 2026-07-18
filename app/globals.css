@@ -264,6 +264,57 @@ nav a:hover {
   background: #0056b3;
 }
 
+.settings__catalog-preflight {
+  border-top: 1px solid #cbd5e1;
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+}
+
+.settings__catalog-preflight h3 {
+  color: #1e3a5f;
+}
+
+.settings__catalog-preflight form {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+}
+
+.settings__file-label {
+  display: grid;
+  gap: 0.5rem;
+  font-weight: 700;
+}
+
+.settings__file-selected {
+  color: #1e3a5f;
+  font-weight: 700;
+}
+
+.settings__preflight-result {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 0.5rem;
+  color: #78350f;
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.9rem;
+}
+
+.settings__preflight-result--ready {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.settings__preflight-result ol {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0 1.25rem 0 0;
+}
+
 .document-preflight__selected,
 .document-preflight__issue,
 .document-preflight__progress {

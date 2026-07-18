@@ -1,4 +1,5 @@
 import { loadVerifiedCatalog } from '@/lib/catalog'
+import CatalogOnboardingPreflight from '@/components/CatalogOnboardingPreflight'
 
 const settings = {
   appName: 'Picker Pro',
@@ -89,6 +90,8 @@ export default function SettingsPage() {
             <code>catalogs/products.json</code>; אין עדיין ייבוא מתוך המערכת.
           </li>
         </ul>
+
+        <CatalogOnboardingPreflight />
       </section>
     </main>
   )

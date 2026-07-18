@@ -26,3 +26,29 @@ export {
   CATALOG_ONBOARDING_TEMPLATE_FILENAME,
   createCatalogOnboardingTemplateCsv,
 } from './onboarding-template'
+
+export {
+  preflightCatalogOnboardingCsv,
+} from './onboarding-preflight'
+
+export {
+  CATALOG_ONBOARDING_FILE_INPUT_ACCEPT,
+  CATALOG_ONBOARDING_SUPPORTED_CSV_TYPES,
+  catalogOnboardingPreflightFailureCodeFromResponse,
+  getCatalogOnboardingFileSelectionIssue,
+  isCatalogOnboardingPreflightResult,
+  isSupportedCatalogOnboardingCsvType,
+  MAX_CATALOG_ONBOARDING_CELL_CHARACTERS,
+  MAX_CATALOG_ONBOARDING_CSV_BYTES,
+  MAX_CATALOG_ONBOARDING_ISSUES,
+  MAX_CATALOG_ONBOARDING_MULTIPART_BYTES,
+  MAX_CATALOG_ONBOARDING_ROWS,
+  type CatalogOnboardingFileMetadata,
+  type CatalogOnboardingFileSelectionIssue,
+  type CatalogOnboardingPreflightFailureCode,
+  type CatalogOnboardingPreflightIssue,
+  type CatalogOnboardingPreflightIssueCode,
+  type CatalogOnboardingPreflightResult,
+  type CatalogOnboardingSupportedCsvType,
+  type CatalogOnboardingTemplateColumn,
+} from './onboarding-preflight-policy'

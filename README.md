@@ -10,8 +10,9 @@ Available now:
 
 - A Hebrew right-to-left manual-review screen at `/review`.
 - Explicit, separate input fields for cases and individual units.
-- A read-only catalog status on `/settings` and a UTF-8 CSV handoff template.
-  It has no product data and cannot upload, import, or verify catalog entries.
+- A read-only catalog status on `/settings`, a UTF-8 CSV handoff template,
+  and a temporary structural check for a completed CSV. The check never saves,
+  imports, or verifies catalog entries and returns no uploaded product values.
 - A browser-provided direct-camera chooser for one document image at `/upload`,
   including a clearer replacement for one existing logical page. It does not
   upload or process the image until the reviewer explicitly starts OCR.

@@ -17,8 +17,12 @@ import {
   MAX_PREFLIGHT_BATCH_IMAGES,
   PREFLIGHT_FILE_INPUT_ACCEPT,
   preflightFailureCodeFromResponse,
+  removeOcrPreflightBatchOutcomeSource,
+  removeOcrPreflightPageRowSelections,
+  removeOcrPreflightReplacementSlot,
   recordOcrPreflightBatchFailure,
   recordOcrPreflightBatchSuccess,
+  upsertOcrPreflightReplacementSlot,
   type DocumentPreflightIssue,
   type DocumentPreflightResult,
   type DocumentPreflightRow,
@@ -26,6 +30,7 @@ import {
   type OcrPreflightBatchFailure,
   type OcrPreflightBatchOutcome,
   type OcrPreflightFailureCode,
+  type OcrPreflightReplacementSlot,
 } from '@/lib/document-intake'
 import {
   createOcrManualReviewHandoff,
@@ -96,9 +101,16 @@ interface SourceImagePreviewProps {
   pageNumber: number
 }
 
+interface SourceImageReplacementProps {
+  disabled: boolean
+  onSelect: (event: ChangeEvent<HTMLInputElement>) => void
+  pageNumber: number
+}
+
 type PreflightActivity =
   | { kind: 'batch'; current: number; total: number }
   | { kind: 'retry'; pageNumber: number }
+  | { kind: 'replacement'; pageNumber: number }
   | null
 
 type PreflightPageAttempt =
@@ -249,6 +261,30 @@ function SourceImagePreview({
   )
 }
 
+function SourceImageReplacement({
+  disabled,
+  onSelect,
+  pageNumber,
+}: SourceImageReplacementProps) {
+  return (
+    <div>
+      <label className="document-preflight__file-label">
+        החלף תמונה לעמוד {pageNumber}
+        <input
+          accept={PREFLIGHT_FILE_INPUT_ACCEPT}
+          disabled={disabled}
+          onChange={onSelect}
+          type="file"
+        />
+      </label>
+      <p className="document-preflight__selected">
+        בחר צילום חד יותר של אותו עמוד בלבד. למסמך או לעמוד אחר יש ליצור אצווה
+        חדשה. הבחירה אינה שולחת את התמונה עד להפעלה מפורשת של OCR מחדש.
+      </p>
+    </div>
+  )
+}
+
 function canTransferRow(
   row: DocumentPreflightRow,
   sourceDocumentRef: string
@@ -259,6 +295,9 @@ function canTransferRow(
 export default function DocumentPreflightWorkspace() {
   const [files, setFiles] = useState<readonly SelectedSourceImage[]>([])
   const [outcome, setOutcome] = useState<OcrPreflightBatchOutcome | null>(null)
+  const [pendingReplacementPages, setPendingReplacementPages] = useState<
+    readonly OcrPreflightReplacementSlot[]
+  >([])
   const [error, setError] = useState<string | null>(null)
   const [activity, setActivity] = useState<PreflightActivity>(null)
   const [previewedSource, setPreviewedSource] = useState<PreviewedSourceImage | null>(
@@ -317,6 +356,7 @@ export default function DocumentPreflightWorkspace() {
 
     setError(null)
     setOutcome(null)
+    setPendingReplacementPages([])
     setPreviewedSource(null)
     setActiveLocalPreview(null)
     setSelectedRowKeys({})
@@ -331,7 +371,70 @@ export default function DocumentPreflightWorkspace() {
       )
     } catch {
       setFiles([])
+      setPendingReplacementPages([])
       setError('הדפדפן לא הצליח ליצור מזהה זמני ובטוח למסמך. נסה שוב.')
+    }
+  }
+
+  const selectReplacementFile = (
+    event: ChangeEvent<HTMLInputElement>,
+    replacementSlot: OcrPreflightReplacementSlot
+  ) => {
+    const selectedFiles = Array.from(event.target.files ?? [])
+    event.currentTarget.value = ''
+
+    if (preflightActionLock.current || selectedFiles.length === 0) {
+      return
+    }
+    if (selectedFiles.length !== 1) {
+      setError('יש לבחור תמונה אחת להחלפת העמוד.')
+      return
+    }
+
+    const replacementFile = selectedFiles[0]
+    const selectionIssue = getPreflightFileSelectionIssue(replacementFile)
+    if (selectionIssue) {
+      setError(PREFLIGHT_FAILURE_TEXT[selectionIssue])
+      return
+    }
+
+    const selectedFileIndex = files.findIndex(
+      ({ sourceDocumentRef }) =>
+        sourceDocumentRef === replacementSlot.sourceDocumentRef
+    )
+    if (
+      selectedFileIndex < 0 ||
+      selectedFileIndex + 1 !== replacementSlot.pageNumber
+    ) {
+      setError('לא ניתן לגשת לתמונה שנבחרה. יש לבחור את התמונות מחדש או להזין ידנית.')
+      return
+    }
+
+    setError(null)
+    setFiles((current) =>
+      current.map((selectedFile) =>
+        selectedFile.sourceDocumentRef === replacementSlot.sourceDocumentRef
+          ? { ...selectedFile, file: replacementFile }
+          : selectedFile
+      )
+    )
+    setOutcome((current) =>
+      current
+        ? removeOcrPreflightBatchOutcomeSource(
+            current,
+            replacementSlot.sourceDocumentRef
+          )
+        : current
+    )
+    setPendingReplacementPages((current) =>
+      upsertOcrPreflightReplacementSlot(current, replacementSlot)
+    )
+    setSelectedRowKeys((current) =>
+      removeOcrPreflightPageRowSelections(current, replacementSlot.pageNumber)
+    )
+    setHasConfirmedSourceCheck(false)
+    if (previewedSource?.sourceDocumentRef === replacementSlot.sourceDocumentRef) {
+      setPreviewedSource(null)
     }
   }
 
@@ -348,6 +451,7 @@ export default function DocumentPreflightWorkspace() {
     preflightActionLock.current = true
     setError(null)
     setOutcome(createOcrPreflightBatchOutcome())
+    setPendingReplacementPages([])
     setPreviewedSource(null)
     setActiveLocalPreview(null)
     setSelectedRowKeys({})
@@ -413,6 +517,65 @@ export default function DocumentPreflightWorkspace() {
           code: attempt.code,
         })
       })
+    } finally {
+      preflightActionLock.current = false
+      setActivity(null)
+    }
+  }
+
+  const reprocessReplacementPage = async (
+    replacementSlot: OcrPreflightReplacementSlot
+  ) => {
+    if (
+      preflightActionLock.current ||
+      !pendingReplacementPages.some(
+        ({ sourceDocumentRef }) =>
+          sourceDocumentRef === replacementSlot.sourceDocumentRef
+      )
+    ) {
+      return
+    }
+
+    const selectedFileIndex = files.findIndex(
+      ({ sourceDocumentRef }) =>
+        sourceDocumentRef === replacementSlot.sourceDocumentRef
+    )
+    if (
+      selectedFileIndex < 0 ||
+      selectedFileIndex + 1 !== replacementSlot.pageNumber
+    ) {
+      setError('לא ניתן לגשת לתמונה שנבחרה. יש לבחור את התמונות מחדש או להזין ידנית.')
+      return
+    }
+
+    const selectedFile = files[selectedFileIndex]
+    preflightActionLock.current = true
+    setError(null)
+    setActivity({ kind: 'replacement', pageNumber: replacementSlot.pageNumber })
+
+    try {
+      const attempt = await requestPreflightPage(
+        selectedFile,
+        replacementSlot.pageNumber
+      )
+      setOutcome((current) => {
+        const currentOutcome = current ?? createOcrPreflightBatchOutcome()
+        if (attempt.kind === 'success') {
+          return recordOcrPreflightBatchSuccess(currentOutcome, attempt.batchPage)
+        }
+
+        return recordOcrPreflightBatchFailure(currentOutcome, {
+          pageNumber: replacementSlot.pageNumber,
+          sourceDocumentRef: replacementSlot.sourceDocumentRef,
+          code: attempt.code,
+        })
+      })
+      setPendingReplacementPages((current) =>
+        removeOcrPreflightReplacementSlot(
+          current,
+          replacementSlot.sourceDocumentRef
+        )
+      )
     } finally {
       preflightActionLock.current = false
       setActivity(null)
@@ -490,7 +653,9 @@ export default function DocumentPreflightWorkspace() {
           <p className="document-preflight__progress" role="status">
             {activity.kind === 'batch'
               ? `מעבד תמונה ${activity.current} מתוך ${activity.total}…`
-              : `מנסה שוב לעמוד ${activity.pageNumber}…`}
+              : activity.kind === 'retry'
+                ? `מנסה שוב לעמוד ${activity.pageNumber}…`
+                : `קורא מחדש את עמוד ${activity.pageNumber}…`}
           </p>
         )}
         <button
@@ -499,9 +664,11 @@ export default function DocumentPreflightWorkspace() {
           disabled={files.length === 0 || isSubmitting}
         >
           {isSubmitting
-            ? activity?.kind === 'retry'
-              ? 'מנסה שוב…'
-              : 'קורא את התמונות…'
+            ? activity?.kind === 'batch'
+              ? 'קורא את התמונות…'
+              : activity?.kind === 'retry'
+                ? 'מנסה שוב…'
+                : 'קורא מחדש…'
             : 'צור טיוטות OCR'}
         </button>
       </form>
@@ -516,6 +683,50 @@ export default function DocumentPreflightWorkspace() {
             הכמות מול המסמך המקורי, ואז הזן במפורש מארזים ובודדים במסך הבדיקה
             הידנית. אות ה-OCR הוא סימן טכני בלבד ואינו מאשר נכונות של שדה כלשהו.
           </p>
+
+          {pendingReplacementPages.map((replacementSlot) => {
+            const { pageNumber, sourceDocumentRef } = replacementSlot
+            const hasSourceImage = files.some(
+              (file) => file.sourceDocumentRef === sourceDocumentRef
+            )
+            const isPreviewVisible =
+              previewedSource?.pageNumber === pageNumber &&
+              previewedSource.sourceDocumentRef === sourceDocumentRef
+
+            return (
+              <div className="document-preflight__failed-page" key={sourceDocumentRef}>
+                <h3>עמוד {pageNumber}</h3>
+                <p className="document-preflight__issue" role="status">
+                  נבחרה תמונה חלופית. הטיוטה הקודמת לעמוד זה הוסרה, והתמונה החדשה
+                  לא נשלחה עדיין. אפשר להפעיל OCR מחדש רק בלחיצה מפורשת.
+                </p>
+                <button
+                  className="manual-review__primary-button"
+                  disabled={isSubmitting || !hasSourceImage}
+                  onClick={() => reprocessReplacementPage(replacementSlot)}
+                  type="button"
+                >
+                  צור טיוטת OCR חדשה לעמוד {pageNumber}
+                </button>
+                <SourceImageReplacement
+                  disabled={isSubmitting}
+                  onSelect={(event) => selectReplacementFile(event, replacementSlot)}
+                  pageNumber={pageNumber}
+                />
+                <SourceImagePreview
+                  hasSourceImage={hasSourceImage}
+                  isVisible={isPreviewVisible}
+                  localPreviewUrl={
+                    activeLocalPreview?.sourceDocumentRef === sourceDocumentRef
+                      ? activeLocalPreview.url
+                      : null
+                  }
+                  onToggle={() => toggleSourcePreview(pageNumber, sourceDocumentRef)}
+                  pageNumber={pageNumber}
+                />
+              </div>
+            )
+          })}
 
           {failedPages.map(({ pageNumber, sourceDocumentRef, code }) => {
             const hasSourceImage = files.some(
@@ -542,6 +753,13 @@ export default function DocumentPreflightWorkspace() {
                     נסה שוב בעמוד {pageNumber}
                   </button>
                 )}
+                <SourceImageReplacement
+                  disabled={isSubmitting}
+                  onSelect={(event) =>
+                    selectReplacementFile(event, { pageNumber, sourceDocumentRef })
+                  }
+                  pageNumber={pageNumber}
+                />
                 <SourceImagePreview
                   hasSourceImage={hasSourceImage}
                   isVisible={isPreviewVisible}
@@ -573,6 +791,16 @@ export default function DocumentPreflightWorkspace() {
                     {ISSUE_TEXT[issue.code]}
                   </p>
                 ))}
+                <SourceImageReplacement
+                  disabled={isSubmitting}
+                  onSelect={(event) =>
+                    selectReplacementFile(event, {
+                      pageNumber: page.pageNumber,
+                      sourceDocumentRef,
+                    })
+                  }
+                  pageNumber={page.pageNumber}
+                />
 
                 <div
                   className={

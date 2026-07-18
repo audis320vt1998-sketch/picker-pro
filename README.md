@@ -16,7 +16,9 @@ Available now:
   unsupported, empty, or oversized images, while the server remains the
   authoritative boundary. A failed page can be retried only by explicit user
   action when OCR is temporarily busy, timed out, or unavailable; it never
-  retries automatically.
+  retries automatically. A reviewer can explicitly replace only one logical
+  page with a clearer photo, then separately request OCR again without
+  discarding drafts from the other pages.
 - An opt-in, temporary source-image preview beside each draft, so a reviewer
   can compare a row with the selected image before handoff. Only one preview
   is open at a time; it may show the original document or customer details,
@@ -28,10 +30,12 @@ Available now:
 - A one-time, browser-only handoff of explicitly checked OCR identifiers to
   `/review`; source quantities are comparison-only and the manual case/unit
   fields remain blank.
-- An opaque per-image source reference prevents the same OCR source
-  document/page/row from being submitted twice. No file name or document
-  header is retained in that reference; the manual-review API rejects source
-  filenames and other unrecognized row metadata.
+- An opaque source reference per logical document page prevents the same OCR
+  document/page/row from being submitted twice. A clearer replacement photo
+  of that page retains the reference, while an unrelated page needs a new
+  batch. No file name or document header is retained in that reference; the
+  manual-review API rejects source filenames and other unrecognized row
+  metadata.
 - Product resolution in the order barcode → SKU → canonical name → alias.
 - Source traceability for every accepted quantity (page and row).
 - Validation for unresolved, conflicting, unverified, and case-only products.

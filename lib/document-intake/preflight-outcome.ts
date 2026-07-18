@@ -62,3 +62,22 @@ export function recordOcrPreflightBatchFailure(
     ]),
   }
 }
+
+/**
+ * A newly selected replacement image invalidates only the draft or failure
+ * created from the prior image in that logical page slot. Other selected
+ * images stay visible and reviewable.
+ */
+export function removeOcrPreflightBatchOutcomeSource(
+  outcome: OcrPreflightBatchOutcome,
+  sourceDocumentRef: string
+): OcrPreflightBatchOutcome {
+  return {
+    pages: outcome.pages.filter(
+      (page) => page.sourceDocumentRef !== sourceDocumentRef
+    ),
+    failures: outcome.failures.filter(
+      (failure) => failure.sourceDocumentRef !== sourceDocumentRef
+    ),
+  }
+}

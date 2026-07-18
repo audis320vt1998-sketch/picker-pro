@@ -29,9 +29,15 @@ export {
 } from './preflight-batch'
 export {
   createOcrPreflightBatchOutcome,
+  removeOcrPreflightBatchOutcomeSource,
   recordOcrPreflightBatchFailure,
   recordOcrPreflightBatchSuccess,
 } from './preflight-outcome'
+export {
+  removeOcrPreflightPageRowSelections,
+  removeOcrPreflightReplacementSlot,
+  upsertOcrPreflightReplacementSlot,
+} from './preflight-replacement'
 export type {
   BoundingBox,
   ColumnBand,
@@ -63,3 +69,4 @@ export type {
   OcrPreflightBatchFailure,
   OcrPreflightBatchOutcome,
 } from './preflight-outcome'
+export type { OcrPreflightReplacementSlot } from './preflight-replacement'

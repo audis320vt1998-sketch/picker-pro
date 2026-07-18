@@ -4,10 +4,12 @@ const OCR_SOURCE_DOCUMENT_REF_PATTERN =
   /^doc_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
 /**
- * A page stays in browser memory only, but it needs an opaque source identity
- * so that the handoff and manual-review API can distinguish two documents
- * that both contain (for example) page 1, row 4. It intentionally contains
- * no filename, header, customer information, or document text.
+ * A logical document page stays in browser memory only, but it needs an
+ * opaque source identity so that the handoff and manual-review API can
+ * distinguish two documents that both contain (for example) page 1, row 4.
+ * A clearer replacement photo of that same page retains this identity; a
+ * different document requires a new batch. It intentionally contains no
+ * filename, header, customer information, or document text.
  */
 export interface OcrPreflightBatchPage {
   sourceDocumentRef: string

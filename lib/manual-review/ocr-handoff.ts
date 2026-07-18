@@ -33,9 +33,10 @@ export interface OcrManualReviewHandoffRow {
 }
 
 /**
- * The browser supplies one opaque source-document reference for each uploaded
- * image. The reference is intentionally not a filename and does not identify
- * a customer or order.
+ * The browser supplies one opaque source-document reference for each selected
+ * logical document page. A clearer replacement photo of that same page keeps
+ * the reference; a different document requires a new batch. The reference is
+ * intentionally not a filename and does not identify a customer or order.
  */
 export interface OcrManualReviewHandoffCandidate {
   sourceDocumentRef: string

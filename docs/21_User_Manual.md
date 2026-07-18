@@ -1,157 +1,79 @@
-# 21 — User Manual
+# 21 — מדריך שימוש פעיל
 
-## 1. Introduction
+## מטרת הכלי
 
-**Picker Pro** turns photographs of paper order sheets into validated, printable pick lists. This manual covers the end-to-end workflow for warehouse managers and pickers.
+Picker Pro הוא כלי עזר לבדיקת הזמנות. הוא אינו יוצר רשימת ליקוט תפעולית
+מתמונות, אינו שומר הזמנות, ואינו ממיר כמויות אוטומטית לפי גודל מארז.
 
-## 2. Getting Started
+יש שני מסכים פעילים:
 
-### 2.1 Installing the App
+- `/upload` — יצירת טיוטות OCR לבדיקת אדם.
+- `/review` — הזנה ובדיקה ידנית של שורות, מארזים ובודדים.
 
-1. Open your browser and navigate to the Picker Pro URL provided by your administrator.
-2. On **iOS**: tap the Share button → **Add to Home Screen**.
-3. On **Android**: tap the browser menu → **Install App** (or **Add to Home Screen**).
-4. The Picker Pro icon will appear on your home screen.
+## יצירת טיוטות OCR
 
-### 2.2 First Launch
+1. פתח את `/upload`.
+2. בחר עד 20 תמונות JPEG, PNG או WebP של טבלאות הזמנה. שמות הקבצים אינם
+   מוצגים או נשמרים בתוצאה.
+3. לחץ על **צור טיוטות OCR**. התמונות נבדקות אחת־אחת ובסדר הבחירה.
+4. קרא את הטיוטה מול מסמך המקור. התוצאה היא `NEEDS_REVIEW` בלבד — אינה
+   רשימת ליקוט, אינה התאמת קטלוג, ואינה מאשרת שהכמויות נכונות.
 
-No login is required in v1.0. The home screen shows your recent jobs.
+הדפדפן מתריע מראש על קובץ ריק, גדול מ־12MB או מסוג לא נתמך. השרת בודק את
+אותם גבולות מחדש, ולכן התרעת הדפדפן אינה תחליף לבדיקה בצד השרת.
 
-## 3. Creating a New Job
+### כאשר OCR לא מצליח
 
-### 3.1 Camera Capture (Recommended on Mobile)
+- בכשל זמני בלבד (עסוק, timeout או שירות לא זמין), אפשר ללחוץ במפורש על
+  **נסה שוב** עבור אותו עמוד. אין ניסיון חוזר אוטומטי או מקביל.
+- אם התמונה אינה חדה מספיק, אינה תקינה או אינה מתאימה, בחר **החלף תמונה
+  לעמוד**. פעולה זו מיועדת לצילום חד יותר של אותו עמוד בלבד.
+- בחירת תמונה חלופית מסירה את הטיוטה הקודמת ואת השורות שנבחרו מאותו עמוד,
+  אך אינה שולחת את התמונה מיד. לחץ אחר כך במפורש על **צור טיוטת OCR חדשה**.
+- לתמונה של מסמך או עמוד אחר יש להתחיל אצווה חדשה.
 
-1. Tap **New Job** on the home screen.
-2. Tap **Take Photo** — your device's rear camera opens.
-3. Photograph each order sheet page clearly and squarely.
-4. Tap **Add More** to photograph additional pages.
-5. Optionally select a **City** and **Delivery Route** if known.
-6. Tap **Submit**.
+התמונה החלופית שומרת את מזהה העמוד האטום של אותו עמוד לוגי. המזהה אינו שם
+קובץ ואינו כולל פרטי לקוח או כותרת מסמך.
 
-### 3.2 File Upload
+### תצוגת מקור זמנית
 
-1. Tap **New Job** → **Upload Files**.
-2. Select one or more image files (JPEG, PNG, WEBP, HEIC) or a PDF.
-3. Drag to reorder pages if needed.
-4. Optionally select a City and Delivery Route.
-5. Tap **Submit**.
+אפשר להציג תמונת מקור אחת בכל פעם ליד הטיוטה. זו התמונה המקורית ולכן היא
+עשויה להכיל פרטי מסמך או לקוח. התצוגה נוצרת מקומית בדפדפן בלבד, אינה נשמרת,
+ואינה נכללת בתוצאת ה־OCR או בהעברה למסך הבדיקה. היא נסגרת כאשר מחליפים את
+התמונה של אותו עמוד, מחליפים אצווה או עוזבים את המסך.
 
-### 3.3 Tips for Best Results
+## העברה לבדיקת ידנית
 
-- Photograph pages on a flat, well-lit surface.
-- Avoid shadows across the text.
-- Keep the camera parallel to the page (avoid angled shots).
-- Ensure all four corners of the page are visible.
+1. בחר רק שורות שיש להן מספר שורת מקור ברור.
+2. בדוק מול המסמך המקורי את המק״ט, הברקוד ושלוש עמודות הכמות.
+3. סמן את אישור בדיקת המקור.
+4. לחץ על **העבר לטיוטת בדיקה ידנית**.
 
-## 4. Monitoring Progress
+ההעברה היא חד־פעמית ונשמרת בדפדפן למשך עד 15 דקות. היא מעבירה מזהה עמוד
+אטום, מיקום שורה, מזהי מוצר ושלוש כמויות מקור להשוואה בלבד. היא אינה מעבירה
+תמונה, שם קובץ, כותרת מסמך, טקסט OCR מלא או כמות תפעולית.
 
-After submitting, you are taken to the **Results** page for your job.
+## בדיקה ידנית
 
-- The **progress bar** shows OCR and processing stages.
-- Processing typically completes in under 30 seconds for a 5-page job.
-- You can navigate away and return; the job continues in the background.
+במסך `/review` יש להזין או לאמת עבור כל שורה:
 
-## 5. Reviewing Results
+- מספר עמוד ומספר שורת מקור.
+- טקסט מקור ולפחות מזהה אחד: שם פריט, ברקוד או SKU.
+- מספר מארזים ומספר בודדים בשני שדות נפרדים.
 
-### 5.1 Summary Cards
+כאשר שורה הגיעה מ־OCR, שלוש כמויות המקור מוצגות להשוואה בלבד. שדות המארזים
+והבודדים נשארים ריקים וחובה למלא אותם במפורש. המערכת אינה מחלקת כמות לפי
+גודל מארז, אינה מסיקה שארית, ואינה ממירה סימון כמו `(12)` או `1/12` לכמות.
 
-At the top of the Results page you will see:
+בדיקה ידנית משתמשת בקטלוג המקומי רק כדי לאתר בעיות התאמה. רק רשומת קטלוג
+מאומתת ולא־חד־משמעית יכולה להיכנס לסיכום. נכון לעכשיו אין בקטלוג הפעיל
+רשומות מאומתות, ולכן לא ניתן להפיק רשימת ליקוט תפעולית.
 
-| Card | Meaning |
-|---|---|
-| Products | Total number of unique products found |
-| Total Cases | Sum of all case quantities |
-| Total Units | Sum of all individual unit quantities |
-| Flagged | Items requiring your review |
+## מה אינו זמין
 
-### 5.2 Results Table
+- צילום מצלמה, PDF, HEIC, תיקון פרספקטיבה או שינוי סדר עמודים.
+- שמירת עבודות, תור בדיקה מתמשך, עבודה לא מקוונת או שחזור לאחר סגירת הדפדפן.
+- ייצוא Excel/PDF, הדפסה, ערים, מסלולים או רשימת ליקוט תפעולית.
+- אימות קטלוג אוטומטי, סנכרון ERP או סיוע AI.
 
-The table is grouped by **City** → **Delivery Route** → **Product**.
-
-| Column | Meaning |
-|---|---|
-| Product Key | Barcode or SKU |
-| Product Name | Hebrew product name |
-| Cases | Total case quantity |
-| Units | Total individual unit quantity |
-| Sources | Original page and row references |
-
-### 5.3 Source Traceability
-
-The **Sources** column shows codes like `p1r3, p2r7`. These mean:
-
-- `p1r3` → page 1, row 3 of your scanned order sheets.
-
-Tap a source code to view the original scanned region (if supported by your installation).
-
-## 6. Handling Flagged Items
-
-### 6.1 Opening the Review Queue
-
-Tap the **Flagged** badge or the **Review** button to open the review queue.
-
-### 6.2 Reviewing an Item
-
-For each flagged item you will see:
-
-- The original scanned text.
-- The data the system extracted (product, quantity, unit type).
-- The reason it was flagged.
-
-Choose one of:
-
-| Action | When to use |
-|---|---|
-| **Approve** | The extracted data is correct. |
-| **Correct** | You can fix the extracted data (e.g. wrong quantity). |
-| **Reject** | The row is invalid and should be excluded from the pick list. |
-
-### 6.3 Completing the Review
-
-Work through all items until the **Flagged** count reaches 0. You can export before completing the review, but the export will include a warning and pending items will be excluded.
-
-## 7. Exporting Results
-
-### 7.1 Per-City Export
-
-Under each city group, tap:
-
-- **Excel** — downloads an XLSX file for that city.
-- **PDF** — downloads a PDF file for that city.
-- **Print** — opens a print-ready view in your browser.
-
-### 7.2 What the Export Contains
-
-Each export includes:
-
-- One section per delivery route.
-- Product key, Hebrew product name, total cases, total units.
-- Source references for every line item.
-
-## 8. Offline Use
-
-- If your connection drops, the **Offline** banner appears at the top of the screen.
-- You can still review and navigate completed jobs.
-- Uploads and new submissions are queued and sent automatically when connectivity is restored.
-
-## 9. Frequently Asked Questions
-
-**Q: Cases and units appear as separate columns — is that correct?**
-A: Yes. Picker Pro always keeps cases and individual units separate. Never combine them manually.
-
-**Q: A product appears on multiple pages — will it be counted correctly?**
-A: Yes. Picker Pro automatically aggregates the same product across all pages.
-
-**Q: I photographed the wrong page. Can I remove it?**
-A: Currently you must submit a new job. Page removal after submission is planned for v1.x.
-
-**Q: Can I use Picker Pro on a desktop computer?**
-A: Yes. All features are available in a desktop browser. Camera capture requires a webcam.
-
-## 10. Support
-
-Contact your IT administrator for:
-
-- Access issues.
-- Catalog updates (new products, cities, or delivery routes).
-- Data retention and privacy questions.
+היכולות האלו אינן חלק מהתהליך הפעיל ואין להסתמך עליהן בהפעלת המחסן.

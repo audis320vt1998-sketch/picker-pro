@@ -22,6 +22,14 @@ in parallel. It reuses the same browser-held image, selected-order page number,
 opaque document reference, and neutral multipart filename; it does not
 persist the image, retry attempt, filename, or server error text.
 
+After an image is rejected or produces an unusable draft, a reviewer can
+explicitly choose a clearer replacement photo for that same logical page. The
+prior page draft/failure and its selected rows are removed before the new image
+is sent, and the reviewer must explicitly start OCR again. Other pages remain
+unchanged. The replacement retains that page's opaque reference only because
+it is a new photo of the same page; a different document or page requires a
+new batch.
+
 A reviewer can explicitly open one selected source image at a time beside its
 OCR draft, including after OCR fails for that image. It is the original image,
 so it may contain document or customer details. The preview is a local browser

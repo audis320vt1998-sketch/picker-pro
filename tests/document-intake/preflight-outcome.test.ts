@@ -1,6 +1,10 @@
-import type { DocumentPreflightPage } from '@/lib/document-intake'
+import type {
+  DocumentPreflightPage,
+  OcrPreflightBatchOutcome,
+} from '@/lib/document-intake'
 import {
   createOcrPreflightBatchOutcome,
+  removeOcrPreflightBatchOutcomeSource,
   recordOcrPreflightBatchFailure,
   recordOcrPreflightBatchSuccess,
 } from '@/lib/document-intake/preflight-outcome'
@@ -65,6 +69,42 @@ describe('OCR preflight batch outcome', () => {
         pageNumber: 2,
         sourceDocumentRef: secondSourceDocumentRef,
         code: 'OCR_PREFLIGHT_TIMEOUT',
+      },
+    ])
+  })
+
+  it('clears only the old outcome when one selected source image is replaced', () => {
+    const firstPage = createOcrPreflightBatchPage(page(), 1, firstSourceDocumentRef)
+    const secondPage = createOcrPreflightBatchPage(page(), 2, secondSourceDocumentRef)
+    const outcome: OcrPreflightBatchOutcome = {
+      pages: [firstPage, secondPage],
+      failures: [
+        {
+          pageNumber: 2,
+          sourceDocumentRef: secondSourceDocumentRef,
+          code: 'INVALID_IMAGE',
+        },
+        {
+          pageNumber: 3,
+          sourceDocumentRef: 'doc_aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+          code: 'INVALID_IMAGE',
+        },
+      ],
+    }
+
+    const replaced = removeOcrPreflightBatchOutcomeSource(
+      outcome,
+      secondSourceDocumentRef
+    )
+
+    expect(replaced.pages.map(({ sourceDocumentRef }) => sourceDocumentRef)).toEqual([
+      firstSourceDocumentRef,
+    ])
+    expect(replaced.failures).toEqual([
+      {
+        pageNumber: 3,
+        sourceDocumentRef: 'doc_aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+        code: 'INVALID_IMAGE',
       },
     ])
   })

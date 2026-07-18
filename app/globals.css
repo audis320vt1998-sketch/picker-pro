@@ -79,6 +79,33 @@ nav a:hover {
   padding: 0 0.5rem;
 }
 
+.manual-review__readiness-summary,
+.manual-review__row-readiness {
+  border-radius: 0.375rem;
+  font-weight: 700;
+  padding: 0.6rem 0.75rem;
+}
+
+.manual-review__readiness-summary {
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  color: #1e3a5f;
+  margin-bottom: 1rem;
+}
+
+.manual-review__row-readiness {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  color: #78350f;
+  margin: 0 0 0.9rem;
+}
+
+.manual-review__row-readiness--ready {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
 .manual-review__grid {
   display: grid;
   gap: 0.75rem;

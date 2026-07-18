@@ -10,6 +10,7 @@ import type {
 import {
   consumeOcrManualReviewHandoff,
   findDuplicateSourceRows,
+  getManualReviewRowReadiness,
   manualReviewDuplicateSourceErrorFromResponse,
   manualReviewFailureCodeFromResponse,
   manualReviewIssuePresentation,
@@ -86,60 +87,6 @@ function duplicateSourceErrorText(
 
 function displaySourceQuantity(value: number | null): string {
   return value === null ? 'לא זוהה' : String(value)
-}
-
-function validateAndConvertRow(row: EditableRow): ManualReviewRowInput | string {
-  if (!row.rawText.trim()) {
-    return `יש להזין את הטקסט המקורי בשורה ${row.rowNumber || row.id}.`
-  }
-
-  if (!row.productName.trim() && !row.barcode.trim() && !row.sku.trim()) {
-    return `יש להזין שם פריט, ברקוד או SKU בשורה ${row.rowNumber || row.id}.`
-  }
-
-  if (!row.pageNumber.trim() || !row.rowNumber.trim()) {
-    return `יש להזין מספר עמוד ומספר שורה בשורה ${row.id}.`
-  }
-
-  if (!row.cases.trim() || !row.units.trim()) {
-    return `יש להזין במפורש גם מארזים וגם בודדים בשורה ${row.rowNumber || row.id}.`
-  }
-
-  const pageNumber = Number(row.pageNumber)
-  const rowNumber = Number(row.rowNumber)
-  const cases = Number(row.cases)
-  const units = Number(row.units)
-
-  if (!Number.isInteger(pageNumber) || pageNumber < 1) {
-    return `מספר העמוד בשורה ${row.rowNumber || row.id} חייב להיות מספר שלם חיובי.`
-  }
-
-  if (!Number.isInteger(rowNumber) || rowNumber < 1) {
-    return `מספר השורה בשורה ${row.id} חייב להיות מספר שלם חיובי.`
-  }
-
-  if (
-    !Number.isFinite(cases) ||
-    cases < 0 ||
-    !Number.isFinite(units) ||
-    units < 0
-  ) {
-    return `מארזים ובודדים בשורה ${rowNumber} חייבים להיות מספרים לא שליליים.`
-  }
-
-  return {
-    ...(row.sourceDocumentRef
-      ? { sourceDocumentRef: row.sourceDocumentRef }
-      : {}),
-    pageNumber,
-    rowNumber,
-    rawText: row.rawText,
-    ...(row.productName.trim() ? { productName: row.productName } : {}),
-    ...(row.barcode.trim() ? { barcode: row.barcode } : {}),
-    ...(row.sku.trim() ? { sku: row.sku } : {}),
-    cases,
-    units,
-  }
 }
 
 export default function ManualReviewWorkspace() {
@@ -225,13 +172,13 @@ export default function ManualReviewWorkspace() {
     setError(null)
 
     const convertedRows: ManualReviewRowInput[] = []
-    for (const row of rows) {
-      const converted = validateAndConvertRow(row)
-      if (typeof converted === 'string') {
-        setError(converted)
+    for (const [index, row] of rows.entries()) {
+      const readiness = getManualReviewRowReadiness(row)
+      if (!readiness.input) {
+        setError(`יש לתקן את שורת הטופס ${index + 1}: ${readiness.summary}.`)
         return
       }
-      convertedRows.push(converted)
+      convertedRows.push(readiness.input)
     }
 
     const [duplicateSourceRow] = findDuplicateSourceRows(convertedRows)
@@ -289,6 +236,8 @@ export default function ManualReviewWorkspace() {
   const totalUnits = result
     ? result.totals.reduce((sum, total) => sum + total.units.value, 0)
     : 0
+  const rowReadiness = rows.map((row) => getManualReviewRowReadiness(row))
+  const readyRowCount = rowReadiness.filter((readiness) => readiness.isReady).length
 
   return (
     <div className="manual-review">
@@ -309,124 +258,143 @@ export default function ManualReviewWorkspace() {
       )}
 
       <form className="manual-review__form" onSubmit={submit}>
-        {rows.map((row, index) => (
-          <fieldset
-            className="manual-review__row"
-            disabled={isSubmitting}
-            key={row.id}
-          >
-            <legend>שורת מקור {index + 1}</legend>
-            {row.ocrSourceQuantities && (
-              <aside className="manual-review__ocr-draft">
-                <strong>טיוטת OCR להשוואה בלבד</strong>
-                <p>
-                  מארזים במסמך:{' '}
-                  {displaySourceQuantity(row.ocrSourceQuantities.caseQuantity)} ·
-                  יחידות באריזה:{' '}
-                  {displaySourceQuantity(row.ocrSourceQuantities.unitsPerCase)} ·
-                  כמות כוללת במסמך:{' '}
-                  {displaySourceQuantity(row.ocrSourceQuantities.totalUnits)}
-                </p>
-                <p>
-                  הערכים האלה אינם מוזנים לשירות. בדוק את המסמך והקלד מארזים
-                  ובודדים במפורש בשדות שלמטה.
-                </p>
-              </aside>
-            )}
-            <div className="manual-review__grid">
-              <label>
-                עמוד
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={row.pageNumber}
-                  onChange={(event) =>
-                    updateRow(row.id, 'pageNumber', event.target.value)
-                  }
-                  required
-                />
-              </label>
-              <label>
-                שורה
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={row.rowNumber}
-                  onChange={(event) =>
-                    updateRow(row.id, 'rowNumber', event.target.value)
-                  }
-                  required
-                />
-              </label>
-              <label>
-                שם פריט
-                <input
-                  value={row.productName}
-                  onChange={(event) =>
-                    updateRow(row.id, 'productName', event.target.value)
-                  }
-                />
-              </label>
-              <label>
-                ברקוד
-                <input
-                  inputMode="numeric"
-                  value={row.barcode}
-                  onChange={(event) =>
-                    updateRow(row.id, 'barcode', event.target.value)
-                  }
-                />
-              </label>
-              <label>
-                SKU
-                <input
-                  value={row.sku}
-                  onChange={(event) => updateRow(row.id, 'sku', event.target.value)}
-                />
-              </label>
-              <label>
-                מארזים
-                <input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={row.cases}
-                  onChange={(event) => updateRow(row.id, 'cases', event.target.value)}
-                  required
-                />
-              </label>
-              <label>
-                בודדים
-                <input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={row.units}
-                  onChange={(event) => updateRow(row.id, 'units', event.target.value)}
-                  required
-                />
-              </label>
-            </div>
-            <label className="manual-review__raw-text">
-              טקסט מקור
-              <textarea
-                value={row.rawText}
-                onChange={(event) => updateRow(row.id, 'rawText', event.target.value)}
-                required
-              />
-            </label>
-            <button
-              className="manual-review__secondary-button"
-              type="button"
-              disabled={rows.length === 1 || isSubmitting}
-              onClick={() => removeRow(row.id)}
+        <p className="manual-review__readiness-summary">
+          מוכנות לבדיקה: {readyRowCount} מתוך {rows.length} שורות
+        </p>
+        {rows.map((row, index) => {
+          const readiness = rowReadiness[index]
+          const readinessId = `manual-review-row-${row.id}-readiness`
+
+          return (
+            <fieldset
+              aria-describedby={readinessId}
+              className="manual-review__row"
+              disabled={isSubmitting}
+              key={row.id}
             >
-              הסר שורה
-            </button>
-          </fieldset>
-        ))}
+              <legend>שורת מקור {index + 1}</legend>
+              <p
+                className={
+                  readiness.isReady
+                    ? 'manual-review__row-readiness manual-review__row-readiness--ready'
+                    : 'manual-review__row-readiness'
+                }
+                id={readinessId}
+              >
+                {readiness.summary}
+              </p>
+              {row.ocrSourceQuantities && (
+                <aside className="manual-review__ocr-draft">
+                  <strong>טיוטת OCR להשוואה בלבד</strong>
+                  <p>
+                    מארזים במסמך:{' '}
+                    {displaySourceQuantity(row.ocrSourceQuantities.caseQuantity)} ·
+                    יחידות באריזה:{' '}
+                    {displaySourceQuantity(row.ocrSourceQuantities.unitsPerCase)} ·
+                    כמות כוללת במסמך:{' '}
+                    {displaySourceQuantity(row.ocrSourceQuantities.totalUnits)}
+                  </p>
+                  <p>
+                    הערכים האלה אינם מוזנים לשירות. בדוק את המסמך והקלד מארזים
+                    ובודדים במפורש בשדות שלמטה.
+                  </p>
+                </aside>
+              )}
+              <div className="manual-review__grid">
+                <label>
+                  עמוד
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={row.pageNumber}
+                    onChange={(event) =>
+                      updateRow(row.id, 'pageNumber', event.target.value)
+                    }
+                    required
+                  />
+                </label>
+                <label>
+                  שורה
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={row.rowNumber}
+                    onChange={(event) =>
+                      updateRow(row.id, 'rowNumber', event.target.value)
+                    }
+                    required
+                  />
+                </label>
+                <label>
+                  שם פריט
+                  <input
+                    value={row.productName}
+                    onChange={(event) =>
+                      updateRow(row.id, 'productName', event.target.value)
+                    }
+                  />
+                </label>
+                <label>
+                  ברקוד
+                  <input
+                    inputMode="numeric"
+                    value={row.barcode}
+                    onChange={(event) =>
+                      updateRow(row.id, 'barcode', event.target.value)
+                    }
+                  />
+                </label>
+                <label>
+                  SKU
+                  <input
+                    value={row.sku}
+                    onChange={(event) => updateRow(row.id, 'sku', event.target.value)}
+                  />
+                </label>
+                <label>
+                  מארזים
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={row.cases}
+                    onChange={(event) => updateRow(row.id, 'cases', event.target.value)}
+                    required
+                  />
+                </label>
+                <label>
+                  בודדים
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={row.units}
+                    onChange={(event) => updateRow(row.id, 'units', event.target.value)}
+                    required
+                  />
+                </label>
+              </div>
+              <label className="manual-review__raw-text">
+                טקסט מקור
+                <textarea
+                  value={row.rawText}
+                  onChange={(event) => updateRow(row.id, 'rawText', event.target.value)}
+                  required
+                />
+              </label>
+              <button
+                className="manual-review__secondary-button"
+                type="button"
+                disabled={rows.length === 1 || isSubmitting}
+                onClick={() => removeRow(row.id)}
+              >
+                הסר שורה
+              </button>
+            </fieldset>
+          )
+        })}
 
         {error && (
           <p className="manual-review__error" role="alert">

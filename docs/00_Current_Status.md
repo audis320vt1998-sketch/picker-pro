@@ -57,6 +57,11 @@ against the catalog.
 4. Only verified, unambiguous matches with an allowed unit type are aggregated.
 5. All other rows are returned as review issues and remain outside totals.
 
+Before sending, the review screen shows how many rows are ready and marks each
+row as ready, missing values, or requiring correction. This is a client-side
+completeness check only: it never copies an OCR quantity into a manual field,
+infers a pack size, or converts cases and units.
+
 When a row carries the opaque document reference from OCR, the client and API
 reject a duplicate combination of document reference, page, and printed row.
 This prevents a checked OCR row from being aggregated twice. Direct manual

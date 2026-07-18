@@ -13,6 +13,11 @@ Available now:
 - A browser-only batch at `/upload` for up to 20 Maayan images. It processes
   one image at a time and returns only transient, review-required table
   drafts with stable page numbers.
+- An opt-in, temporary source-image preview beside each draft, so a reviewer
+  can compare a row with the selected image before handoff. Only one preview
+  is open at a time; it may show the original document or customer details,
+  stays in browser memory, and is never included in the OCR result or review
+  handoff.
 - For a sufficiently clear Maayan close-up, a calibrated numeric OCR pass can
   recover repeated SKU/barcode/quantity rows as a review-only draft. It never
   creates totals, resolves the catalog, or fills manual quantities.

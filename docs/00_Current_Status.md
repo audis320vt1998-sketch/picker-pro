@@ -14,6 +14,14 @@ page numbers in the selected order; a failure on one image does not discard
 the drafts from other images. It does not display or retain file names in the
 result.
 
+A reviewer can explicitly open one selected source image at a time beside its
+OCR draft, including after OCR fails for that image. It is the original image,
+so it may contain document or customer details. The preview is a local browser
+object URL, is never returned by the OCR API or included in the handoff, and
+is revoked when it is hidden, the selected batch is replaced, or the upload
+screen is left. The image is sent for OCR only when the user selects the
+preflight action; the browser form uses a neutral upload filename.
+
 After explicitly checking selected OCR rows against the source document, a
 user may transfer a minimal, one-time browser draft from `/upload` to
 `/review`. The transfer is held in session storage for at most 15 minutes and
@@ -59,6 +67,10 @@ returned page/row source references to that response.
   quantity values. It omits a row instead of guessing any missing value.
 - It never returns the filename, document header, customer information, full
   OCR text, original image, catalog match, totals, or a pick list.
+- The upload screen can render an explicitly opened local image preview, but
+  that preview is not part of the API response, session-storage handoff, or
+  manual-review request. It can reveal original document/customer details to
+  the person who opens it, so it is not treated as a PII-free review surface.
 - The result is `NEEDS_REVIEW`. A user-initiated browser handoff can display
   its source quantities beside the manual form, but they are never mapped to,
   or sent as, the manual-review `cases` or `units` fields.

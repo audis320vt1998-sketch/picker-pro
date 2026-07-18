@@ -54,6 +54,13 @@ turn them into operational case/unit totals or split a value by pack size.
 - The upload screen may call that one-image endpoint sequentially for up to
   20 selected images. It assigns a page number in browser memory and keeps an
   opaque random document reference per image, not a filename.
+- A reviewer may explicitly open one selected source image at a time beside
+  the draft, including for a page where preflight fails. This is an original
+  image preview and can therefore show document/customer details. It uses a
+  local browser object URL and is revoked when it is hidden, the batch is
+  replaced, or the upload screen is left; it is never added to the endpoint
+  response or handoff. The browser submits the image for OCR only when the
+  user starts preflight and supplies a neutral upload filename.
 - A user may explicitly confirm selected, traceable rows and pass a minimal
   draft to `/review` through one-time session storage. The draft excludes the
   image, filename, document/header OCR trace, and customer data. Its three

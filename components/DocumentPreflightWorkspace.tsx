@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { type ChangeEvent, type FormEvent, useState } from 'react'
+import { type ChangeEvent, type FormEvent, useEffect, useState } from 'react'
 import {
   createOcrPreflightBatchPage,
   createOcrSourceDocumentRef,
@@ -17,6 +17,7 @@ import {
 } from '@/lib/manual-review'
 
 const MAX_BATCH_IMAGES = 20
+const OCR_UPLOAD_FILE_NAME = 'page-image'
 
 const ISSUE_TEXT: Record<DocumentPreflightIssue['code'], string> = {
   OCR_DRAFT_REQUIRES_REVIEW:
@@ -32,6 +33,29 @@ const ISSUE_TEXT: Record<DocumentPreflightIssue['code'], string> = {
 interface SelectedSourceImage {
   file: File
   sourceDocumentRef: string
+}
+
+interface FailedPreflightPage {
+  pageNumber: number
+  sourceDocumentRef: string
+}
+
+interface PreviewedSourceImage {
+  pageNumber: number
+  sourceDocumentRef: string
+}
+
+interface ActiveLocalPreview {
+  sourceDocumentRef: string
+  url: string
+}
+
+interface SourceImagePreviewProps {
+  hasSourceImage: boolean
+  isVisible: boolean
+  localPreviewUrl: string | null
+  onToggle: () => void
+  pageNumber: number
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -62,6 +86,80 @@ function createSourceDocumentRef(): string {
   return createOcrSourceDocumentRef(randomBytes)
 }
 
+function createLocalPreviewUrl(file: File): string | null {
+  if (typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') {
+    return null
+  }
+
+  try {
+    return URL.createObjectURL(file)
+  } catch {
+    return null
+  }
+}
+
+function revokeLocalPreviewUrl(url: string | null): void {
+  if (url && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+    try {
+      URL.revokeObjectURL(url)
+    } catch {
+      // Releasing a local preview must never interrupt the review workflow.
+    }
+  }
+}
+
+function SourceImagePreview({
+  hasSourceImage,
+  isVisible,
+  localPreviewUrl,
+  onToggle,
+  pageNumber,
+}: SourceImagePreviewProps) {
+  if (!hasSourceImage) {
+    return null
+  }
+
+  const previewId = `source-preview-page-${pageNumber}`
+
+  return (
+    <div className="document-preflight__preview">
+      <button
+        aria-controls={previewId}
+        aria-expanded={isVisible}
+        className="manual-review__secondary-button"
+        onClick={onToggle}
+        type="button"
+      >
+        {isVisible ? 'הסתר תמונת מקור זמנית' : 'הצג תמונת מקור זמנית'}
+      </button>
+      {isVisible &&
+        (localPreviewUrl ? (
+          <figure id={previewId}>
+            <figcaption>
+              תצוגה מקדימה זו מציגה את קובץ המקור כפי שנבחר, ולכן ייתכן שהוא
+              כולל פרטי מסמך או לקוח. היא נוצרת מקומית בדפדפן בלבד, אינה נכתבת
+              לאחסון ואינה מועברת למסך הבדיקה. שליחת הקובץ לעיבוד OCR מתרחשת רק
+              בלחיצה על ״צור טיוטות OCR״.
+            </figcaption>
+            {/* The browser-only object URL cannot be rendered by next/image. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              alt={`תמונת מקור זמנית לעמוד ${pageNumber}`}
+              decoding="async"
+              loading="lazy"
+              referrerPolicy="no-referrer"
+              src={localPreviewUrl}
+            />
+          </figure>
+        ) : (
+          <p className="document-preflight__preview-unavailable" id={previewId}>
+            התצוגה המקדימה אינה זמינה בדפדפן זה.
+          </p>
+        ))}
+    </div>
+  )
+}
+
 function canTransferRow(
   row: DocumentPreflightRow,
   sourceDocumentRef: string
@@ -72,14 +170,40 @@ function canTransferRow(
 export default function DocumentPreflightWorkspace() {
   const [files, setFiles] = useState<readonly SelectedSourceImage[]>([])
   const [pages, setPages] = useState<readonly OcrPreflightBatchPage[] | null>(null)
-  const [failedPageNumbers, setFailedPageNumbers] = useState<readonly number[]>([])
+  const [failedPages, setFailedPages] = useState<readonly FailedPreflightPage[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(
     null
   )
+  const [previewedSource, setPreviewedSource] = useState<PreviewedSourceImage | null>(
+    null
+  )
+  const [activeLocalPreview, setActiveLocalPreview] =
+    useState<ActiveLocalPreview | null>(null)
   const [selectedRowKeys, setSelectedRowKeys] = useState<Record<string, boolean>>({})
   const [hasConfirmedSourceCheck, setHasConfirmedSourceCheck] = useState(false)
+
+  const previewedFile = previewedSource
+    ? files.find(
+        ({ sourceDocumentRef }) => sourceDocumentRef === previewedSource.sourceDocumentRef
+      )?.file ?? null
+    : null
+
+  useEffect(() => {
+    setActiveLocalPreview(null)
+    if (!previewedSource || !previewedFile) {
+      return
+    }
+
+    const url = createLocalPreviewUrl(previewedFile)
+    if (!url) {
+      return
+    }
+
+    setActiveLocalPreview({ sourceDocumentRef: previewedSource.sourceDocumentRef, url })
+    return () => revokeLocalPreviewUrl(url)
+  }, [previewedFile, previewedSource])
 
   const selectFiles = (event: ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files ?? [])
@@ -87,7 +211,9 @@ export default function DocumentPreflightWorkspace() {
 
     setError(null)
     setPages(null)
-    setFailedPageNumbers([])
+    setFailedPages([])
+    setPreviewedSource(null)
+    setActiveLocalPreview(null)
     setSelectedRowKeys({})
     setHasConfirmedSourceCheck(false)
 
@@ -119,13 +245,15 @@ export default function DocumentPreflightWorkspace() {
 
     setError(null)
     setPages([])
-    setFailedPageNumbers([])
+    setFailedPages([])
+    setPreviewedSource(null)
+    setActiveLocalPreview(null)
     setSelectedRowKeys({})
     setHasConfirmedSourceCheck(false)
     setIsSubmitting(true)
 
     const completedPages: OcrPreflightBatchPage[] = []
-    const failures: number[] = []
+    const failures: FailedPreflightPage[] = []
 
     try {
       for (const [index, selectedFile] of files.entries()) {
@@ -134,7 +262,7 @@ export default function DocumentPreflightWorkspace() {
 
         try {
           const form = new FormData()
-          form.append('file', selectedFile.file)
+          form.append('file', selectedFile.file, OCR_UPLOAD_FILE_NAME)
           const response = await fetch('/api/intake/preflight', {
             method: 'POST',
             body: form,
@@ -154,8 +282,11 @@ export default function DocumentPreflightWorkspace() {
           )
           setPages([...completedPages])
         } catch {
-          failures.push(pageNumber)
-          setFailedPageNumbers([...failures])
+          failures.push({
+            pageNumber,
+            sourceDocumentRef: selectedFile.sourceDocumentRef,
+          })
+          setFailedPages([...failures])
         }
       }
     } finally {
@@ -167,6 +298,15 @@ export default function DocumentPreflightWorkspace() {
   const toggleRowSelection = (key: string, selected: boolean) => {
     setSelectedRowKeys((current) => ({ ...current, [key]: selected }))
     setHasConfirmedSourceCheck(false)
+  }
+
+  const toggleSourcePreview = (pageNumber: number, sourceDocumentRef: string) => {
+    setActiveLocalPreview(null)
+    setPreviewedSource((current) =>
+      current?.sourceDocumentRef === sourceDocumentRef
+        ? null
+        : { pageNumber, sourceDocumentRef }
+    )
   }
 
   const selectedRows = (pages ?? []).flatMap(({ page, sourceDocumentRef }) =>
@@ -247,25 +387,76 @@ export default function DocumentPreflightWorkspace() {
             הידנית. אות ה-OCR הוא סימן טכני בלבד ואינו מאשר נכונות של שדה כלשהו.
           </p>
 
-          {failedPageNumbers.map((pageNumber) => (
-            <p className="document-preflight__issue" key={pageNumber}>
-              לא נוצרה טיוטת OCR לעמוד {pageNumber}. יש להזין אותו ידנית או לצלם
-              תקריב חד יותר.
-            </p>
-          ))}
+          {failedPages.map(({ pageNumber, sourceDocumentRef }) => {
+            const hasSourceImage = files.some(
+              (file) => file.sourceDocumentRef === sourceDocumentRef
+            )
+            const isPreviewVisible =
+              previewedSource?.pageNumber === pageNumber &&
+              previewedSource.sourceDocumentRef === sourceDocumentRef
 
-          {pages.map(({ page, sourceDocumentRef }) => (
-            <div className="document-preflight__page" key={page.pageNumber}>
-              <h3>עמוד {page.pageNumber}</h3>
-              {page.issues.map((issue) => (
-                <p className="document-preflight__issue" key={issue.code}>
-                  {ISSUE_TEXT[issue.code]}
+            return (
+              <div className="document-preflight__failed-page" key={sourceDocumentRef}>
+                <p className="document-preflight__issue">
+                  לא נוצרה טיוטת OCR לעמוד {pageNumber}. יש להזין אותו ידנית או
+                  לצלם תקריב חד יותר.
                 </p>
-              ))}
+                <SourceImagePreview
+                  hasSourceImage={hasSourceImage}
+                  isVisible={isPreviewVisible}
+                  localPreviewUrl={
+                    activeLocalPreview?.sourceDocumentRef === sourceDocumentRef
+                      ? activeLocalPreview.url
+                      : null
+                  }
+                  onToggle={() => toggleSourcePreview(pageNumber, sourceDocumentRef)}
+                  pageNumber={pageNumber}
+                />
+              </div>
+            )
+          })}
 
-              {page.rows.length > 0 && (
-                <div className="manual-review__table-wrapper">
-                  <table>
+          {pages.map(({ page, sourceDocumentRef }) => {
+            const hasSourceImage = files.some(
+              (file) => file.sourceDocumentRef === sourceDocumentRef
+            )
+            const isPreviewVisible =
+              previewedSource?.pageNumber === page.pageNumber &&
+              previewedSource.sourceDocumentRef === sourceDocumentRef
+
+            return (
+              <div className="document-preflight__page" key={page.pageNumber}>
+                <h3>עמוד {page.pageNumber}</h3>
+                {page.issues.map((issue) => (
+                  <p className="document-preflight__issue" key={issue.code}>
+                    {ISSUE_TEXT[issue.code]}
+                  </p>
+                ))}
+
+                <div
+                  className={
+                    isPreviewVisible
+                      ? 'document-preflight__review-layout document-preflight__review-layout--with-preview'
+                      : 'document-preflight__review-layout'
+                  }
+                >
+                  <SourceImagePreview
+                    hasSourceImage={hasSourceImage}
+                    isVisible={isPreviewVisible}
+                    localPreviewUrl={
+                      activeLocalPreview?.sourceDocumentRef === sourceDocumentRef
+                        ? activeLocalPreview.url
+                        : null
+                    }
+                    onToggle={() =>
+                      toggleSourcePreview(page.pageNumber, sourceDocumentRef)
+                    }
+                    pageNumber={page.pageNumber}
+                  />
+
+                  {page.rows.length > 0 && (
+                    <div className="manual-review__table-wrapper">
+                      <table>
                     <thead>
                       <tr>
                         <th>להעברה</th>
@@ -320,11 +511,13 @@ export default function DocumentPreflightWorkspace() {
                         )
                       })}
                     </tbody>
-                  </table>
+                      </table>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
+              </div>
+            )
+          })}
 
           <div className="document-preflight__handoff">
             <label>

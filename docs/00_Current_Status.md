@@ -16,6 +16,12 @@ result. Before upload, the browser rejects an unsupported, empty, or over-12
 MB selected image as an early UX guard; the endpoint independently repeats
 those checks.
 
+On a supported mobile browser, the same screen also offers a direct-camera
+chooser for one document image. That selection deliberately replaces the
+current batch, receives a new opaque source reference, and is not uploaded
+until the reviewer explicitly starts OCR. The browser may offer a regular file
+chooser instead of a camera, so camera availability is never assumed.
+
 For the known temporary OCR states (busy, timeout, or unavailable), the user
 may explicitly retry that one page. The screen never retries automatically or
 in parallel. It reuses the same browser-held image, selected-order page number,
@@ -137,8 +143,8 @@ are likewise fixed by their known code rather than copied from API messages.
 
 ## Unavailable capabilities
 
-- Camera capture, PDF processing, perspective correction, stored OCR jobs,
-  and operational or automatic image-to-pick-list processing.
+- PDF processing, perspective correction, stored OCR jobs, and operational or
+  automatic image-to-pick-list processing.
 - The legacy `/api/process` endpoint is deliberately disabled. It returns a
   fixed, non-cacheable `501` response without parsing an uploaded request; it
   is not an alternative to `/api/intake/preflight`.

@@ -15,6 +15,7 @@ import {
   getPreflightFileSelectionIssue,
   isRetryablePreflightFailure,
   MAX_PREFLIGHT_BATCH_IMAGES,
+  PREFLIGHT_CAMERA_CAPTURE,
   PREFLIGHT_FILE_INPUT_ACCEPT,
   preflightFailureCodeFromResponse,
   removeOcrPreflightBatchOutcomeSource,
@@ -39,6 +40,7 @@ import {
 } from '@/lib/manual-review'
 
 const OCR_UPLOAD_FILE_NAME = 'page-image'
+const CAMERA_CAPTURE_NOTE_ID = 'document-preflight-camera-note'
 
 const ISSUE_TEXT: Record<DocumentPreflightIssue['code'], string> = {
   OCR_DRAFT_REQUIRES_REVIEW:
@@ -633,16 +635,33 @@ export default function DocumentPreflightWorkspace() {
       </section>
 
       <form className="manual-review__form" onSubmit={submit}>
-        <label className="document-preflight__file-label">
-          תמונות מסמך
-          <input
-            accept={PREFLIGHT_FILE_INPUT_ACCEPT}
-            disabled={isSubmitting}
-            multiple
-            onChange={selectFiles}
-            type="file"
-          />
-        </label>
+        <div className="document-preflight__source-actions">
+          <label className="document-preflight__file-label">
+            תמונות מסמך
+            <input
+              accept={PREFLIGHT_FILE_INPUT_ACCEPT}
+              disabled={isSubmitting}
+              multiple
+              onChange={selectFiles}
+              type="file"
+            />
+          </label>
+          <label className="document-preflight__file-label">
+            צלם תמונת מסמך
+            <input
+              accept={PREFLIGHT_FILE_INPUT_ACCEPT}
+              aria-describedby={CAMERA_CAPTURE_NOTE_ID}
+              capture={PREFLIGHT_CAMERA_CAPTURE}
+              disabled={isSubmitting}
+              onChange={selectFiles}
+              type="file"
+            />
+          </label>
+        </div>
+        <p className="document-preflight__camera-note" id={CAMERA_CAPTURE_NOTE_ID}>
+          הצילום נועד לעמוד אחד ומחליף את הבחירה הנוכחית. הדפדפן בוחר אם לפתוח
+          מצלמה או בורר קבצים; התמונה לא נשלחת עד ללחיצה על יצירת טיוטות OCR.
+        </p>
         {files.length > 0 && (
           <p className="document-preflight__selected">
             נבחרו {files.length} תמונות. שמות הקבצים אינם מוצגים או נשמרים

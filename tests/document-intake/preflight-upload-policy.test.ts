@@ -1,6 +1,7 @@
 import {
   getPreflightFileSelectionIssue,
   isSupportedPreflightImageType,
+  PREFLIGHT_CAMERA_CAPTURE,
   MAX_PREFLIGHT_IMAGE_BYTES,
   PREFLIGHT_FILE_INPUT_ACCEPT,
   PREFLIGHT_SUPPORTED_IMAGE_TYPES,
@@ -14,6 +15,7 @@ describe('OCR preflight upload policy', () => {
       'image/webp',
     ])
     expect(PREFLIGHT_FILE_INPUT_ACCEPT).toBe('image/jpeg,image/png,image/webp')
+    expect(PREFLIGHT_CAMERA_CAPTURE).toBe('environment')
     expect(isSupportedPreflightImageType('image/jpeg')).toBe(true)
     expect(isSupportedPreflightImageType('image/JPEG')).toBe(false)
   })

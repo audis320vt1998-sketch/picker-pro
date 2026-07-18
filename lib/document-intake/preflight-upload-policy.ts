@@ -19,6 +19,13 @@ export type PreflightSupportedImageType =
 
 export const PREFLIGHT_FILE_INPUT_ACCEPT = PREFLIGHT_SUPPORTED_IMAGE_TYPES.join(',')
 
+/**
+ * A browser hint for the separate, single-image mobile capture control. The
+ * browser may still offer its own chooser, so this never promises camera
+ * availability or changes the server's image validation contract.
+ */
+export const PREFLIGHT_CAMERA_CAPTURE = 'environment' as const
+
 export interface PreflightFileMetadata {
   type: string
   size: number

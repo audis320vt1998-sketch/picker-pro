@@ -10,6 +10,9 @@ Available now:
 
 - A Hebrew right-to-left manual-review screen at `/review`.
 - Explicit, separate input fields for cases and individual units.
+- A browser-provided direct-camera chooser for one document image at `/upload`.
+  It replaces the current image selection and does not upload or process the
+  image until the reviewer explicitly starts OCR.
 - A browser-only batch at `/upload` for up to 20 Maayan images. It processes
   one image at a time and returns only transient, review-required table
   drafts with stable page numbers. The browser gives an early rejection for
@@ -43,8 +46,8 @@ Available now:
 
 Not available yet:
 
-- Operational OCR, camera capture, PDF processing, or automatic pick-list
-  creation from an image.
+- Operational OCR, PDF processing, or automatic pick-list creation from an
+  image.
 - Stored jobs, a persistent review queue, exports, city/route grouping, or AI
   assistance.
 

@@ -194,6 +194,19 @@ nav a:hover {
   max-width: 34rem;
 }
 
+.document-preflight__source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.document-preflight__camera-note {
+  color: #475569;
+  line-height: 1.5;
+  margin-top: 0.75rem;
+  max-width: 44rem;
+}
+
 .document-preflight__selected,
 .document-preflight__issue,
 .document-preflight__progress {

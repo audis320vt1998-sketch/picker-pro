@@ -29,6 +29,10 @@ export {
   upsertOcrPreflightBatchPage,
 } from './preflight-batch'
 export {
+  moveOcrPreflightSelectionItem,
+  removeOcrPreflightSelectionItem,
+} from './preflight-selection'
+export {
   createOcrPreflightBatchOutcome,
   removeOcrPreflightBatchOutcomeSource,
   recordOcrPreflightBatchFailure,

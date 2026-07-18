@@ -18,7 +18,9 @@ Available now:
   upload or process the image until the reviewer explicitly starts OCR.
 - A browser-only batch at `/upload` for up to 20 Maayan images. It processes
   one image at a time and returns only transient, review-required table
-  drafts with stable page numbers. The browser gives an early rejection for
+  drafts with stable page numbers. Before OCR, the reviewer can reorder or
+  remove generic page positions without seeing a file name; the final local
+  order becomes the page numbering. The browser gives an early rejection for
   unsupported, empty, or oversized images, while the server remains the
   authoritative boundary. A failed page can be retried only by explicit user
   action when OCR is temporarily busy, timed out, or unavailable; it never

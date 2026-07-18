@@ -208,10 +208,31 @@ export function isCatalogOnboardingPreflightResult(
     !isNonNegativeInteger(value.summary.rowsWithErrors) ||
     !isNonNegativeInteger(value.summary.rowsWithWarnings) ||
     typeof value.issuesTruncated !== 'boolean' ||
-    !Array.isArray(value.issues)
+    !Array.isArray(value.issues) ||
+    value.issues.length > MAX_CATALOG_ONBOARDING_ISSUES ||
+    value.summary.readyRows > value.summary.totalRows ||
+    value.summary.rowsWithErrors > value.summary.totalRows ||
+    value.summary.rowsWithWarnings > value.summary.totalRows ||
+    value.summary.readyRows + value.summary.rowsWithErrors >
+      value.summary.totalRows ||
+    (value.issuesTruncated &&
+      value.issues.length !== MAX_CATALOG_ONBOARDING_ISSUES)
   ) {
     return false
   }
 
-  return value.issues.every(isIssue)
+  if (!value.issues.every(isIssue)) {
+    return false
+  }
+
+  if (value.status === 'READY_FOR_CONTROLLED_REVIEW') {
+    return (
+      value.summary.totalRows > 0 &&
+      value.summary.readyRows === value.summary.totalRows &&
+      value.summary.rowsWithErrors === 0 &&
+      !value.issues.some((issue) => issue.severity === 'error')
+    )
+  }
+
+  return true
 }

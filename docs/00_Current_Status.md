@@ -16,6 +16,13 @@ result. Before upload, the browser rejects an unsupported, empty, or over-12
 MB selected image as an early UX guard; the endpoint independently repeats
 those checks.
 
+Before OCR begins, the reviewer can see generic page positions only, move a
+selected image up or down, or remove it from the batch. This changes only the
+browser-held selection: the opaque source reference remains with its selected
+image and the final order becomes the OCR page numbering. File names are never
+displayed. Once OCR starts, that batch order is locked; selecting a new batch
+is required to make a different order.
+
 On a supported mobile browser, the same screen also offers a direct-camera
 chooser for one document image. That selection deliberately replaces the
 current batch, receives a new opaque source reference, and is not uploaded

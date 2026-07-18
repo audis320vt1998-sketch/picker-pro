@@ -15,9 +15,11 @@ import {
   getPreflightFileSelectionIssue,
   isRetryablePreflightFailure,
   MAX_PREFLIGHT_BATCH_IMAGES,
+  moveOcrPreflightSelectionItem,
   PREFLIGHT_CAMERA_CAPTURE,
   PREFLIGHT_FILE_INPUT_ACCEPT,
   preflightFailureCodeFromResponse,
+  removeOcrPreflightSelectionItem,
   removeOcrPreflightBatchOutcomeSource,
   removeOcrPreflightPageRowSelections,
   removeOcrPreflightReplacementSlot,
@@ -355,6 +357,18 @@ export default function DocumentPreflightWorkspace() {
     return () => revokeLocalPreviewUrl(url)
   }, [previewedFile, previewedSource])
 
+  const resetDraftAfterSelectionChange = () => {
+    setError(null)
+    setOutcome(null)
+    setPendingReplacementPages([])
+    setPreviewedSource(null)
+    setActiveLocalPreview(null)
+    setSelectedRowKeys({})
+    setHasConfirmedSourceCheck(false)
+  }
+
+  const canEditSelectedBatch = !isSubmitting && outcome === null
+
   const selectFiles = (event: ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files ?? [])
     event.currentTarget.value = ''
@@ -375,13 +389,7 @@ export default function DocumentPreflightWorkspace() {
       return
     }
 
-    setError(null)
-    setOutcome(null)
-    setPendingReplacementPages([])
-    setPreviewedSource(null)
-    setActiveLocalPreview(null)
-    setSelectedRowKeys({})
-    setHasConfirmedSourceCheck(false)
+    resetDraftAfterSelectionChange()
 
     try {
       setFiles(
@@ -395,6 +403,32 @@ export default function DocumentPreflightWorkspace() {
       setPendingReplacementPages([])
       setError('הדפדפן לא הצליח ליצור מזהה זמני ובטוח למסמך. נסה שוב.')
     }
+  }
+
+  const moveSelectedFile = (currentIndex: number, destinationIndex: number) => {
+    if (
+      !canEditSelectedBatch ||
+      currentIndex < 0 ||
+      destinationIndex < 0 ||
+      currentIndex >= files.length ||
+      destinationIndex >= files.length
+    ) {
+      return
+    }
+
+    resetDraftAfterSelectionChange()
+    setFiles((current) =>
+      moveOcrPreflightSelectionItem(current, currentIndex, destinationIndex)
+    )
+  }
+
+  const removeSelectedFile = (index: number) => {
+    if (!canEditSelectedBatch || index < 0 || index >= files.length) {
+      return
+    }
+
+    resetDraftAfterSelectionChange()
+    setFiles((current) => removeOcrPreflightSelectionItem(current, index))
   }
 
   const selectReplacementFile = (
@@ -682,10 +716,65 @@ export default function DocumentPreflightWorkspace() {
           מצלמה או בורר קבצים; התמונה לא נשלחת עד ללחיצה על יצירת טיוטות OCR.
         </p>
         {files.length > 0 && (
-          <p className="document-preflight__selected">
-            נבחרו {files.length} תמונות. שמות הקבצים אינם מוצגים או נשמרים
-            בתוצאה.
-          </p>
+          <section
+            aria-labelledby="document-preflight-selection-title"
+            className="document-preflight__selection"
+          >
+            <h2 id="document-preflight-selection-title">סדר עמודים לפני OCR</h2>
+            <p className="document-preflight__selected">
+              נבחרו {files.length} תמונות. שמות הקבצים אינם מוצגים או נשמרים
+              בתוצאה.
+            </p>
+            {canEditSelectedBatch ? (
+              <>
+                <p>
+                  סדר העמודים כאן יקבע את מספרי העמודים בטיוטת ה־OCR. השינוי
+                  מקומי בדפדפן בלבד; התמונות אינן נשלחות עד ללחיצה על יצירת
+                  הטיוטות.
+                </p>
+                <ol className="document-preflight__selection-list">
+                  {files.map(({ sourceDocumentRef }, index) => (
+                    <li className="document-preflight__selection-item" key={sourceDocumentRef}>
+                      <span>עמוד {index + 1}</span>
+                      <div className="document-preflight__selection-actions">
+                        <button
+                          aria-label={`העבר את עמוד ${index + 1} למעלה`}
+                          className="manual-review__secondary-button"
+                          disabled={index === 0}
+                          onClick={() => moveSelectedFile(index, index - 1)}
+                          type="button"
+                        >
+                          העבר למעלה
+                        </button>
+                        <button
+                          aria-label={`העבר את עמוד ${index + 1} למטה`}
+                          className="manual-review__secondary-button"
+                          disabled={index === files.length - 1}
+                          onClick={() => moveSelectedFile(index, index + 1)}
+                          type="button"
+                        >
+                          העבר למטה
+                        </button>
+                        <button
+                          aria-label={`הסר את עמוד ${index + 1} מהאצווה`}
+                          className="manual-review__secondary-button"
+                          onClick={() => removeSelectedFile(index)}
+                          type="button"
+                        >
+                          הסר עמוד
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </>
+            ) : (
+              <p>
+                סדר האצווה כבר שימש ליצירת טיוטת OCR. כדי לשנות סדר, בחר אצווה
+                חדשה לפני יצירת הטיוטות.
+              </p>
+            )}
+          </section>
         )}
         {activity && (
           <p className="document-preflight__progress" role="status">

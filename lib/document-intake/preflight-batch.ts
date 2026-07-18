@@ -76,3 +76,24 @@ export function createOcrPreflightBatchPage(
     page: reassignPreflightPageNumber(page, pageNumber),
   }
 }
+
+/**
+ * Replaces a draft by its opaque source reference and keeps the selected-file
+ * order stable. This is used when a user explicitly retries a failed image;
+ * it never creates another identity or another page for that image.
+ */
+export function upsertOcrPreflightBatchPage(
+  pages: readonly OcrPreflightBatchPage[],
+  nextPage: OcrPreflightBatchPage
+): readonly OcrPreflightBatchPage[] {
+  return [
+    ...pages.filter(
+      ({ sourceDocumentRef }) => sourceDocumentRef !== nextPage.sourceDocumentRef
+    ),
+    nextPage,
+  ].sort(
+    (left, right) =>
+      left.page.pageNumber - right.page.pageNumber ||
+      left.sourceDocumentRef.localeCompare(right.sourceDocumentRef)
+  )
+}

@@ -12,7 +12,11 @@ Available now:
 - Explicit, separate input fields for cases and individual units.
 - A browser-only batch at `/upload` for up to 20 Maayan images. It processes
   one image at a time and returns only transient, review-required table
-  drafts with stable page numbers.
+  drafts with stable page numbers. The browser gives an early rejection for
+  unsupported, empty, or oversized images, while the server remains the
+  authoritative boundary. A failed page can be retried only by explicit user
+  action when OCR is temporarily busy, timed out, or unavailable; it never
+  retries automatically.
 - An opt-in, temporary source-image preview beside each draft, so a reviewer
   can compare a row with the selected image before handoff. Only one preview
   is open at a time; it may show the original document or customer details,

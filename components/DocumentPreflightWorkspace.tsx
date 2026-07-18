@@ -1,14 +1,31 @@
 'use client'
 
 import Link from 'next/link'
-import { type ChangeEvent, type FormEvent, useEffect, useState } from 'react'
+import {
+  type ChangeEvent,
+  type FormEvent,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import {
   createOcrPreflightBatchPage,
+  createOcrPreflightBatchOutcome,
   createOcrSourceDocumentRef,
+  getPreflightFileSelectionIssue,
+  isRetryablePreflightFailure,
+  MAX_PREFLIGHT_BATCH_IMAGES,
+  PREFLIGHT_FILE_INPUT_ACCEPT,
+  preflightFailureCodeFromResponse,
+  recordOcrPreflightBatchFailure,
+  recordOcrPreflightBatchSuccess,
   type DocumentPreflightIssue,
   type DocumentPreflightResult,
   type DocumentPreflightRow,
   type OcrPreflightBatchPage,
+  type OcrPreflightBatchFailure,
+  type OcrPreflightBatchOutcome,
+  type OcrPreflightFailureCode,
 } from '@/lib/document-intake'
 import {
   createOcrManualReviewHandoff,
@@ -16,7 +33,6 @@ import {
   toOcrManualReviewHandoffRow,
 } from '@/lib/manual-review'
 
-const MAX_BATCH_IMAGES = 20
 const OCR_UPLOAD_FILE_NAME = 'page-image'
 
 const ISSUE_TEXT: Record<DocumentPreflightIssue['code'], string> = {
@@ -30,13 +46,35 @@ const ISSUE_TEXT: Record<DocumentPreflightIssue['code'], string> = {
     'זוהתה טבלה, אך לא נמצאה שורה עם מק״ט וברקוד מוצר יחד. לא נוצרו שורות OCR.',
 }
 
-interface SelectedSourceImage {
-  file: File
-  sourceDocumentRef: string
+const PREFLIGHT_FAILURE_TEXT: Record<OcrPreflightFailureCode, string> = {
+  INVALID_PREFLIGHT_INPUT:
+    'לא ניתן היה להכין את התמונה לבדיקה. יש לבחור תמונה חדשה או להזין את השורות ידנית.',
+  REQUEST_TOO_LARGE:
+    'הבקשה גדולה מדי. יש לבחור תמונה קטנה יותר או צילום קרוב יותר של הטבלה.',
+  UNSUPPORTED_IMAGE_TYPE:
+    'אפשר לשלוח רק תמונת JPEG, PNG או WebP. יש לבחור תמונה מתאימה.',
+  IMAGE_TOO_LARGE:
+    'התמונה גדולה מדי. יש לבחור תמונה קטנה יותר או צילום קרוב יותר של הטבלה.',
+  INVALID_IMAGE:
+    'לא ניתן לקרוא את קובץ התמונה. יש לצלם או לייצא אותו מחדש.',
+  IMAGE_TYPE_MISMATCH:
+    'סוג הקובץ אינו תואם לתוכן התמונה. יש לצלם או לייצא את התמונה מחדש.',
+  IMAGE_DIMENSIONS_TOO_LARGE:
+    'ממדי התמונה גדולים מדי. יש לחתוך או להקטין את התמונה ולבחור אותה מחדש.',
+  INVALID_IMAGE_CONTENT:
+    'לא ניתן לפענח את תוכן התמונה. יש לצלם או לייצא אותה מחדש.',
+  OCR_PREFLIGHT_BUSY:
+    'בדיקת ה־OCR עסוקה כרגע. אפשר לנסות שוב ידנית בעמוד זה בעוד רגע, או להזין ידנית.',
+  OCR_PREFLIGHT_TIMEOUT:
+    'בדיקת ה־OCR נמשכה זמן רב מדי. אפשר לנסות שוב ידנית בעמוד זה מאוחר יותר, או להזין ידנית.',
+  OCR_PREFLIGHT_UNAVAILABLE:
+    'בדיקת ה־OCR אינה זמינה כרגע. אפשר לנסות שוב ידנית בעמוד זה מאוחר יותר, או להזין ידנית.',
+  UNKNOWN:
+    'לא התקבלה תוצאת בדיקה תקינה. יש לבחור את התמונות מחדש או להזין את השורות ידנית.',
 }
 
-interface FailedPreflightPage {
-  pageNumber: number
+interface SelectedSourceImage {
+  file: File
   sourceDocumentRef: string
 }
 
@@ -58,6 +96,15 @@ interface SourceImagePreviewProps {
   pageNumber: number
 }
 
+type PreflightActivity =
+  | { kind: 'batch'; current: number; total: number }
+  | { kind: 'retry'; pageNumber: number }
+  | null
+
+type PreflightPageAttempt =
+  | { kind: 'success'; batchPage: OcrPreflightBatchPage }
+  | { kind: 'failure'; code: OcrPreflightFailureCode }
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
@@ -70,6 +117,48 @@ function isDocumentPreflightResult(value: unknown): value is DocumentPreflightRe
     value.profile === 'MAAYAN_PRICE_OFFER_V1' &&
     Array.isArray(value.pages)
   )
+}
+
+/**
+ * Sends a selected image under a neutral multipart name. Only the whitelisted
+ * failure code is retained; the API's error text and response body never
+ * reach the review UI.
+ */
+async function requestPreflightPage(
+  selectedFile: SelectedSourceImage,
+  pageNumber: number
+): Promise<PreflightPageAttempt> {
+  try {
+    const form = new FormData()
+    form.append('file', selectedFile.file, OCR_UPLOAD_FILE_NAME)
+    const response = await fetch('/api/intake/preflight', {
+      method: 'POST',
+      body: form,
+    })
+    const body: unknown = await response.json().catch(() => null)
+
+    if (!response.ok) {
+      return { kind: 'failure', code: preflightFailureCodeFromResponse(body) }
+    }
+    if (!isDocumentPreflightResult(body) || body.pages.length !== 1) {
+      return { kind: 'failure', code: 'UNKNOWN' }
+    }
+
+    try {
+      return {
+        kind: 'success',
+        batchPage: createOcrPreflightBatchPage(
+          body.pages[0],
+          pageNumber,
+          selectedFile.sourceDocumentRef
+        ),
+      }
+    } catch {
+      return { kind: 'failure', code: 'UNKNOWN' }
+    }
+  } catch {
+    return { kind: 'failure', code: 'OCR_PREFLIGHT_UNAVAILABLE' }
+  }
 }
 
 function displayQuantity(value: number | null): string {
@@ -169,13 +258,9 @@ function canTransferRow(
 
 export default function DocumentPreflightWorkspace() {
   const [files, setFiles] = useState<readonly SelectedSourceImage[]>([])
-  const [pages, setPages] = useState<readonly OcrPreflightBatchPage[] | null>(null)
-  const [failedPages, setFailedPages] = useState<readonly FailedPreflightPage[]>([])
+  const [outcome, setOutcome] = useState<OcrPreflightBatchOutcome | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [progress, setProgress] = useState<{ current: number; total: number } | null>(
-    null
-  )
+  const [activity, setActivity] = useState<PreflightActivity>(null)
   const [previewedSource, setPreviewedSource] = useState<PreviewedSourceImage | null>(
     null
   )
@@ -183,6 +268,11 @@ export default function DocumentPreflightWorkspace() {
     useState<ActiveLocalPreview | null>(null)
   const [selectedRowKeys, setSelectedRowKeys] = useState<Record<string, boolean>>({})
   const [hasConfirmedSourceCheck, setHasConfirmedSourceCheck] = useState(false)
+  const preflightActionLock = useRef(false)
+
+  const isSubmitting = activity !== null
+  const pages = outcome?.pages ?? []
+  const failedPages = outcome?.failures ?? []
 
   const previewedFile = previewedSource
     ? files.find(
@@ -209,19 +299,28 @@ export default function DocumentPreflightWorkspace() {
     const selectedFiles = Array.from(event.target.files ?? [])
     event.currentTarget.value = ''
 
+    if (selectedFiles.length === 0) {
+      return
+    }
+    if (selectedFiles.length > MAX_PREFLIGHT_BATCH_IMAGES) {
+      setError(`אפשר לבחור עד ${MAX_PREFLIGHT_BATCH_IMAGES} תמונות בכל אצווה.`)
+      return
+    }
+
+    const selectionIssue = selectedFiles
+      .map((file) => getPreflightFileSelectionIssue(file))
+      .find((issue) => issue !== null)
+    if (selectionIssue) {
+      setError(PREFLIGHT_FAILURE_TEXT[selectionIssue])
+      return
+    }
+
     setError(null)
-    setPages(null)
-    setFailedPages([])
+    setOutcome(null)
     setPreviewedSource(null)
     setActiveLocalPreview(null)
     setSelectedRowKeys({})
     setHasConfirmedSourceCheck(false)
-
-    if (selectedFiles.length > MAX_BATCH_IMAGES) {
-      setFiles([])
-      setError(`אפשר לבחור עד ${MAX_BATCH_IMAGES} תמונות בכל אצווה.`)
-      return
-    }
 
     try {
       setFiles(
@@ -238,60 +337,85 @@ export default function DocumentPreflightWorkspace() {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (preflightActionLock.current) {
+      return
+    }
     if (files.length === 0) {
       setError('יש לבחור לפחות תמונת JPEG, PNG או WebP אחת.')
       return
     }
 
+    preflightActionLock.current = true
     setError(null)
-    setPages([])
-    setFailedPages([])
+    setOutcome(createOcrPreflightBatchOutcome())
     setPreviewedSource(null)
     setActiveLocalPreview(null)
     setSelectedRowKeys({})
     setHasConfirmedSourceCheck(false)
-    setIsSubmitting(true)
-
-    const completedPages: OcrPreflightBatchPage[] = []
-    const failures: FailedPreflightPage[] = []
+    setActivity({ kind: 'batch', current: 0, total: files.length })
 
     try {
       for (const [index, selectedFile] of files.entries()) {
         const pageNumber = index + 1
-        setProgress({ current: pageNumber, total: files.length })
+        setActivity({ kind: 'batch', current: pageNumber, total: files.length })
+        const attempt = await requestPreflightPage(selectedFile, pageNumber)
 
-        try {
-          const form = new FormData()
-          form.append('file', selectedFile.file, OCR_UPLOAD_FILE_NAME)
-          const response = await fetch('/api/intake/preflight', {
-            method: 'POST',
-            body: form,
-          })
-          const body: unknown = await response.json()
-
-          if (!response.ok || !isDocumentPreflightResult(body) || body.pages.length !== 1) {
-            throw new Error('Invalid OCR preflight response.')
+        setOutcome((current) => {
+          const currentOutcome = current ?? createOcrPreflightBatchOutcome()
+          if (attempt.kind === 'success') {
+            return recordOcrPreflightBatchSuccess(currentOutcome, attempt.batchPage)
           }
 
-          completedPages.push(
-            createOcrPreflightBatchPage(
-              body.pages[0],
-              pageNumber,
-              selectedFile.sourceDocumentRef
-            )
-          )
-          setPages([...completedPages])
-        } catch {
-          failures.push({
+          return recordOcrPreflightBatchFailure(currentOutcome, {
             pageNumber,
             sourceDocumentRef: selectedFile.sourceDocumentRef,
+            code: attempt.code,
           })
-          setFailedPages([...failures])
-        }
+        })
       }
     } finally {
-      setIsSubmitting(false)
-      setProgress(null)
+      preflightActionLock.current = false
+      setActivity(null)
+    }
+  }
+
+  const retryFailedPage = async (failedPage: OcrPreflightBatchFailure) => {
+    if (
+      preflightActionLock.current ||
+      !isRetryablePreflightFailure(failedPage.code)
+    ) {
+      return
+    }
+
+    const selectedFileIndex = files.findIndex(
+      ({ sourceDocumentRef }) => sourceDocumentRef === failedPage.sourceDocumentRef
+    )
+    if (selectedFileIndex < 0 || selectedFileIndex + 1 !== failedPage.pageNumber) {
+      setError('לא ניתן לגשת לתמונה שנבחרה. יש לבחור את התמונות מחדש או להזין ידנית.')
+      return
+    }
+
+    const selectedFile = files[selectedFileIndex]
+    preflightActionLock.current = true
+    setError(null)
+    setActivity({ kind: 'retry', pageNumber: failedPage.pageNumber })
+
+    try {
+      const attempt = await requestPreflightPage(selectedFile, failedPage.pageNumber)
+      setOutcome((current) => {
+        const currentOutcome = current ?? createOcrPreflightBatchOutcome()
+        if (attempt.kind === 'success') {
+          return recordOcrPreflightBatchSuccess(currentOutcome, attempt.batchPage)
+        }
+
+        return recordOcrPreflightBatchFailure(currentOutcome, {
+          ...failedPage,
+          code: attempt.code,
+        })
+      })
+    } finally {
+      preflightActionLock.current = false
+      setActivity(null)
     }
   }
 
@@ -309,7 +433,7 @@ export default function DocumentPreflightWorkspace() {
     )
   }
 
-  const selectedRows = (pages ?? []).flatMap(({ page, sourceDocumentRef }) =>
+  const selectedRows = pages.flatMap(({ page, sourceDocumentRef }) =>
     page.rows
       .filter(
         (row) =>
@@ -349,7 +473,7 @@ export default function DocumentPreflightWorkspace() {
         <label className="document-preflight__file-label">
           תמונות מסמך
           <input
-            accept="image/jpeg,image/png,image/webp"
+            accept={PREFLIGHT_FILE_INPUT_ACCEPT}
             disabled={isSubmitting}
             multiple
             onChange={selectFiles}
@@ -362,9 +486,11 @@ export default function DocumentPreflightWorkspace() {
             בתוצאה.
           </p>
         )}
-        {progress && (
+        {activity && (
           <p className="document-preflight__progress" role="status">
-            מעבד תמונה {progress.current} מתוך {progress.total}…
+            {activity.kind === 'batch'
+              ? `מעבד תמונה ${activity.current} מתוך ${activity.total}…`
+              : `מנסה שוב לעמוד ${activity.pageNumber}…`}
           </p>
         )}
         <button
@@ -372,13 +498,17 @@ export default function DocumentPreflightWorkspace() {
           type="submit"
           disabled={files.length === 0 || isSubmitting}
         >
-          {isSubmitting ? 'קורא את התמונות…' : 'צור טיוטות OCR'}
+          {isSubmitting
+            ? activity?.kind === 'retry'
+              ? 'מנסה שוב…'
+              : 'קורא את התמונות…'
+            : 'צור טיוטות OCR'}
         </button>
       </form>
 
       {error && <p className="manual-review__error" role="alert">{error}</p>}
 
-      {pages && (
+      {outcome && (
         <section className="manual-review__result">
           <h2>טיוטות OCR — נדרשת בדיקה ידנית</h2>
           <p className="manual-review__notice">
@@ -387,7 +517,7 @@ export default function DocumentPreflightWorkspace() {
             הידנית. אות ה-OCR הוא סימן טכני בלבד ואינו מאשר נכונות של שדה כלשהו.
           </p>
 
-          {failedPages.map(({ pageNumber, sourceDocumentRef }) => {
+          {failedPages.map(({ pageNumber, sourceDocumentRef, code }) => {
             const hasSourceImage = files.some(
               (file) => file.sourceDocumentRef === sourceDocumentRef
             )
@@ -397,10 +527,21 @@ export default function DocumentPreflightWorkspace() {
 
             return (
               <div className="document-preflight__failed-page" key={sourceDocumentRef}>
-                <p className="document-preflight__issue">
-                  לא נוצרה טיוטת OCR לעמוד {pageNumber}. יש להזין אותו ידנית או
-                  לצלם תקריב חד יותר.
+                <p className="document-preflight__issue" role="alert">
+                  לא נוצרה טיוטת OCR לעמוד {pageNumber}. {PREFLIGHT_FAILURE_TEXT[code]}
                 </p>
+                {isRetryablePreflightFailure(code) && (
+                  <button
+                    className="manual-review__secondary-button"
+                    disabled={isSubmitting}
+                    onClick={() =>
+                      retryFailedPage({ pageNumber, sourceDocumentRef, code })
+                    }
+                    type="button"
+                  >
+                    נסה שוב בעמוד {pageNumber}
+                  </button>
+                )}
                 <SourceImagePreview
                   hasSourceImage={hasSourceImage}
                   isVisible={isPreviewVisible}
@@ -425,7 +566,7 @@ export default function DocumentPreflightWorkspace() {
               previewedSource.sourceDocumentRef === sourceDocumentRef
 
             return (
-              <div className="document-preflight__page" key={page.pageNumber}>
+              <div className="document-preflight__page" key={sourceDocumentRef}>
                 <h3>עמוד {page.pageNumber}</h3>
                 {page.issues.map((issue) => (
                   <p className="document-preflight__issue" key={issue.code}>

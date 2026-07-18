@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
   hasMinimumMaayanImageResolution,
+  isSupportedPreflightImageType,
+  MAX_PREFLIGHT_IMAGE_BYTES,
+  MAX_PREFLIGHT_IMAGE_PIXELS,
+  MAX_PREFLIGHT_MULTIPART_BYTES,
   preflightMaayanOcrPage,
   readImageMetadata,
 } from '@/lib/document-intake'
@@ -12,11 +16,6 @@ import {
 } from '../../../../lib/document-intake/ocr-capacity'
 
 export const runtime = 'nodejs'
-
-const MAX_IMAGE_BYTES = 12 * 1024 * 1024
-const MAX_IMAGE_PIXELS = 24_000_000
-const MAX_MULTIPART_BYTES = MAX_IMAGE_BYTES + 1024 * 1024
-const SUPPORTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 function isUploadedFile(value: FormDataEntryValue): value is File {
   return typeof value !== 'string' && typeof value.arrayBuffer === 'function'
@@ -40,7 +39,10 @@ function isOcrImageDecodeError(error: unknown): boolean {
  */
 export async function POST(request: NextRequest) {
   const declaredLength = Number(request.headers.get('content-length'))
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_MULTIPART_BYTES) {
+  if (
+    Number.isFinite(declaredLength) &&
+    declaredLength > MAX_PREFLIGHT_MULTIPART_BYTES
+  ) {
     return noStoreJson(
       {
         error: 'The upload is too large for OCR preflight.',
@@ -84,7 +86,7 @@ export async function POST(request: NextRequest) {
   }
 
   const file = submitted[0]
-  if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
+  if (!isSupportedPreflightImageType(file.type)) {
     return noStoreJson(
       {
         error: 'Only JPEG, PNG, and WebP images are supported for OCR preflight.',
@@ -93,7 +95,7 @@ export async function POST(request: NextRequest) {
       415
     )
   }
-  if (file.size > MAX_IMAGE_BYTES) {
+  if (file.size > MAX_PREFLIGHT_IMAGE_BYTES) {
     return noStoreJson(
       {
         error: 'The image is too large for OCR preflight.',
@@ -125,7 +127,7 @@ export async function POST(request: NextRequest) {
   }
 
   const { dimensions } = imageMetadata
-  if (dimensions.width * dimensions.height > MAX_IMAGE_PIXELS) {
+  if (dimensions.width * dimensions.height > MAX_PREFLIGHT_IMAGE_PIXELS) {
     return noStoreJson(
       {
         error: 'The image dimensions are too large for OCR preflight.',

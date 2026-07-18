@@ -4,6 +4,7 @@ import {
   createOcrSourceDocumentRef,
   isOcrSourceDocumentRef,
   reassignPreflightPageNumber,
+  upsertOcrPreflightBatchPage,
 } from '@/lib/document-intake/preflight-batch'
 
 const sourceDocumentRef = 'doc_01234567-89ab-4def-8123-456789abcdef'
@@ -84,5 +85,28 @@ describe('browser OCR preflight batch helpers', () => {
     expect(() =>
       createOcrPreflightBatchPage(preflightPage(), 1, 'customer-private-order.jpg')
     ).toThrow('source document reference')
+  })
+
+  it('replaces a retried source page and keeps selected page order', () => {
+    const firstRef = 'doc_fedcba98-7654-4cde-8123-456789abcdef'
+    const firstPage = createOcrPreflightBatchPage(preflightPage(), 1, firstRef)
+    const originalSecond = createOcrPreflightBatchPage(
+      preflightPage(),
+      2,
+      sourceDocumentRef
+    )
+    const retriedSecond = createOcrPreflightBatchPage(
+      preflightPage(),
+      2,
+      sourceDocumentRef
+    )
+
+    const pages = upsertOcrPreflightBatchPage(
+      [originalSecond, firstPage],
+      retriedSecond
+    )
+
+    expect(pages).toEqual([firstPage, retriedSecond])
+    expect(pages[1]).toBe(retriedSecond)
   })
 })

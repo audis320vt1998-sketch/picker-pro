@@ -53,7 +53,14 @@ turn them into operational case/unit totals or split a value by pack size.
   `NEEDS_REVIEW`; it does not resolve a catalog or create pick totals.
 - The upload screen may call that one-image endpoint sequentially for up to
   20 selected images. It assigns a page number in browser memory and keeps an
-  opaque random document reference per image, not a filename.
+  opaque random document reference per image, not a filename. It rejects an
+  unsupported, empty, or over-12 MB selected image before upload as a browser
+  convenience only; the endpoint repeats the authoritative validation.
+- When OCR is temporarily busy, timed out, or unavailable, a reviewer may
+  explicitly retry just that page. There are no automatic or parallel retries;
+  the retry uses the same browser-held image, page number, opaque document
+  reference, and neutral multipart filename. Other failure types require a
+  changed image or manual entry, and no API error text is shown.
 - A reviewer may explicitly open one selected source image at a time beside
   the draft, including for a page where preflight fails. This is an original
   image preview and can therefore show document/customer details. It uses a

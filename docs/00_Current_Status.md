@@ -12,7 +12,15 @@ The upload screen accepts up to 20 images as a browser-only batch and sends
 them to the one-image preflight endpoint sequentially. It assigns stable
 page numbers in the selected order; a failure on one image does not discard
 the drafts from other images. It does not display or retain file names in the
-result.
+result. Before upload, the browser rejects an unsupported, empty, or over-12
+MB selected image as an early UX guard; the endpoint independently repeats
+those checks.
+
+For the known temporary OCR states (busy, timeout, or unavailable), the user
+may explicitly retry that one page. The screen never retries automatically or
+in parallel. It reuses the same browser-held image, selected-order page number,
+opaque document reference, and neutral multipart filename; it does not
+persist the image, retry attempt, filename, or server error text.
 
 A reviewer can explicitly open one selected source image at a time beside its
 OCR draft, including after OCR fails for that image. It is the original image,
@@ -56,6 +64,9 @@ returned page/row source references to that response.
   upload screen calls it sequentially for a selected batch of up to 20 images.
 - It accepts at most a 12 MB image with at most 24 million pixels and runs one
   OCR worker per Node process at a time.
+- Browser-side selection checks are informational only. The endpoint remains
+  authoritative for media type, byte count, image header, dimensions, and all
+  OCR availability decisions.
 - It compares the declared JPEG, PNG, or WebP media type with the detected
   raster header before OCR; a mismatch is rejected without storing the image.
 - It requires a sufficiently high-resolution table image and reports
@@ -73,6 +84,10 @@ returned page/row source references to that response.
   that preview is not part of the API response, session-storage handoff, or
   manual-review request. It can reveal original document/customer details to
   the person who opens it, so it is not treated as a PII-free review surface.
+- A retry button appears only after a known temporary OCR failure and requires
+  an explicit user action for that page. Validation/content failures and an
+  unrecognized response are not retried with the same image. The UI displays
+  fixed Hebrew guidance rather than API error text.
 - The result is `NEEDS_REVIEW`. A user-initiated browser handoff can display
   its source quantities beside the manual form, but they are never mapped to,
   or sent as, the manual-review `cases` or `units` fields.

@@ -56,6 +56,8 @@ returned page/row source references to that response.
   upload screen calls it sequentially for a selected batch of up to 20 images.
 - It accepts at most a 12 MB image with at most 24 million pixels and runs one
   OCR worker per Node process at a time.
+- It compares the declared JPEG, PNG, or WebP media type with the detected
+  raster header before OCR; a mismatch is rejected without storing the image.
 - It requires a sufficiently high-resolution table image and reports
   `IMAGE_TOO_LOW_RESOLUTION` rather than parsing low-resolution full-page
   photos.

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   hasMinimumMaayanImageResolution,
   preflightMaayanOcrPage,
-  readImageDimensions,
+  readImageMetadata,
 } from '@/lib/document-intake'
 import { recognizeTesseractImage } from '../../../../lib/document-intake/tesseract-adapter'
 import {
@@ -104,8 +104,8 @@ export async function POST(request: NextRequest) {
   }
 
   const bytes = new Uint8Array(await file.arrayBuffer())
-  const dimensions = readImageDimensions(bytes)
-  if (!dimensions) {
+  const imageMetadata = readImageMetadata(bytes)
+  if (!imageMetadata) {
     return noStoreJson(
       {
         error: 'The uploaded file does not contain a readable supported image.',
@@ -114,6 +114,17 @@ export async function POST(request: NextRequest) {
       422
     )
   }
+  if (imageMetadata.mediaType !== file.type) {
+    return noStoreJson(
+      {
+        error: 'The uploaded file type does not match its image content.',
+        code: 'IMAGE_TYPE_MISMATCH',
+      },
+      422
+    )
+  }
+
+  const { dimensions } = imageMetadata
   if (dimensions.width * dimensions.height > MAX_IMAGE_PIXELS) {
     return noStoreJson(
       {

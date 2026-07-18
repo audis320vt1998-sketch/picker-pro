@@ -1,4 +1,4 @@
-import { readImageDimensions } from '../../lib/document-intake'
+import { readImageDimensions, readImageMetadata } from '../../lib/document-intake'
 
 function jpeg(width: number, height: number): Uint8Array {
   return Uint8Array.from([
@@ -103,5 +103,22 @@ describe('readImageDimensions', () => {
 
   it('rejects malformed bytes', () => {
     expect(readImageDimensions(Uint8Array.from([1, 2, 3]))).toBeNull()
+  })
+})
+
+describe('readImageMetadata', () => {
+  it.each([
+    ['image/jpeg', jpeg(2880, 3840)],
+    ['image/png', png(2880, 3840)],
+    ['image/webp', webpVp8x(2880, 3840)],
+  ] as const)('identifies the supported %s header format', (mediaType, bytes) => {
+    expect(readImageMetadata(bytes)).toEqual({
+      mediaType,
+      dimensions: { width: 2880, height: 3840 },
+    })
+  })
+
+  it('does not infer a type from malformed bytes', () => {
+    expect(readImageMetadata(Uint8Array.from([1, 2, 3]))).toBeNull()
   })
 })

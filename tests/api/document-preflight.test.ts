@@ -38,6 +38,35 @@ function jpeg(width: number, height: number): Uint8Array {
   ])
 }
 
+function png(width: number, height: number): Uint8Array {
+  return Uint8Array.from([
+    137,
+    80,
+    78,
+    71,
+    13,
+    10,
+    26,
+    10,
+    0,
+    0,
+    0,
+    13,
+    73,
+    72,
+    68,
+    82,
+    width >>> 24,
+    (width >>> 16) & 0xff,
+    (width >>> 8) & 0xff,
+    width & 0xff,
+    height >>> 24,
+    (height >>> 16) & 0xff,
+    (height >>> 8) & 0xff,
+    height & 0xff,
+  ])
+}
+
 function word(text: string, x: number, y: number, confidence = 92): OcrWord {
   return {
     text,
@@ -144,6 +173,28 @@ describe('POST /api/intake/preflight', () => {
       ])
     )
     expect(unsupported.status).toBe(415)
+  })
+
+  it('rejects a declared image type that does not match its content', async () => {
+    const sourceFileName = 'customer-alice-order.jpg'
+    const response = await POST(
+      requestWithFiles([
+        {
+          name: sourceFileName,
+          type: 'image/jpeg',
+          content: png(2880, 3840),
+        },
+      ])
+    )
+
+    expect(response.status).toBe(422)
+    const body = await response.json()
+    expect(body).toEqual({
+      error: 'The uploaded file type does not match its image content.',
+      code: 'IMAGE_TYPE_MISMATCH',
+    })
+    expect(JSON.stringify(body)).not.toContain(sourceFileName)
+    expect(recognizeMock).not.toHaveBeenCalled()
   })
 
   it('returns a resolution issue without invoking OCR for low-resolution photos', async () => {

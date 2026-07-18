@@ -4,7 +4,7 @@ export {
   hasMinimumMaayanImageResolution,
   MAAYAN_PRICE_OFFER_PROFILE,
 } from './maayan-layout'
-export { readImageDimensions } from './image-metadata'
+export { readImageDimensions, readImageMetadata } from './image-metadata'
 export { preflightMaayanOcrPage } from './preflight-service'
 export {
   createOcrPreflightBatchPage,
@@ -28,5 +28,5 @@ export type {
   OcrPage,
   OcrWord,
 } from './types'
-export type { ImageDimensions } from './image-metadata'
+export type { ImageDimensions, ImageMetadata, SupportedImageMediaType } from './image-metadata'
 export type { OcrPreflightBatchPage } from './preflight-batch'

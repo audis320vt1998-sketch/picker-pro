@@ -3,6 +3,13 @@ export interface ImageDimensions {
   height: number
 }
 
+export type SupportedImageMediaType = 'image/jpeg' | 'image/png' | 'image/webp'
+
+export interface ImageMetadata {
+  mediaType: SupportedImageMediaType
+  dimensions: ImageDimensions
+}
+
 function equalsAscii(bytes: Uint8Array, offset: number, value: string): boolean {
   if (offset < 0 || offset + value.length > bytes.length) {
     return false
@@ -167,6 +174,25 @@ function webpDimensions(bytes: Uint8Array): ImageDimensions | null {
 }
 
 /** Reads only a raster header; it never persists the image bytes. */
+export function readImageMetadata(bytes: Uint8Array): ImageMetadata | null {
+  const jpeg = jpegDimensions(bytes)
+  if (jpeg) {
+    return { mediaType: 'image/jpeg', dimensions: jpeg }
+  }
+
+  const png = pngDimensions(bytes)
+  if (png) {
+    return { mediaType: 'image/png', dimensions: png }
+  }
+
+  const webp = webpDimensions(bytes)
+  if (webp) {
+    return { mediaType: 'image/webp', dimensions: webp }
+  }
+
+  return null
+}
+
 export function readImageDimensions(bytes: Uint8Array): ImageDimensions | null {
-  return jpegDimensions(bytes) ?? pngDimensions(bytes) ?? webpDimensions(bytes)
+  return readImageMetadata(bytes)?.dimensions ?? null
 }

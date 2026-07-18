@@ -16,7 +16,6 @@ function toParsedRow(
       page: {
         jobId: reviewId,
         pageNumber: input.pageNumber,
-        ...(input.sourceFileName ? { sourceFileName: input.sourceFileName } : {}),
       },
       row: {
         rowNumber: input.rowNumber,

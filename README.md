@@ -26,7 +26,8 @@ Available now:
   fields remain blank.
 - An opaque per-image source reference prevents the same OCR source
   document/page/row from being submitted twice. No file name or document
-  header is retained in that reference.
+  header is retained in that reference; the manual-review API rejects source
+  filenames and other unrecognized row metadata.
 - Product resolution in the order barcode → SKU → canonical name → alias.
 - Source traceability for every accepted quantity (page and row).
 - Validation for unresolved, conflicting, unverified, and case-only products.

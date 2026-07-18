@@ -74,6 +74,9 @@ returned page/row source references to that response.
 - The result is `NEEDS_REVIEW`. A user-initiated browser handoff can display
   its source quantities beside the manual form, but they are never mapped to,
   or sent as, the manual-review `cases` or `units` fields.
+- The manual-review API accepts only defined row fields. It rejects a source
+  filename or any other unrecognized row metadata without echoing it back to
+  the browser.
 
 ## Quantity policy
 

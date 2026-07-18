@@ -8,7 +8,6 @@ export interface ManualReviewRowInput {
    * other identifying document data.
    */
   sourceDocumentRef?: string
-  sourceFileName?: string
   pageNumber: number
   rowNumber: number
   rawText: string

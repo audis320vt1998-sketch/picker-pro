@@ -2,7 +2,6 @@ export interface SourcePageRef {
   jobId: string
   pageNumber: number
   pageId?: string
-  sourceFileName?: string
 }
 
 export interface SourceRowRef {

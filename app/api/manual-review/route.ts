@@ -10,10 +10,22 @@ import {
 interface RequestValidationError {
   row?: number
   field?: string
-  code?: 'DUPLICATE_SOURCE_ROW'
+  code?: 'DUPLICATE_SOURCE_ROW' | 'UNSUPPORTED_ROW_FIELD'
   duplicateOfRow?: number
   message: string
 }
+
+const ALLOWED_ROW_FIELDS = new Set([
+  'sourceDocumentRef',
+  'pageNumber',
+  'rowNumber',
+  'rawText',
+  'productName',
+  'barcode',
+  'sku',
+  'cases',
+  'units',
+])
 
 /**
  * Document identity is deliberately limited to a random, lowercase UUID v4
@@ -44,6 +56,21 @@ function optionalString(
   }
 
   return candidate
+}
+
+function validateAllowedRowFields(
+  value: Record<string, unknown>,
+  errors: RequestValidationError[],
+  row: number
+): void {
+  if (Object.keys(value).some((field) => !ALLOWED_ROW_FIELDS.has(field))) {
+    errors.push({
+      row,
+      field: 'row',
+      code: 'UNSUPPORTED_ROW_FIELD',
+      message: 'Row contains unsupported fields.',
+    })
+  }
 }
 
 function optionalSourceDocumentRef(
@@ -124,8 +151,8 @@ function parseRow(
     return undefined
   }
 
+  validateAllowedRowFields(value, errors, row)
   const sourceDocumentRef = optionalSourceDocumentRef(value, errors, row)
-  const sourceFileName = optionalString(value, 'sourceFileName', errors, row)
   const productName = optionalString(value, 'productName', errors, row)
   const barcode = optionalString(value, 'barcode', errors, row)
   const sku = optionalString(value, 'sku', errors, row)
@@ -158,7 +185,6 @@ function parseRow(
 
   return {
     ...(sourceDocumentRef ? { sourceDocumentRef } : {}),
-    ...(sourceFileName ? { sourceFileName } : {}),
     pageNumber,
     rowNumber,
     rawText,

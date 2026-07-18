@@ -17,7 +17,6 @@ import {
 interface EditableRow {
   id: number
   sourceDocumentRef: string | null
-  sourceFileName: string
   pageNumber: string
   rowNumber: string
   rawText: string
@@ -37,7 +36,6 @@ function createEditableRow(
   return {
     id,
     sourceDocumentRef: ocrDraft?.sourceDocumentRef ?? null,
-    sourceFileName: '',
     pageNumber: ocrDraft ? String(ocrDraft.pageNumber) : '1',
     rowNumber: ocrDraft ? String(ocrDraft.rowNumber) : rowNumber,
     rawText: ocrDraft?.rawText ?? '',
@@ -134,9 +132,6 @@ function validateAndConvertRow(row: EditableRow): ManualReviewRowInput | string 
   return {
     ...(row.sourceDocumentRef
       ? { sourceDocumentRef: row.sourceDocumentRef }
-      : {}),
-    ...(row.sourceFileName.trim()
-      ? { sourceFileName: row.sourceFileName }
       : {}),
     pageNumber,
     rowNumber,
@@ -312,15 +307,6 @@ export default function ManualReviewWorkspace() {
               </aside>
             )}
             <div className="manual-review__grid">
-              <label>
-                קובץ מקור (אופציונלי)
-                <input
-                  value={row.sourceFileName}
-                  onChange={(event) =>
-                    updateRow(row.id, 'sourceFileName', event.target.value)
-                  }
-                />
-              </label>
               <label>
                 עמוד
                 <input

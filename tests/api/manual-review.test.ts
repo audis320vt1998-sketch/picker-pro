@@ -169,6 +169,39 @@ describe('POST /api/manual-review', () => {
     })
   })
 
+  it('rejects source filenames and unknown row metadata without echoing them', async () => {
+    const sourceFileName = 'customer-alice-order-123.jpg'
+    const privateMetadata = 'customer-alice-private-note'
+    const response = await POST(
+      requestWithJson({
+        rows: [
+          validRow({
+            sourceFileName,
+            privateMetadata,
+          }),
+        ],
+      })
+    )
+
+    expect(response.status).toBe(400)
+    const body = await response.json()
+    expect(body).toMatchObject({
+      error: 'Manual review input is invalid.',
+      code: 'INVALID_MANUAL_REVIEW_INPUT',
+      details: [
+        {
+          row: 1,
+          field: 'row',
+          code: 'UNSUPPORTED_ROW_FIELD',
+        },
+      ],
+    })
+    const serialized = JSON.stringify(body)
+    expect(serialized).not.toContain(sourceFileName)
+    expect(serialized).not.toContain(privateMetadata)
+    expect(serialized).not.toContain('sourceFileName')
+  })
+
   it('continues to accept rows without a source document reference', async () => {
     const response = await POST(
       requestWithJson({

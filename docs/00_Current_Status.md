@@ -139,6 +139,9 @@ are likewise fixed by their known code rather than copied from API messages.
 
 - Camera capture, PDF processing, perspective correction, stored OCR jobs,
   and operational or automatic image-to-pick-list processing.
+- The legacy `/api/process` endpoint is deliberately disabled. It returns a
+  fixed, non-cacheable `501` response without parsing an uploaded request; it
+  is not an alternative to `/api/intake/preflight`.
 - Persisted jobs, review decisions, export files, cities, routes, and offline
   recovery.
 - AI assistance.

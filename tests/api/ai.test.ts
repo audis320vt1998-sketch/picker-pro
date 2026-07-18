@@ -5,6 +5,7 @@ describe('POST /api/ai', () => {
     const response = await POST()
 
     expect(response.status).toBe(501)
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
     await expect(response.json()).resolves.toEqual({
       error: 'AI assistance is not available yet.',
       code: 'AI_ASSISTANCE_UNAVAILABLE',

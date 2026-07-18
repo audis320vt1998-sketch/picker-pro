@@ -8,6 +8,9 @@ export async function POST() {
       error: 'AI assistance is not available yet.',
       code: 'AI_ASSISTANCE_UNAVAILABLE',
     },
-    { status: 501 }
+    {
+      status: 501,
+      headers: { 'Cache-Control': 'no-store' },
+    }
   )
 }

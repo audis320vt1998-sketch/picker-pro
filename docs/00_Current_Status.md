@@ -34,7 +34,10 @@ prior page draft/failure and its selected rows are removed before the new image
 is sent, and the reviewer must explicitly start OCR again. Other pages remain
 unchanged. The replacement retains that page's opaque reference only because
 it is a new photo of the same page; a different document or page requires a
-new batch.
+new batch. On a supported mobile browser, the replacement control also offers
+a single-image camera chooser. It follows exactly the same replacement path
+and validation as a file selection; the browser may instead open a file
+chooser.
 
 A reviewer can explicitly open one selected source image at a time beside its
 OCR draft, including after OCR fails for that image. It is the original image,

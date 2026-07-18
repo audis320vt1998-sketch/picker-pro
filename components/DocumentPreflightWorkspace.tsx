@@ -268,20 +268,39 @@ function SourceImageReplacement({
   onSelect,
   pageNumber,
 }: SourceImageReplacementProps) {
+  const cameraNoteId = `document-preflight-replacement-camera-note-${pageNumber}`
+
   return (
     <div>
-      <label className="document-preflight__file-label">
-        החלף תמונה לעמוד {pageNumber}
-        <input
-          accept={PREFLIGHT_FILE_INPUT_ACCEPT}
-          disabled={disabled}
-          onChange={onSelect}
-          type="file"
-        />
-      </label>
+      <div className="document-preflight__source-actions">
+        <label className="document-preflight__file-label">
+          החלף תמונה לעמוד {pageNumber}
+          <input
+            accept={PREFLIGHT_FILE_INPUT_ACCEPT}
+            disabled={disabled}
+            onChange={onSelect}
+            type="file"
+          />
+        </label>
+        <label className="document-preflight__file-label">
+          צלם תמונה חלופית לעמוד {pageNumber}
+          <input
+            accept={PREFLIGHT_FILE_INPUT_ACCEPT}
+            aria-describedby={cameraNoteId}
+            capture={PREFLIGHT_CAMERA_CAPTURE}
+            disabled={disabled}
+            onChange={onSelect}
+            type="file"
+          />
+        </label>
+      </div>
       <p className="document-preflight__selected">
         בחר צילום חד יותר של אותו עמוד בלבד. למסמך או לעמוד אחר יש ליצור אצווה
         חדשה. הבחירה אינה שולחת את התמונה עד להפעלה מפורשת של OCR מחדש.
+      </p>
+      <p className="document-preflight__camera-note" id={cameraNoteId}>
+        צילום חלופי מחליף רק את העמוד הזה ושומר את מזהה המקור שלו. הדפדפן יכול
+        לפתוח מצלמה או בורר קבצים; התמונה אינה נשלחת עד להפעלה מפורשת של OCR.
       </p>
     </div>
   )
@@ -340,7 +359,7 @@ export default function DocumentPreflightWorkspace() {
     const selectedFiles = Array.from(event.target.files ?? [])
     event.currentTarget.value = ''
 
-    if (selectedFiles.length === 0) {
+    if (preflightActionLock.current || selectedFiles.length === 0) {
       return
     }
     if (selectedFiles.length > MAX_PREFLIGHT_BATCH_IMAGES) {

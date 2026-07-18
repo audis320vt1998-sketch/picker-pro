@@ -20,3 +20,9 @@ export {
   type LoadedVerifiedCatalog,
   type VerifiedCatalogReadiness,
 } from './verified-catalog-loader'
+
+export {
+  CATALOG_ONBOARDING_TEMPLATE_COLUMNS,
+  CATALOG_ONBOARDING_TEMPLATE_FILENAME,
+  createCatalogOnboardingTemplateCsv,
+} from './onboarding-template'

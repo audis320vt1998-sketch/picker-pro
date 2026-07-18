@@ -143,6 +143,11 @@ are likewise fixed by their known code rather than copied from API messages.
 - An `unverified` record produces a `PRODUCT_UNVERIFIED` review issue.
 - The current catalog has no verified records, so a user cannot yet generate an
   operational pick list. This is intentional.
+- `/settings` reports catalog readiness and offers a header-only UTF-8 CSV
+  onboarding template. The download has no product data and does not upload,
+  import, modify, or verify catalog records. A human must review the completed
+  template against the authoritative warehouse catalog before a controlled
+  update to `catalogs/products.json`.
 
 ## Unavailable capabilities
 

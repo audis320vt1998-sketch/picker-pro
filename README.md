@@ -10,6 +10,8 @@ Available now:
 
 - A Hebrew right-to-left manual-review screen at `/review`.
 - Explicit, separate input fields for cases and individual units.
+- A read-only catalog status on `/settings` and a UTF-8 CSV handoff template.
+  It has no product data and cannot upload, import, or verify catalog entries.
 - A browser-provided direct-camera chooser for one document image at `/upload`,
   including a clearer replacement for one existing logical page. It does not
   upload or process the image until the reviewer explicitly starts OCR.
@@ -50,6 +52,7 @@ Not available yet:
   image.
 - Stored jobs, a persistent review queue, exports, city/route grouping, or AI
   assistance.
+- Catalog import or automatic catalog verification.
 
 The canonical file [`catalogs/products.json`](./catalogs/products.json) is
 loaded and validated at runtime. The candidate entries transcribed from the

@@ -1,3 +1,5 @@
+import { loadVerifiedCatalog } from '@/lib/catalog'
+
 const settings = {
   appName: 'Picker Pro',
   exportFormat: 'csv',
@@ -5,6 +7,8 @@ const settings = {
 }
 
 export default function SettingsPage() {
+  const { readiness } = loadVerifiedCatalog()
+
   return (
     <main>
       <h1>הגדרות</h1>
@@ -49,6 +53,43 @@ export default function SettingsPage() {
           </select>
         </div>
       </fieldset>
+
+      <section aria-labelledby="catalog-onboarding-heading" className="settings__catalog">
+        <h2 id="catalog-onboarding-heading">קטלוג מוצרים</h2>
+        <p className="settings__catalog-status" role="status">
+          קטלוג פעיל — גרסה {readiness.version}: {readiness.verifiedProducts}{' '}
+          מאומתים מתוך {readiness.totalProducts} פריטים;{' '}
+          {readiness.unverifiedProducts} ממתינים לאימות.
+        </p>
+        <p>
+          פריט לא מאומת אינו נכנס לסיכום תפעולי. הורדת התבנית אינה מעלה קובץ,
+          אינה משנה את הקטלוג ואינה מאשרת מוצר.
+        </p>
+        <a className="settings__download" href="/api/catalog/template">
+          הורד תבנית קטלוג CSV
+        </a>
+        <ul>
+          <li>
+            התבנית ריקה ומכילה רק את העמודות של רשומת מוצר בחוזה הקטלוג הפעיל.
+          </li>
+          <li>
+            מלא את השדה <code>verificationStatus</code> כ־<code>unverified</code>{' '}
+            עד לאימות אנושי מול קטלוג המחסן או ERP.
+          </li>
+          <li>
+            שמור ברקודים ומק&quot;טים כטקסט, וכתוב ערכי אמת/שקר כ־<code>true</code>{' '}
+            או <code>false</code>.
+          </li>
+          <li>
+            בשדה <code>aliases</code> השתמש במערך JSON, לדוגמה{' '}
+            <code>[&quot;שם חלופי&quot;]</code>.
+          </li>
+          <li>
+            לאחר הבדיקה יש להעביר את הקובץ לעדכון מבוקר של{' '}
+            <code>catalogs/products.json</code>; אין עדיין ייבוא מתוך המערכת.
+          </li>
+        </ul>
+      </section>
     </main>
   )
 }

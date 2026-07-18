@@ -207,6 +207,63 @@ nav a:hover {
   max-width: 44rem;
 }
 
+.settings__catalog {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  margin-top: 2rem;
+  max-width: 48rem;
+  padding: 1.25rem;
+}
+
+.settings__catalog h2 {
+  color: #1e3a5f;
+  margin-bottom: 0.75rem;
+}
+
+.settings__catalog p,
+.settings__catalog li {
+  line-height: 1.6;
+}
+
+.settings__catalog p + p {
+  margin-top: 0.75rem;
+}
+
+.settings__catalog-status {
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  border-radius: 0.375rem;
+  color: #1e3a5f;
+  font-weight: 700;
+  padding: 0.75rem;
+}
+
+.settings__catalog ul {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1rem 1.25rem 0 0;
+}
+
+.settings__catalog code {
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+.settings__download {
+  background: #007bff;
+  border-radius: 0.375rem;
+  color: #fff;
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.65rem 1rem;
+  text-decoration: none;
+}
+
+.settings__download:hover {
+  background: #0056b3;
+}
+
 .document-preflight__selected,
 .document-preflight__issue,
 .document-preflight__progress {

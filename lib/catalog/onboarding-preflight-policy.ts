@@ -57,6 +57,7 @@ export type CatalogOnboardingPreflightIssueCode =
   | 'INVALID_ALIASES'
   | 'INVALID_BOOLEAN'
   | 'INVALID_POSITIVE_NUMBER'
+  | 'CONTRADICTORY_PICKING_CONFIGURATION'
   | 'DUPLICATE_PRODUCT_KEY'
   | 'DUPLICATE_BARCODE'
   | 'DUPLICATE_SKU'
@@ -118,6 +119,7 @@ function isIssueCode(value: unknown): value is CatalogOnboardingPreflightIssueCo
       'INVALID_ALIASES',
       'INVALID_BOOLEAN',
       'INVALID_POSITIVE_NUMBER',
+      'CONTRADICTORY_PICKING_CONFIGURATION',
       'DUPLICATE_PRODUCT_KEY',
       'DUPLICATE_BARCODE',
       'DUPLICATE_SKU',

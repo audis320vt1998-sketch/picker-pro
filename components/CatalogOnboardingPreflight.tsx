@@ -45,6 +45,8 @@ const ISSUE_TEXT: Record<CatalogOnboardingPreflightIssueCode, string> = {
   INVALID_ALIASES: 'aliases חייב להיות מערך JSON של מחרוזות.',
   INVALID_BOOLEAN: 'ערך אמת/שקר חייב להיות true או false.',
   INVALID_POSITIVE_NUMBER: 'גודל מארז או יחידה חייב להיות מספר חיובי או ריק.',
+  CONTRADICTORY_PICKING_CONFIGURATION:
+    'מוצר מארזים בלבד אינו יכול לאפשר גם ליקוט בודדים.',
   DUPLICATE_PRODUCT_KEY: 'מזהה המוצר מופיע ביותר משורה אחת.',
   DUPLICATE_BARCODE: 'הברקוד מופיע ביותר משורה אחת.',
   DUPLICATE_SKU: 'המק״ט מופיע ביותר משורה אחת.',

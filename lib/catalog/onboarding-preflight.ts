@@ -1,4 +1,5 @@
 import type { VerifiedCatalogProduct } from './verified-catalog'
+import { hasConsistentPickingConfiguration } from './picking-policy'
 import { CATALOG_ONBOARDING_TEMPLATE_COLUMNS } from './onboarding-template'
 import {
   type CatalogOnboardingPreflightIssue,
@@ -363,7 +364,7 @@ function parseCandidateRecord(record: ParsedCsvRecord): CandidateRecord {
     return candidate
   }
 
-  candidate.product = {
+  const product: VerifiedCatalogProduct = {
     productKey,
     barcode,
     sku,
@@ -377,6 +378,19 @@ function parseCandidateRecord(record: ParsedCsvRecord): CandidateRecord {
     caseSize: caseSize.value,
     active: active.value,
   }
+
+  if (!hasConsistentPickingConfiguration(product)) {
+    candidate.issues.push(
+      createIssue(
+        record.recordNumber,
+        'caseOnly',
+        'CONTRADICTORY_PICKING_CONFIGURATION'
+      )
+    )
+    return candidate
+  }
+
+  candidate.product = product
 
   return candidate
 }

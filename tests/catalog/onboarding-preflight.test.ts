@@ -165,4 +165,18 @@ describe('catalog onboarding CSV preflight', () => {
     )
     expect(blankIdentifiers.status).toBe('READY_FOR_CONTROLLED_REVIEW')
   })
+
+  it('rejects a candidate that is both case-only and enabled for unit picking', () => {
+    const result = preflightCatalogOnboardingCsv(
+      csv([validRow({ caseOnly: 'true', allowUnitPicking: 'true' })])
+    )
+
+    expect(result.status).toBe('NEEDS_CORRECTION')
+    expect(result.issues).toContainEqual({
+      rowNumber: 2,
+      field: 'caseOnly',
+      code: 'CONTRADICTORY_PICKING_CONFIGURATION',
+      severity: 'error',
+    })
+  })
 })

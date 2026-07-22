@@ -93,4 +93,27 @@ describe('catalog onboarding preflight response policy', () => {
     expect(isCatalogOnboardingPreflightResult(withError)).toBe(false)
     expect(isCatalogOnboardingPreflightResult(incompleteReadySummary)).toBe(false)
   })
+
+  it('accepts the fixed picking-configuration issue code', () => {
+    const result = {
+      ...validResult(),
+      status: 'NEEDS_CORRECTION' as const,
+      summary: {
+        totalRows: 1,
+        readyRows: 0,
+        rowsWithErrors: 1,
+        rowsWithWarnings: 0,
+      },
+      issues: [
+        {
+          code: 'CONTRADICTORY_PICKING_CONFIGURATION',
+          field: 'caseOnly',
+          rowNumber: 2,
+          severity: 'error',
+        },
+      ],
+    }
+
+    expect(isCatalogOnboardingPreflightResult(result)).toBe(true)
+  })
 })

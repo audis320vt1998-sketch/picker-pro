@@ -85,6 +85,9 @@ export type DocumentPreflightIssueCode =
   | 'IMAGE_TOO_LOW_RESOLUTION'
   | 'DOCUMENT_LAYOUT_UNRECOGNIZED'
   | 'NO_TRACEABLE_ROWS'
+  | 'PDF_PAGE_RENDER_INVALID'
+  | 'PDF_PAGE_DIMENSIONS_TOO_LARGE'
+  | 'PDF_PAGE_UNREADABLE'
 
 export interface DocumentPreflightIssue {
   code: DocumentPreflightIssueCode

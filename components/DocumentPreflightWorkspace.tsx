@@ -13,11 +13,13 @@ import {
   createOcrPreflightBatchOutcome,
   createOcrSourceDocumentRef,
   getPreflightFileSelectionIssue,
+  getPdfPreflightFileSelectionIssue,
   isRetryablePreflightFailure,
   MAX_PREFLIGHT_BATCH_IMAGES,
   moveOcrPreflightSelectionItem,
   PREFLIGHT_CAMERA_CAPTURE,
   PREFLIGHT_FILE_INPUT_ACCEPT,
+  PDF_PREFLIGHT_FILE_INPUT_ACCEPT,
   preflightFailureCodeFromResponse,
   removeOcrPreflightSelectionItem,
   removeOcrPreflightBatchOutcomeSource,
@@ -42,6 +44,7 @@ import {
 } from '@/lib/manual-review'
 
 const OCR_UPLOAD_FILE_NAME = 'page-image'
+const PDF_UPLOAD_FILE_NAME = 'document-pdf'
 const CAMERA_CAPTURE_NOTE_ID = 'document-preflight-camera-note'
 
 const ISSUE_TEXT: Record<DocumentPreflightIssue['code'], string> = {
@@ -53,6 +56,12 @@ const ISSUE_TEXT: Record<DocumentPreflightIssue['code'], string> = {
     'מבנה טבלת מעיין לא זוהה באופן שניתן לעקוב אחריו. לא נוצרו שורות OCR.',
   NO_TRACEABLE_ROWS:
     'זוהתה טבלה, אך לא נמצאה שורה עם מק״ט וברקוד מוצר יחד. לא נוצרו שורות OCR.',
+  PDF_PAGE_RENDER_INVALID:
+    'לא ניתן היה להמיר עמוד PDF לתמונה תקינה. העמוד נשאר לבדיקה ידנית.',
+  PDF_PAGE_DIMENSIONS_TOO_LARGE:
+    'עמוד ה־PDF גדול מדי לעיבוד בטוח. יש לחלק או לייצא את המסמך מחדש.',
+  PDF_PAGE_UNREADABLE:
+    'לא ניתן היה לפענח את עמוד ה־PDF ב־OCR. יש לבדוק או להזין אותו ידנית.',
 }
 
 const PREFLIGHT_FAILURE_TEXT: Record<OcrPreflightFailureCode, string> = {
@@ -81,6 +90,28 @@ const PREFLIGHT_FAILURE_TEXT: Record<OcrPreflightFailureCode, string> = {
   UNKNOWN:
     'לא התקבלה תוצאת בדיקה תקינה. יש לבחור את התמונות מחדש או להזין את השורות ידנית.',
 }
+
+const PDF_SELECTION_FAILURE_TEXT = {
+  UNSUPPORTED_PDF_TYPE: 'אפשר לבחור רק קובץ PDF אחד.',
+  PDF_TOO_LARGE: 'קובץ ה־PDF גדול מדי. יש לפצל אותו או לבחור קובץ קטן יותר.',
+  INVALID_PDF_FILE: 'לא ניתן לקרוא את קובץ ה־PDF שנבחר.',
+} as const
+
+const PDF_PREFLIGHT_FAILURE_TEXT = {
+  INVALID_PDF_PREFLIGHT_INPUT: 'לא ניתן להכין את קובץ ה־PDF לבדיקה. בחר קובץ חדש.',
+  REQUEST_TOO_LARGE: 'הבקשה גדולה מדי. יש לפצל את קובץ ה־PDF ולנסות שוב.',
+  UNSUPPORTED_PDF_TYPE: 'אפשר לשלוח רק קובץ PDF.',
+  PDF_TOO_LARGE: 'קובץ ה־PDF גדול מדי לעיבוד.',
+  INVALID_PDF: 'לא ניתן לקרוא את תוכן קובץ ה־PDF. יש לייצא אותו מחדש.',
+  PDF_TOO_MANY_PAGES: 'אפשר לבדוק עד 20 עמודים בקובץ PDF אחד.',
+  PDF_RENDERER_UNAVAILABLE:
+    'המרת PDF אינה זמינה כרגע בשרת. אפשר לבחור תמונות או להזין ידנית.',
+  PDF_RENDER_FAILED: 'לא ניתן להמיר את קובץ ה־PDF לעמודים. יש לייצא אותו מחדש.',
+  OCR_PREFLIGHT_BUSY: 'בדיקת ה־OCR עסוקה כרגע. נסה שוב מאוחר יותר.',
+  OCR_PREFLIGHT_TIMEOUT: 'בדיקת קובץ ה־PDF נמשכה זמן רב מדי. נסה שוב או הזן ידנית.',
+  OCR_PREFLIGHT_UNAVAILABLE: 'בדיקת ה־OCR אינה זמינה כרגע. נסה שוב מאוחר יותר.',
+  UNKNOWN: 'לא התקבלה תוצאת PDF תקינה. יש לנסות שוב או להזין ידנית.',
+} as const
 
 interface SelectedSourceImage {
   file: File
@@ -113,6 +144,7 @@ interface SourceImageReplacementProps {
 
 type PreflightActivity =
   | { kind: 'batch'; current: number; total: number }
+  | { kind: 'pdf' }
   | { kind: 'retry'; pageNumber: number }
   | { kind: 'replacement'; pageNumber: number }
   | null
@@ -120,6 +152,10 @@ type PreflightActivity =
 type PreflightPageAttempt =
   | { kind: 'success'; batchPage: OcrPreflightBatchPage }
   | { kind: 'failure'; code: OcrPreflightFailureCode }
+
+type PdfPreflightAttempt =
+  | { kind: 'success'; result: DocumentPreflightResult }
+  | { kind: 'failure'; code: keyof typeof PDF_PREFLIGHT_FAILURE_TEXT }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -172,6 +208,33 @@ async function requestPreflightPage(
     } catch {
       return { kind: 'failure', code: 'UNKNOWN' }
     }
+  } catch {
+    return { kind: 'failure', code: 'OCR_PREFLIGHT_UNAVAILABLE' }
+  }
+}
+
+async function requestPdfPreflight(file: File): Promise<PdfPreflightAttempt> {
+  try {
+    const form = new FormData()
+    form.append('file', file, PDF_UPLOAD_FILE_NAME)
+    const response = await fetch('/api/intake/pdf-preflight', {
+      method: 'POST',
+      body: form,
+    })
+    const body: unknown = await response.json().catch(() => null)
+
+    if (!response.ok) {
+      const code =
+        isRecord(body) && typeof body.code === 'string' && body.code in PDF_PREFLIGHT_FAILURE_TEXT
+          ? (body.code as keyof typeof PDF_PREFLIGHT_FAILURE_TEXT)
+          : 'UNKNOWN'
+      return { kind: 'failure', code }
+    }
+    if (!isDocumentPreflightResult(body) || body.pages.length === 0) {
+      return { kind: 'failure', code: 'UNKNOWN' }
+    }
+
+    return { kind: 'success', result: body }
   } catch {
     return { kind: 'failure', code: 'OCR_PREFLIGHT_UNAVAILABLE' }
   }
@@ -317,6 +380,8 @@ function canTransferRow(
 
 export default function DocumentPreflightWorkspace() {
   const [files, setFiles] = useState<readonly SelectedSourceImage[]>([])
+  const [pdfFile, setPdfFile] = useState<File | null>(null)
+  const [pdfPageSourceRefs, setPdfPageSourceRefs] = useState<readonly string[]>([])
   const [outcome, setOutcome] = useState<OcrPreflightBatchOutcome | null>(null)
   const [pendingReplacementPages, setPendingReplacementPages] = useState<
     readonly OcrPreflightReplacementSlot[]
@@ -365,6 +430,8 @@ export default function DocumentPreflightWorkspace() {
     setActiveLocalPreview(null)
     setSelectedRowKeys({})
     setHasConfirmedSourceCheck(false)
+    setPdfFile(null)
+    setPdfPageSourceRefs([])
   }
 
   const canEditSelectedBatch = !isSubmitting && outcome === null
@@ -403,6 +470,30 @@ export default function DocumentPreflightWorkspace() {
       setPendingReplacementPages([])
       setError('הדפדפן לא הצליח ליצור מזהה זמני ובטוח למסמך. נסה שוב.')
     }
+  }
+
+  const selectPdf = (event: ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.target.files ?? [])
+    event.currentTarget.value = ''
+
+    if (preflightActionLock.current || selectedFiles.length === 0) {
+      return
+    }
+    if (selectedFiles.length !== 1) {
+      setError('יש לבחור קובץ PDF אחד בלבד.')
+      return
+    }
+
+    const selectedPdf = selectedFiles[0]
+    const selectionIssue = getPdfPreflightFileSelectionIssue(selectedPdf)
+    if (selectionIssue) {
+      setError(PDF_SELECTION_FAILURE_TEXT[selectionIssue])
+      return
+    }
+
+    resetDraftAfterSelectionChange()
+    setFiles([])
+    setPdfFile(selectedPdf)
   }
 
   const moveSelectedFile = (currentIndex: number, destinationIndex: number) => {
@@ -498,7 +589,7 @@ export default function DocumentPreflightWorkspace() {
     if (preflightActionLock.current) {
       return
     }
-    if (files.length === 0) {
+    if (files.length === 0 && !pdfFile) {
       setError('יש לבחור לפחות תמונת JPEG, PNG או WebP אחת.')
       return
     }
@@ -511,6 +602,42 @@ export default function DocumentPreflightWorkspace() {
     setActiveLocalPreview(null)
     setSelectedRowKeys({})
     setHasConfirmedSourceCheck(false)
+    if (pdfFile) {
+      setActivity({ kind: 'pdf' })
+      try {
+        const attempt = await requestPdfPreflight(pdfFile)
+        if (attempt.kind === 'failure') {
+          setError(PDF_PREFLIGHT_FAILURE_TEXT[attempt.code])
+          return
+        }
+
+        try {
+          let nextOutcome = createOcrPreflightBatchOutcome()
+          const nextSourceRefs: string[] = []
+          for (const page of attempt.result.pages) {
+            const sourceDocumentRef = createSourceDocumentRef()
+            nextSourceRefs.push(sourceDocumentRef)
+            nextOutcome = recordOcrPreflightBatchSuccess(
+              nextOutcome,
+              createOcrPreflightBatchPage(
+                page,
+                page.pageNumber,
+                sourceDocumentRef
+              )
+            )
+          }
+          setPdfPageSourceRefs(nextSourceRefs)
+          setOutcome(nextOutcome)
+        } catch {
+          setError(PDF_PREFLIGHT_FAILURE_TEXT.UNKNOWN)
+        }
+        return
+      } finally {
+        preflightActionLock.current = false
+        setActivity(null)
+      }
+    }
+
     setActivity({ kind: 'batch', current: 0, total: files.length })
 
     try {
@@ -681,9 +808,9 @@ export default function DocumentPreflightWorkspace() {
       <section className="manual-review__intro">
         <h1>קריאת מסמכים לביקורת</h1>
         <p>
-          העלה תמונה אחת או יותר של טבלאות הזמנה. כל תמונה מעובדת בנפרד ובסדר
-          שנבחר, ומוחזרת רק כטיוטת OCR לביקורת — ללא יצירת ליקוט, התאמת קטלוג או
-          שמירת המסמך.
+          העלה תמונה אחת או יותר, או קובץ PDF אחד, של טבלאות הזמנה. כל עמוד
+          מעובד בנפרד ובסדר המקור, ומוחזר רק כטיוטת OCR לביקורת — ללא יצירת
+          ליקוט, התאמת קטלוג או שמירת המסמך.
         </p>
       </section>
 
@@ -707,6 +834,15 @@ export default function DocumentPreflightWorkspace() {
               capture={PREFLIGHT_CAMERA_CAPTURE}
               disabled={isSubmitting}
               onChange={selectFiles}
+              type="file"
+            />
+          </label>
+          <label className="document-preflight__file-label">
+            קובץ PDF
+            <input
+              accept={PDF_PREFLIGHT_FILE_INPUT_ACCEPT}
+              disabled={isSubmitting}
+              onChange={selectPdf}
               type="file"
             />
           </label>
@@ -776,10 +912,21 @@ export default function DocumentPreflightWorkspace() {
             )}
           </section>
         )}
+        {pdfFile && (
+          <section className="document-preflight__selection">
+            <h2>קובץ PDF לפני OCR</h2>
+            <p className="document-preflight__selected">
+              נבחר קובץ PDF אחד. שמו אינו מוצג או נשמר בתוצאה. העמודים יומרו
+              זמנית לעיבוד לפי הסדר המקורי, עד 20 עמודים.
+            </p>
+          </section>
+        )}
         {activity && (
           <p className="document-preflight__progress" role="status">
             {activity.kind === 'batch'
               ? `מעבד תמונה ${activity.current} מתוך ${activity.total}…`
+              : activity.kind === 'pdf'
+                ? 'ממיר ובודק עמודי PDF…'
               : activity.kind === 'retry'
                 ? `מנסה שוב לעמוד ${activity.pageNumber}…`
                 : `קורא מחדש את עמוד ${activity.pageNumber}…`}
@@ -788,11 +935,13 @@ export default function DocumentPreflightWorkspace() {
         <button
           className="manual-review__primary-button"
           type="submit"
-          disabled={files.length === 0 || isSubmitting}
+          disabled={(files.length === 0 && !pdfFile) || isSubmitting}
         >
           {isSubmitting
             ? activity?.kind === 'batch'
               ? 'קורא את התמונות…'
+              : activity?.kind === 'pdf'
+                ? 'קורא את עמודי ה־PDF…'
               : activity?.kind === 'retry'
                 ? 'מנסה שוב…'
                 : 'קורא מחדש…'
@@ -903,6 +1052,7 @@ export default function DocumentPreflightWorkspace() {
           })}
 
           {pages.map(({ page, sourceDocumentRef }) => {
+            const isPdfPage = pdfPageSourceRefs.includes(sourceDocumentRef)
             const hasSourceImage = files.some(
               (file) => file.sourceDocumentRef === sourceDocumentRef
             )
@@ -918,16 +1068,23 @@ export default function DocumentPreflightWorkspace() {
                     {ISSUE_TEXT[issue.code]}
                   </p>
                 ))}
-                <SourceImageReplacement
-                  disabled={isSubmitting}
-                  onSelect={(event) =>
-                    selectReplacementFile(event, {
-                      pageNumber: page.pageNumber,
-                      sourceDocumentRef,
-                    })
-                  }
-                  pageNumber={page.pageNumber}
-                />
+                {isPdfPage ? (
+                  <p className="document-preflight__selected">
+                    זהו עמוד מתוך PDF. כדי להחליף אותו, בחר קובץ PDF מתוקן חדש
+                    והפעל את הבדיקה מחדש; עמוד PDF אינו מוחלף בצילום בודד.
+                  </p>
+                ) : (
+                  <SourceImageReplacement
+                    disabled={isSubmitting}
+                    onSelect={(event) =>
+                      selectReplacementFile(event, {
+                        pageNumber: page.pageNumber,
+                        sourceDocumentRef,
+                      })
+                    }
+                    pageNumber={page.pageNumber}
+                  />
+                )}
 
                 <div
                   className={
@@ -936,19 +1093,21 @@ export default function DocumentPreflightWorkspace() {
                       : 'document-preflight__review-layout'
                   }
                 >
-                  <SourceImagePreview
-                    hasSourceImage={hasSourceImage}
-                    isVisible={isPreviewVisible}
-                    localPreviewUrl={
-                      activeLocalPreview?.sourceDocumentRef === sourceDocumentRef
-                        ? activeLocalPreview.url
-                        : null
-                    }
-                    onToggle={() =>
-                      toggleSourcePreview(page.pageNumber, sourceDocumentRef)
-                    }
-                    pageNumber={page.pageNumber}
-                  />
+                  {!isPdfPage && (
+                    <SourceImagePreview
+                      hasSourceImage={hasSourceImage}
+                      isVisible={isPreviewVisible}
+                      localPreviewUrl={
+                        activeLocalPreview?.sourceDocumentRef === sourceDocumentRef
+                          ? activeLocalPreview.url
+                          : null
+                      }
+                      onToggle={() =>
+                        toggleSourcePreview(page.pageNumber, sourceDocumentRef)
+                      }
+                      pageNumber={page.pageNumber}
+                    />
+                  )}
 
                   {page.rows.length > 0 && (
                     <div className="manual-review__table-wrapper">

@@ -6,6 +6,17 @@ export {
 } from './maayan-layout'
 export { readImageDimensions, readImageMetadata } from './image-metadata'
 export { preflightMaayanOcrPage } from './preflight-service'
+export { preflightPdfRasterPages } from './pdf-preflight-service'
+export {
+  getPdfPreflightFileSelectionIssue,
+  hasPdfSignature,
+  isSupportedPreflightPdfType,
+  MAX_PREFLIGHT_PDF_BYTES,
+  MAX_PREFLIGHT_PDF_MULTIPART_BYTES,
+  MAX_PREFLIGHT_PDF_PAGES,
+  PDF_PREFLIGHT_FILE_INPUT_ACCEPT,
+  PDF_PREFLIGHT_MEDIA_TYPE,
+} from './pdf-preflight-policy'
 export {
   getPreflightFileSelectionIssue,
   isSupportedPreflightImageType,
@@ -60,6 +71,11 @@ export type {
   OcrWord,
 } from './types'
 export type { ImageDimensions, ImageMetadata, SupportedImageMediaType } from './image-metadata'
+export type {
+  PdfPreflightFailureCode,
+  PdfPreflightFileMetadata,
+  PdfPreflightFileSelectionIssue,
+} from './pdf-preflight-policy'
 export type {
   PreflightFileMetadata,
   PreflightFileSelectionIssue,

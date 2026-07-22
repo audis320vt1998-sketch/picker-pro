@@ -8,13 +8,15 @@ Picker Pro has two active, non-persistent workflows:
 - **Maayan OCR preflight** at `/upload`, which returns a table draft that must
   be checked before any manual-review entry.
 
-The upload screen accepts up to 20 images as a browser-only batch and sends
-them to the one-image preflight endpoint sequentially. It assigns stable
-page numbers in the selected order; a failure on one image does not discard
-the drafts from other images. It does not display or retain file names in the
-result. Before upload, the browser rejects an unsupported, empty, or over-12
-MB selected image as an early UX guard; the endpoint independently repeats
-those checks.
+The upload screen accepts up to 20 images as a browser-only batch, or one PDF
+of up to 20 pages. Images are sent to the one-image preflight endpoint
+sequentially; a PDF is rendered into temporary local PNG pages and then
+processed sequentially. It assigns stable page numbers in selected or original
+PDF order, and does not display or retain file names in the result. Before
+upload, the browser rejects unsupported, empty, or oversized input; the
+endpoint independently repeats those checks. PDF processing requires Poppler
+`pdfinfo` and `pdftoppm` on the server, or the corresponding
+`PICKER_PRO_PDFINFO_PATH` and `PICKER_PRO_PDFTOPPM_PATH` configuration.
 
 Before OCR begins, the reviewer can see generic page positions only, move a
 selected image up or down, or remove it from the batch. This changes only the
@@ -175,8 +177,8 @@ are likewise fixed by their known code rather than copied from API messages.
 
 ## Unavailable capabilities
 
-- PDF processing, perspective correction, stored OCR jobs, and operational or
-  automatic image-to-pick-list processing.
+- Perspective correction, stored OCR jobs, and operational or automatic
+  image/PDF-to-pick-list processing.
 - The legacy `/api/process` endpoint is deliberately disabled. It returns a
   fixed, non-cacheable `501` response without parsing an uploaded request; it
   is not an alternative to `/api/intake/preflight`.

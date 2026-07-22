@@ -16,8 +16,8 @@ Available now:
 - A browser-provided direct-camera chooser for one document image at `/upload`,
   including a clearer replacement for one existing logical page. It does not
   upload or process the image until the reviewer explicitly starts OCR.
-- A browser-only batch at `/upload` for up to 20 Maayan images. It processes
-  one image at a time and returns only transient, review-required table
+- A browser-only batch at `/upload` for up to 20 Maayan images, or one
+  multi-page PDF of up to 20 pages. It processes one page at a time and returns only transient, review-required table
   drafts with stable page numbers. Before OCR, the reviewer can reorder or
   remove generic page positions without seeing a file name; the final local
   order becomes the page numbering. The browser gives an early rejection for
@@ -51,8 +51,7 @@ Available now:
 
 Not available yet:
 
-- Operational OCR, PDF processing, or automatic pick-list creation from an
-  image.
+- Automatic pick-list creation from an image or PDF.
 - Stored jobs, a persistent review queue, exports, city/route grouping, or AI
   assistance.
 - Automatic catalog verification or ERP synchronization.
@@ -89,6 +88,10 @@ npm run dev
 
 Open `http://localhost:3000/upload` for OCR preflight, or
 `http://localhost:3000/review` for explicit manual review.
+
+PDF preflight additionally requires local Poppler commands `pdfinfo` and
+`pdftoppm` on the server PATH. Set `PICKER_PRO_PDFINFO_PATH` and
+`PICKER_PRO_PDFTOPPM_PATH` when they are installed elsewhere.
 
 ## Verify
 

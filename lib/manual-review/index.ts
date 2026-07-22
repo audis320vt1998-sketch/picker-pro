@@ -5,8 +5,11 @@ export { getManualReviewCatalogReadinessState } from './catalog-readiness'
 export {
   manualReviewDuplicateSourceErrorFromResponse,
   manualReviewFailureCodeFromResponse,
+  isManualReviewIssueCode,
   manualReviewIssuePresentation,
 } from './failure'
+export { manualReviewResultFromResponse } from './success-response'
+export { summarizeManualReviewResult } from './result-summary'
 export {
   consumeOcrManualReviewHandoff,
   createOcrManualReviewHandoff,
@@ -33,6 +36,7 @@ export type {
   ManualReviewApiFailureCode,
   ManualReviewDuplicateSourceError,
   ManualReviewFailureCode,
+  ManualReviewIssueCode,
   ManualReviewIssuePresentation,
 } from './failure'
 export type {

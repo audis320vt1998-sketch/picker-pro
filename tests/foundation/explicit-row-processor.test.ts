@@ -91,13 +91,57 @@ describe('processExplicitRows', () => {
     ])
   })
 
-  it('never converts a unit value into cases based on pack size', () => {
+  it('warns but never converts a unit value at or above the case size', () => {
     const catalog = new VerifiedProductCatalog([verifiedUnitProduct])
 
     const result = processExplicitRows([row({ cases: 0, units: 25 })], catalog)
 
-    expect(result.issues).toEqual([])
+    expect(result.acceptedRowCount).toBe(1)
+    expect(result.issues).toEqual([
+      {
+        code: 'UNITS_AT_OR_ABOVE_CASE_SIZE',
+        message:
+          'The explicit individual-unit quantity reaches or exceeds the verified catalog case size; confirm it before picking.',
+        severity: 'warn',
+        stage: 'row',
+        source: row().source,
+        productKey: 'verified-unit-product',
+      },
+    ])
     expect(result.totals[0]?.cases.value).toBe(0)
+    expect(result.totals[0]?.units.value).toBe(25)
+  })
+
+  it('warns when an explicit individual-unit quantity equals the case size', () => {
+    const catalog = new VerifiedProductCatalog([verifiedUnitProduct])
+
+    const result = processExplicitRows([row({ cases: 0, units: 12 })], catalog)
+
+    expect(result.acceptedRowCount).toBe(1)
+    expect(result.issues.map((issue) => issue.code)).toEqual([
+      'UNITS_AT_OR_ABOVE_CASE_SIZE',
+    ])
+    expect(result.totals[0]?.cases.value).toBe(0)
+    expect(result.totals[0]?.units.value).toBe(12)
+  })
+
+  it('does not apply the guardrail without a positive catalog case size', () => {
+    const catalog = new VerifiedProductCatalog([
+      {
+        ...verifiedUnitProduct,
+        productKey: 'unit-product-without-case-size',
+        sku: 'SKU-UNIT-NO-CASE-SIZE',
+        caseSize: null,
+      },
+    ])
+
+    const result = processExplicitRows(
+      [row({ sku: 'SKU-UNIT-NO-CASE-SIZE', cases: 0, units: 25 })],
+      catalog
+    )
+
+    expect(result.acceptedRowCount).toBe(1)
+    expect(result.issues).toEqual([])
     expect(result.totals[0]?.units.value).toBe(25)
   })
 

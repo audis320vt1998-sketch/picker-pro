@@ -2,14 +2,16 @@ interface SummaryCardsProps {
   totalProducts: number
   totalCases: number
   totalUnits: number
-  pendingReviewCount: number
+  excludedRowCount: number
+  warningCount: number
 }
 
 export default function SummaryCards({
   totalProducts,
   totalCases,
   totalUnits,
-  pendingReviewCount,
+  excludedRowCount,
+  warningCount,
 }: SummaryCardsProps) {
   return (
     <div className="summary-cards">
@@ -26,8 +28,12 @@ export default function SummaryCards({
         <p className="value">{totalUnits}</p>
       </div>
       <div className="card">
-        <h4>ממתינים לבדיקה</h4>
-        <p className="value">{pendingReviewCount}</p>
+        <h4>שורות מחוץ לסיכום</h4>
+        <p className="value">{excludedRowCount}</p>
+      </div>
+      <div className="card">
+        <h4>אזהרות</h4>
+        <p className="value">{warningCount}</p>
       </div>
     </div>
   )

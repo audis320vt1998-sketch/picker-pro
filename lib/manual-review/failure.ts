@@ -23,8 +23,22 @@ export interface ManualReviewIssuePresentation {
   message: string
 }
 
+const MANUAL_REVIEW_ISSUE_CODES = [
+  'TRACEABILITY_MISSING',
+  'INVALID_QUANTITY',
+  'PRODUCT_UNRESOLVED',
+  'PRODUCT_CONFLICT',
+  'PRODUCT_UNVERIFIED',
+  'UNIT_TYPE_ENFORCEMENT',
+  'UNITS_AT_OR_ABOVE_CASE_SIZE',
+  'ZERO_TOTAL',
+] as const
+
+export type ManualReviewIssueCode =
+  (typeof MANUAL_REVIEW_ISSUE_CODES)[number]
+
 const MANUAL_REVIEW_ISSUE_PRESENTATIONS: Record<
-  string,
+  ManualReviewIssueCode,
   ManualReviewIssuePresentation
 > = {
   TRACEABILITY_MISSING: {
@@ -51,6 +65,10 @@ const MANUAL_REVIEW_ISSUE_PRESENTATIONS: Record<
     label: 'ליקוט בודדים לא מאושר',
     message: 'הקטלוג אינו מאפשר ליקוט בודדים עבור פריט זה.',
   },
+  UNITS_AT_OR_ABOVE_CASE_SIZE: {
+    label: 'בודדים בגודל מארז או יותר',
+    message: 'כמות הבודדים שווה לגודל המארז או גדולה ממנו. יש לאשר את הכמות מול המקור.',
+  },
   ZERO_TOTAL: {
     label: 'כמות אפס',
     message: 'השורה כוללת אפס מארזים ואפס בודדים.',
@@ -72,6 +90,15 @@ function isManualReviewApiFailureCode(
   return (
     typeof value === 'string' &&
     MANUAL_REVIEW_API_FAILURE_CODES.includes(value as ManualReviewApiFailureCode)
+  )
+}
+
+export function isManualReviewIssueCode(
+  value: unknown
+): value is ManualReviewIssueCode {
+  return (
+    typeof value === 'string' &&
+    MANUAL_REVIEW_ISSUE_CODES.includes(value as ManualReviewIssueCode)
   )
 }
 
@@ -149,7 +176,7 @@ export function manualReviewIssuePresentation(
   code: unknown
 ): ManualReviewIssuePresentation {
   return (
-    (typeof code === 'string' && MANUAL_REVIEW_ISSUE_PRESENTATIONS[code]) ||
+    (isManualReviewIssueCode(code) && MANUAL_REVIEW_ISSUE_PRESENTATIONS[code]) ||
     UNKNOWN_MANUAL_REVIEW_ISSUE
   )
 }

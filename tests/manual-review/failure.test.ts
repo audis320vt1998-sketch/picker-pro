@@ -1,4 +1,5 @@
 import {
+  isManualReviewIssueCode,
   manualReviewDuplicateSourceErrorFromResponse,
   manualReviewFailureCodeFromResponse,
   manualReviewIssuePresentation,
@@ -82,9 +83,18 @@ describe('manual-review client failure boundary', () => {
   })
 
   it('maps review issue display text without using API messages', () => {
+    expect(isManualReviewIssueCode('UNITS_AT_OR_ABOVE_CASE_SIZE')).toBe(true)
+    expect(isManualReviewIssueCode('UPSTREAM_PRIVATE_SENTINEL')).toBe(false)
     expect(manualReviewIssuePresentation('PRODUCT_UNVERIFIED')).toEqual({
       label: 'פריט לא מאומת',
       message: 'הפריט אינו מאומת לשימוש תפעולי.',
+    })
+    expect(
+      manualReviewIssuePresentation('UNITS_AT_OR_ABOVE_CASE_SIZE')
+    ).toEqual({
+      label: 'בודדים בגודל מארז או יותר',
+      message:
+        'כמות הבודדים שווה לגודל המארז או גדולה ממנו. יש לאשר את הכמות מול המקור.',
     })
     expect(manualReviewIssuePresentation('UPSTREAM_PRIVATE_SENTINEL')).toEqual({
       label: 'בדיקה נדרשת',

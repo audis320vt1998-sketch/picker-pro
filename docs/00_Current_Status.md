@@ -102,6 +102,14 @@ in returned source references. Every manual-review response is non-cacheable;
 the review screen maps expected API failure codes to fixed Hebrew guidance
 instead of displaying server error text. Review-issue labels and explanations
 are likewise fixed by their known code rather than copied from API messages.
+Before placing a successful response in browser state, the review screen also
+whitelists its nested result shape and retains only catalog counts, product
+totals, fixed issue metadata, and page/row positions. It drops server review
+identifiers, source text, source IDs, and arbitrary response fields.
+
+The result explicitly separates rows accepted into the operational total,
+rows excluded from it, and non-blocking warnings. A warning is not counted as
+an excluded row.
 
 For every verified product total, the review result can expand two separate
 source lists: one for cases and one for individual units. Each displayed entry
@@ -157,6 +165,10 @@ quantity value for each reference.
 - Values are checked only for being finite and non-negative.
 - The application never splits, converts, or infers quantities from pack size,
   parentheses, or a `1/N` pattern.
+- When a verified catalog product permits individual-unit picking and has a
+  positive case size, an explicit unit quantity that reaches or exceeds that
+  case size remains an individual-unit quantity and receives a non-blocking
+  review warning. It is never converted into cases.
 - A zero value is preserved with its source reference.
 
 ## Catalog policy

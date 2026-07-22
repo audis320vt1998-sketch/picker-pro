@@ -79,7 +79,10 @@ for code that is deliberately outside the active build.
 4. Only a `verified` catalog match can enter an operational total.
 5. A case-only product, or a product that does not allow unit picking, is sent
    to review if it has a positive individual-unit value.
-6. Every accepted value retains its source page and row.
+6. For an individual-unit product with a positive catalog case size, an entered
+   unit quantity at or above that size stays in the unit total and is flagged
+   for non-blocking review; it is never converted into cases.
+7. Every accepted value retains its source page and row.
 
 ## Run locally
 

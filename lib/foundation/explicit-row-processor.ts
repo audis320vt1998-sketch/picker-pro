@@ -52,6 +52,22 @@ function createIssue(
   }
 }
 
+function createWarningIssue(
+  row: ParsedRow,
+  code: string,
+  message: string,
+  productKey: string
+): ValidationIssue {
+  return {
+    code,
+    message,
+    severity: 'warn',
+    stage: 'row',
+    source: row.source,
+    productKey,
+  }
+}
+
 function hasTraceableSource(source: SourceReference | undefined): boolean {
   return Boolean(
     source &&
@@ -66,6 +82,10 @@ function hasTraceableSource(source: SourceReference | undefined): boolean {
 
 function isValidQuantity(value: number): boolean {
   return Number.isFinite(value) && value >= 0
+}
+
+function isPositiveCaseSize(value: number | null): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
 }
 
 function getValidQuantities(row: ParsedRow): Quantities | null {
@@ -207,6 +227,21 @@ export function processExplicitRows(
         )
       )
       continue
+    }
+
+    if (
+      allowsIndividualUnitPicking(product) &&
+      isPositiveCaseSize(product.caseSize) &&
+      quantities.units >= product.caseSize
+    ) {
+      issues.push(
+        createWarningIssue(
+          row,
+          'UNITS_AT_OR_ABOVE_CASE_SIZE',
+          'The explicit individual-unit quantity reaches or exceeds the verified catalog case size; confirm it before picking.',
+          product.productKey
+        )
+      )
     }
 
     acceptedTotals.push(

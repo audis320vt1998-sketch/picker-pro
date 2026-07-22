@@ -17,6 +17,8 @@ import {
   manualReviewDuplicateSourceErrorFromResponse,
   manualReviewFailureCodeFromResponse,
   manualReviewIssuePresentation,
+  manualReviewResultFromResponse,
+  summarizeManualReviewResult,
   toManualReviewOcrDraft,
   type ManualReviewOcrDraft,
   type ManualReviewDuplicateSourceError,
@@ -86,22 +88,6 @@ function createEditableRow(
     units: '',
     ocrSourceQuantities: ocrDraft?.sourceQuantities ?? null,
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
-function isManualReviewResult(value: unknown): value is ManualReviewResult {
-  return (
-    isRecord(value) &&
-    typeof value.reviewId === 'string' &&
-    isRecord(value.catalog) &&
-    Array.isArray(value.totals) &&
-    Array.isArray(value.issues) &&
-    typeof value.acceptedRowCount === 'number' &&
-    typeof value.totalRowCount === 'number'
-  )
 }
 
 function duplicateSourceErrorText(
@@ -243,12 +229,16 @@ export default function ManualReviewWorkspace({
         return
       }
 
-      if (!isManualReviewResult(body)) {
+      const parsedResult = manualReviewResultFromResponse(
+        body,
+        convertedRows.length
+      )
+      if (!parsedResult) {
         setError(MANUAL_REVIEW_FAILURE_TEXT.UNKNOWN)
         return
       }
 
-      setResult(body)
+      setResult(parsedResult)
     } catch {
       setError(MANUAL_REVIEW_FAILURE_TEXT.UNKNOWN)
     } finally {
@@ -263,6 +253,7 @@ export default function ManualReviewWorkspace({
   const totalUnits = result
     ? result.totals.reduce((sum, total) => sum + total.units.value, 0)
     : 0
+  const resultSummary = result ? summarizeManualReviewResult(result) : null
   const rowReadiness = rows.map((row) => getManualReviewRowReadiness(row))
   const readyRowCount = rowReadiness.filter((readiness) => readiness.isReady).length
   const catalogReadinessState = getManualReviewCatalogReadinessState(
@@ -469,7 +460,7 @@ export default function ManualReviewWorkspace({
         </div>
       </form>
 
-      {result && (
+      {result && resultSummary && (
         <section className="manual-review__result" aria-live="polite">
           <h2>תוצאת הבדיקה</h2>
           <p>
@@ -482,17 +473,38 @@ export default function ManualReviewWorkspace({
               לאימות הרשומות.
             </p>
           )}
+          <div className="manual-review__outcome" role="status">
+            <strong>
+              {resultSummary.acceptedRowCount} מתוך {resultSummary.totalRowCount}{' '}
+              שורות נכנסו לסיכום התפעולי.
+            </strong>
+            {resultSummary.excludedRowCount > 0 ? (
+              <span>
+                {resultSummary.excludedRowCount} שורות לא נכנסו לסיכום ומופיעות
+                לבדיקה.
+              </span>
+            ) : (
+              <span>כל השורות שנשלחו נכנסו לסיכום התפעולי.</span>
+            )}
+            {resultSummary.warningCount > 0 && (
+              <span>
+                {resultSummary.warningCount} אזהרות אינן מוציאות שורה מהסיכום;
+                יש לבדוק אותן מול המקור.
+              </span>
+            )}
+          </div>
           <SummaryCards
             totalProducts={result.totals.length}
             totalCases={totalCases}
             totalUnits={totalUnits}
-            pendingReviewCount={result.issues.length}
+            excludedRowCount={resultSummary.excludedRowCount}
+            warningCount={resultSummary.warningCount}
           />
           <ResultsTable totals={result.totals} />
 
           {result.issues.length > 0 && (
             <div className="manual-review__issues">
-              <h3>שורות לבדיקה</h3>
+              <h3>חריגים ואזהרות לבדיקה</h3>
               <div className="manual-review__table-wrapper">
                 <table>
                   <thead>

@@ -12,6 +12,7 @@ import {
   createOcrPreflightBatchPage,
   createOcrPreflightBatchOutcome,
   createOcrSourceDocumentRef,
+  documentPreflightRowIssueText,
   getPreflightFileSelectionIssue,
   getPdfPreflightFileSelectionIssue,
   isRetryablePreflightFailure,
@@ -39,6 +40,7 @@ import {
 } from '@/lib/document-intake'
 import {
   createOcrManualReviewHandoff,
+  ocrManualReviewHandoffBlockReason,
   saveOcrManualReviewHandoff,
   toOcrManualReviewHandoffRow,
 } from '@/lib/manual-review'
@@ -46,6 +48,11 @@ import {
 const OCR_UPLOAD_FILE_NAME = 'page-image'
 const PDF_UPLOAD_FILE_NAME = 'document-pdf'
 const CAMERA_CAPTURE_NOTE_ID = 'document-preflight-camera-note'
+
+const HANDOFF_BLOCK_REASON_TEXT = {
+  SOURCE_NOT_TRACEABLE: 'חסר מספר שורת מקור',
+  PRODUCT_IDENTIFIER_MISSING: 'חסר מזהה פריט',
+} as const
 
 const ISSUE_TEXT: Record<DocumentPreflightIssue['code'], string> = {
   OCR_DRAFT_REQUIRES_REVIEW:
@@ -791,7 +798,7 @@ export default function DocumentPreflightWorkspace() {
   const transferToManualReview = () => {
     const handoff = createOcrManualReviewHandoff(selectedRows)
     if (!handoff || !hasConfirmedSourceCheck) {
-      setError('יש לבחור שורות עם מספר מקור ולאשר שבוצעה בדיקה מול המסמך.')
+      setError('יש לבחור שורות עם מזהה פריט ומספר מקור ולאשר שבוצעה בדיקה מול המסמך.')
       return
     }
 
@@ -1120,6 +1127,7 @@ export default function DocumentPreflightWorkspace() {
                         <th>מק״ט</th>
                         <th>ברקוד</th>
                         <th>שם פריט</th>
+                        <th>בדיקות OCR</th>
                         <th>כמות מארזים</th>
                         <th>כמות באריזה</th>
                         <th>כמות בודדים</th>
@@ -1130,6 +1138,10 @@ export default function DocumentPreflightWorkspace() {
                       {page.rows.map((row) => {
                         const key = rowKey(page.pageNumber, row)
                         const transferable = canTransferRow(row, sourceDocumentRef)
+                        const transferBlockReason = ocrManualReviewHandoffBlockReason({
+                          row,
+                          sourceDocumentRef,
+                        })
 
                         return (
                           <tr key={row.source.parserRowIndex}>
@@ -1144,7 +1156,9 @@ export default function DocumentPreflightWorkspace() {
                                   type="checkbox"
                                 />
                               ) : (
-                                'חסר מספר שורת מקור'
+                                HANDOFF_BLOCK_REASON_TEXT[
+                                  transferBlockReason ?? 'SOURCE_NOT_TRACEABLE'
+                                ]
                               )}
                             </td>
                             <td>{page.pageNumber}</td>
@@ -1157,6 +1171,19 @@ export default function DocumentPreflightWorkspace() {
                                 <summary>טקסט מקור</summary>
                                 <span>{row.traceText}</span>
                               </details>
+                            </td>
+                            <td>
+                              {row.issues.length > 0 ? (
+                                <ul className="document-preflight__row-issues">
+                                  {row.issues.map((issue, issueIndex) => (
+                                    <li key={`${issue.code}-${issue.field ?? 'row'}-${issueIndex}`}>
+                                      {documentPreflightRowIssueText(issue)}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                '—'
+                              )}
                             </td>
                             <td>{displayQuantity(row.sourceQuantities.caseQuantity)}</td>
                             <td>{displayQuantity(row.sourceQuantities.unitsPerCase)}</td>

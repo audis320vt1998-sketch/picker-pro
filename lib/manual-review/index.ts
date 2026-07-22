@@ -10,6 +10,7 @@ export {
 export {
   consumeOcrManualReviewHandoff,
   createOcrManualReviewHandoff,
+  ocrManualReviewHandoffBlockReason,
   OCR_MANUAL_REVIEW_HANDOFF_STORAGE_KEY,
   saveOcrManualReviewHandoff,
   toManualReviewOcrDraft,
@@ -36,6 +37,7 @@ export type {
 } from './failure'
 export type {
   ManualReviewOcrDraft,
+  OcrManualReviewHandoffBlockReason,
   OcrManualReviewHandoffCandidate,
   OcrManualReviewHandoffRow,
   OcrManualReviewHandoffV1,

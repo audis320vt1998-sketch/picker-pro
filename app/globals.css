@@ -477,6 +477,18 @@ nav a:hover {
   margin-top: 0.35rem;
 }
 
+.document-preflight__row-issues {
+  color: #78350f;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  margin: 0;
+  padding-right: 1.1rem;
+}
+
+.document-preflight__row-issues li + li {
+  margin-top: 0.3rem;
+}
+
 .document-preflight__handoff,
 .manual-review__ocr-draft {
   background: #eff6ff;

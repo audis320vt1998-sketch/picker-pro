@@ -43,6 +43,10 @@ export interface OcrManualReviewHandoffCandidate {
   row: DocumentPreflightRow
 }
 
+export type OcrManualReviewHandoffBlockReason =
+  | 'SOURCE_NOT_TRACEABLE'
+  | 'PRODUCT_IDENTIFIER_MISSING'
+
 export interface OcrManualReviewHandoffV1 {
   kind: 'OCR_MANUAL_REVIEW_HANDOFF_V1'
   createdAtMs: number
@@ -76,6 +80,16 @@ function isOptionalString(value: unknown): value is string | undefined {
   return value === undefined || typeof value === 'string'
 }
 
+function hasProductIdentifier(
+  productName: string | undefined,
+  barcode: string | undefined,
+  sku: string | undefined
+): boolean {
+  return [productName, barcode, sku].some(
+    (value) => typeof value === 'string' && value.trim().length > 0
+  )
+}
+
 function isSourceQuantity(value: unknown): value is number | null {
   return value === null || (typeof value === 'number' && Number.isFinite(value) && value >= 0)
 }
@@ -101,7 +115,8 @@ function isHandoffRow(value: unknown): value is OcrManualReviewHandoffRow {
     isParserRowIndex(value.source.parserRowIndex) &&
     isOptionalString(value.productName) &&
     isOptionalString(value.barcode) &&
-    isOptionalString(value.sku)
+    isOptionalString(value.sku) &&
+    hasProductIdentifier(value.productName, value.barcode, value.sku)
   )
 }
 
@@ -134,6 +149,38 @@ function copySourceQuantities(
 }
 
 /**
+ * A browser handoff needs an auditable source location and at least one
+ * product identifier. The OCR draft is still not a catalog match or a picking
+ * instruction; this only avoids sending an unfillable blank row to review.
+ */
+export function ocrManualReviewHandoffBlockReason(
+  candidate: OcrManualReviewHandoffCandidate
+): OcrManualReviewHandoffBlockReason | null {
+  const { row, sourceDocumentRef } = candidate
+
+  if (
+    !isOcrSourceDocumentRef(sourceDocumentRef) ||
+    !isPositiveInteger(row.source.pageNumber) ||
+    !isPositiveInteger(row.source.printedRowNumber) ||
+    !isParserRowIndex(row.source.parserRowIndex)
+  ) {
+    return 'SOURCE_NOT_TRACEABLE'
+  }
+
+  if (
+    !hasProductIdentifier(
+      cleanOptionalText(row.productName),
+      cleanOptionalText(row.barcode),
+      cleanOptionalText(row.sku)
+    )
+  ) {
+    return 'PRODUCT_IDENTIFIER_MISSING'
+  }
+
+  return null
+}
+
+/**
  * A preflight row can move to manual review only when its visible source
  * location is traceable. OCR text, image data, document headers, filenames,
  * and OCR bounding boxes are intentionally excluded from this browser-only
@@ -147,12 +194,7 @@ export function toOcrManualReviewHandoffRow(
   const productName = cleanOptionalText(row.productName)
   const barcode = cleanOptionalText(row.barcode)
   const sku = cleanOptionalText(row.sku)
-  if (
-    !isOcrSourceDocumentRef(sourceDocumentRef) ||
-    !isPositiveInteger(row.source.pageNumber) ||
-    !isPositiveInteger(printedRowNumber) ||
-    !isParserRowIndex(row.source.parserRowIndex)
-  ) {
+  if (ocrManualReviewHandoffBlockReason(candidate) !== null || printedRowNumber === null) {
     return null
   }
 

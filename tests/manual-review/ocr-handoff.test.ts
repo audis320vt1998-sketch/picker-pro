@@ -2,9 +2,11 @@ import type { DocumentPreflightRow } from '@/lib/document-intake'
 import {
   consumeOcrManualReviewHandoff,
   createOcrManualReviewHandoff,
+  ocrManualReviewHandoffBlockReason,
   OCR_MANUAL_REVIEW_HANDOFF_STORAGE_KEY,
   saveOcrManualReviewHandoff,
   toManualReviewOcrDraft,
+  toOcrManualReviewHandoffRow,
   type OcrManualReviewHandoffCandidate,
   type SessionStorageLike,
 } from '@/lib/manual-review/ocr-handoff'
@@ -130,11 +132,57 @@ describe('OCR manual-review handoff', () => {
     expect(storage.getItem(OCR_MANUAL_REVIEW_HANDOFF_STORAGE_KEY)).toBeNull()
   })
 
+  it('clears session data that lacks every product identifier', () => {
+    const storage = new MemoryStorage()
+    storage.setItem(
+      OCR_MANUAL_REVIEW_HANDOFF_STORAGE_KEY,
+      JSON.stringify({
+        kind: 'OCR_MANUAL_REVIEW_HANDOFF_V1',
+        createdAtMs: 1000,
+        rows: [
+          {
+            source: {
+              sourceDocumentRef: SOURCE_DOCUMENT_REF,
+              pageNumber: 1,
+              printedRowNumber: 7,
+              parserRowIndex: 3,
+            },
+            sourceQuantities: { caseQuantity: 2, unitsPerCase: 12, totalUnits: 24 },
+          },
+        ],
+      })
+    )
+
+    expect(consumeOcrManualReviewHandoff(storage, 1001)).toBeNull()
+    expect(storage.getItem(OCR_MANUAL_REVIEW_HANDOFF_STORAGE_KEY)).toBeNull()
+  })
+
   it('rejects a handoff candidate without an opaque source document reference', () => {
     const handoff = createOcrManualReviewHandoff([
       handoffCandidate(preflightRow(), 'customer-private-order.jpg'),
     ])
 
     expect(handoff).toBeNull()
+  })
+
+  it('rejects a row without a product name, barcode, or SKU', () => {
+    const row = preflightRow({ sku: null, barcode: null, productName: '   ' })
+    const candidate = handoffCandidate(row)
+
+    expect(ocrManualReviewHandoffBlockReason(candidate)).toBe(
+      'PRODUCT_IDENTIFIER_MISSING'
+    )
+    expect(toOcrManualReviewHandoffRow(candidate)).toBeNull()
+    expect(createOcrManualReviewHandoff([candidate])).toBeNull()
+  })
+
+  it.each([
+    { sku: null, barcode: '0123456789012', productName: null },
+    { sku: '092100', barcode: null, productName: null },
+  ])('allows a row with one usable product identifier', (identifiers) => {
+    const candidate = handoffCandidate(preflightRow(identifiers))
+
+    expect(ocrManualReviewHandoffBlockReason(candidate)).toBeNull()
+    expect(toOcrManualReviewHandoffRow(candidate)).not.toBeNull()
   })
 })

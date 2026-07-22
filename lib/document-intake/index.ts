@@ -32,6 +32,7 @@ export {
   isRetryablePreflightFailure,
   preflightFailureCodeFromResponse,
 } from './preflight-failure'
+export { documentPreflightRowIssueText } from './row-issue-presentation'
 export {
   createOcrPreflightBatchPage,
   createOcrSourceDocumentRef,

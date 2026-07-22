@@ -236,5 +236,8 @@ export function isCatalogOnboardingPreflightResult(
     )
   }
 
-  return true
+  return (
+    value.summary.rowsWithErrors > 0 ||
+    value.issues.some((issue) => issue.severity === 'error')
+  )
 }

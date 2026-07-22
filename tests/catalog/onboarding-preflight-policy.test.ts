@@ -94,6 +94,33 @@ describe('catalog onboarding preflight response policy', () => {
     expect(isCatalogOnboardingPreflightResult(incompleteReadySummary)).toBe(false)
   })
 
+  it('rejects an empty correction response but accepts a global error', () => {
+    const emptyCorrection = {
+      ...validResult(),
+      status: 'NEEDS_CORRECTION' as const,
+    }
+    const globalError = {
+      ...emptyCorrection,
+      summary: {
+        totalRows: 0,
+        readyRows: 0,
+        rowsWithErrors: 0,
+        rowsWithWarnings: 0,
+      },
+      issues: [
+        {
+          code: 'INVALID_HEADER',
+          field: null,
+          rowNumber: null,
+          severity: 'error',
+        },
+      ],
+    }
+
+    expect(isCatalogOnboardingPreflightResult(emptyCorrection)).toBe(false)
+    expect(isCatalogOnboardingPreflightResult(globalError)).toBe(true)
+  })
+
   it('accepts the fixed picking-configuration issue code', () => {
     const result = {
       ...validResult(),

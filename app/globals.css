@@ -244,6 +244,132 @@ nav a:hover {
   max-width: 44rem;
 }
 
+.document-preflight__camera-capture,
+.document-preflight__camera-confirmation {
+  border-radius: 0.75rem;
+  display: grid;
+  gap: 0.75rem;
+  max-width: 48rem;
+  padding: 1rem;
+}
+
+.document-preflight__camera-capture {
+  background: #eff6ff;
+  border: 2px solid #60a5fa;
+  color: #1e3a5f;
+}
+
+.document-preflight__camera-capture h2,
+.document-preflight__camera-confirmation strong {
+  color: #1e3a5f;
+}
+
+.document-preflight__camera-capture p,
+.document-preflight__camera-confirmation p {
+  line-height: 1.55;
+}
+
+.document-preflight__step {
+  color: #1d4ed8;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.document-preflight__camera-button {
+  align-items: center;
+  background: #007bff;
+  border-radius: 0.5rem;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  font-weight: 800;
+  justify-content: center;
+  min-height: 3.25rem;
+  padding: 0.75rem 1rem;
+  position: relative;
+  text-align: center;
+  width: fit-content;
+}
+
+.document-preflight__camera-button:hover {
+  background: #0056b3;
+}
+
+.document-preflight__camera-button:focus-within {
+  outline: 3px solid #f59e0b;
+  outline-offset: 3px;
+}
+
+.document-preflight__camera-button input {
+  cursor: pointer;
+  height: 100%;
+  inset: 0;
+  opacity: 0;
+  position: absolute;
+  width: 100%;
+}
+
+.document-preflight__camera-button input:disabled {
+  cursor: not-allowed;
+}
+
+.document-preflight__camera-confirmation {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  color: #78350f;
+  margin-top: 1rem;
+}
+
+.document-preflight__camera-confirmation .manual-review__secondary-button,
+.document-preflight__camera-confirmation .manual-review__primary-button {
+  margin-top: 0;
+}
+
+.document-preflight__alternative-sources {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  margin-top: 1rem;
+  max-width: 48rem;
+  padding: 0.75rem 0.9rem;
+}
+
+.document-preflight__alternative-sources summary {
+  color: #1e3a5f;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.document-preflight__alternative-sources[open] .document-preflight__source-actions {
+  margin-top: 0.9rem;
+}
+
+.document-preflight__camera-preview {
+  background: #fff;
+  border: 1px solid #bfdbfe;
+  border-radius: 0.5rem;
+  padding: 0.9rem;
+}
+
+.document-preflight__next-step,
+.document-preflight__selection-locked {
+  color: #1e3a5f;
+  font-weight: 700;
+  line-height: 1.5;
+  margin-top: 0.75rem;
+}
+
+.document-preflight__selection-locked {
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+}
+
+.document-preflight__submit-button {
+  margin-top: 1rem;
+  min-height: 3rem;
+}
+
 .settings__catalog {
   background: #fff;
   border: 1px solid #cbd5e1;
@@ -603,5 +729,44 @@ nav a:hover {
 
   nav ul {
     flex-wrap: wrap;
+  }
+
+  .document-preflight__camera-capture,
+  .document-preflight__camera-confirmation {
+    padding: 1rem;
+  }
+
+  .document-preflight__camera-button,
+  .document-preflight__submit-button,
+  .document-preflight__source-actions > * {
+    width: 100%;
+  }
+
+  .document-preflight__camera-button {
+    min-height: 3.5rem;
+  }
+
+  .document-preflight__source-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .document-preflight__file-label {
+    max-width: none;
+  }
+
+  .document-preflight__file-label input {
+    min-height: 2.75rem;
+    width: 100%;
+  }
+
+  .document-preflight__selection-actions {
+    width: 100%;
+  }
+
+  .document-preflight__selection-actions .manual-review__secondary-button,
+  .document-preflight__camera-confirmation .manual-review__primary-button,
+  .document-preflight__camera-confirmation .manual-review__secondary-button {
+    min-height: 2.75rem;
   }
 }

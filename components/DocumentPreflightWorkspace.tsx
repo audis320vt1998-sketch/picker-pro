@@ -28,6 +28,7 @@ import {
   removeOcrPreflightReplacementSlot,
   recordOcrPreflightBatchFailure,
   recordOcrPreflightBatchSuccess,
+  requiresCameraCaptureReplacementConfirmation,
   upsertOcrPreflightReplacementSlot,
   type DocumentPreflightIssue,
   type DocumentPreflightResult,
@@ -124,6 +125,8 @@ interface SelectedSourceImage {
   file: File
   sourceDocumentRef: string
 }
+
+type SourceSelectionKind = 'camera' | 'images' | 'pdf' | null
 
 interface PreviewedSourceImage {
   pageNumber: number
@@ -355,7 +358,7 @@ function SourceImageReplacement({
           />
         </label>
         <label className="document-preflight__file-label">
-          צלם תמונה חלופית לעמוד {pageNumber}
+          צלם מחדש — עמוד {pageNumber}
           <input
             accept={PREFLIGHT_FILE_INPUT_ACCEPT}
             aria-describedby={cameraNoteId}
@@ -367,8 +370,9 @@ function SourceImageReplacement({
         </label>
       </div>
       <p className="document-preflight__selected">
-        בחר צילום חד יותר של אותו עמוד בלבד. למסמך או לעמוד אחר יש ליצור אצווה
-        חדשה. הבחירה אינה שולחת את התמונה עד להפעלה מפורשת של OCR מחדש.
+        צלם את אותו עמוד בלבד: החזק את הטלפון ישר, מלא את הפריים בטבלה והימנע
+        מצל. למסמך או לעמוד אחר יש ליצור אצווה חדשה. הבחירה אינה שולחת את
+        התמונה עד להפעלה מפורשת של OCR מחדש.
       </p>
       <p className="document-preflight__camera-note" id={cameraNoteId}>
         צילום חלופי מחליף רק את העמוד הזה ושומר את מזהה המקור שלו. הדפדפן יכול
@@ -388,6 +392,9 @@ function canTransferRow(
 export default function DocumentPreflightWorkspace() {
   const [files, setFiles] = useState<readonly SelectedSourceImage[]>([])
   const [pdfFile, setPdfFile] = useState<File | null>(null)
+  const [sourceSelectionKind, setSourceSelectionKind] =
+    useState<SourceSelectionKind>(null)
+  const [pendingCameraCapture, setPendingCameraCapture] = useState<File | null>(null)
   const [pdfPageSourceRefs, setPdfPageSourceRefs] = useState<readonly string[]>([])
   const [outcome, setOutcome] = useState<OcrPreflightBatchOutcome | null>(null)
   const [pendingReplacementPages, setPendingReplacementPages] = useState<
@@ -407,6 +414,9 @@ export default function DocumentPreflightWorkspace() {
   const isSubmitting = activity !== null
   const pages = outcome?.pages ?? []
   const failedPages = outcome?.failures ?? []
+  const isSelectionLocked = isSubmitting || pendingCameraCapture !== null
+  const isSingleCameraCaptureReadyToInspect =
+    sourceSelectionKind === 'camera' && files.length === 1 && outcome === null
 
   const previewedFile = previewedSource
     ? files.find(
@@ -439,15 +449,42 @@ export default function DocumentPreflightWorkspace() {
     setHasConfirmedSourceCheck(false)
     setPdfFile(null)
     setPdfPageSourceRefs([])
+    setSourceSelectionKind(null)
+    setPendingCameraCapture(null)
   }
 
-  const canEditSelectedBatch = !isSubmitting && outcome === null
+  const canEditSelectedBatch = !isSelectionLocked && outcome === null
+
+  const setSelectedImages = (
+    selectedFiles: readonly File[],
+    selectionKind: Exclude<SourceSelectionKind, 'pdf' | null>
+  ) => {
+    resetDraftAfterSelectionChange()
+
+    try {
+      setFiles(
+        selectedFiles.map((file) => ({
+          file,
+          sourceDocumentRef: createSourceDocumentRef(),
+        }))
+      )
+      setSourceSelectionKind(selectionKind)
+    } catch {
+      setFiles([])
+      setPendingReplacementPages([])
+      setError('הדפדפן לא הצליח ליצור מזהה זמני ובטוח למסמך. נסה שוב.')
+    }
+  }
 
   const selectFiles = (event: ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files ?? [])
     event.currentTarget.value = ''
 
-    if (preflightActionLock.current || selectedFiles.length === 0) {
+    if (
+      preflightActionLock.current ||
+      pendingCameraCapture ||
+      selectedFiles.length === 0
+    ) {
       return
     }
     if (selectedFiles.length > MAX_PREFLIGHT_BATCH_IMAGES) {
@@ -463,27 +500,64 @@ export default function DocumentPreflightWorkspace() {
       return
     }
 
-    resetDraftAfterSelectionChange()
+    setSelectedImages(selectedFiles, 'images')
+  }
 
-    try {
-      setFiles(
-        selectedFiles.map((file) => ({
-          file,
-          sourceDocumentRef: createSourceDocumentRef(),
-        }))
-      )
-    } catch {
-      setFiles([])
-      setPendingReplacementPages([])
-      setError('הדפדפן לא הצליח ליצור מזהה זמני ובטוח למסמך. נסה שוב.')
+  const selectCameraCapture = (event: ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.target.files ?? [])
+    event.currentTarget.value = ''
+
+    if (
+      preflightActionLock.current ||
+      pendingCameraCapture ||
+      selectedFiles.length === 0
+    ) {
+      return
     }
+    if (selectedFiles.length !== 1) {
+      setError('יש לצלם או לבחור תמונה אחת בלבד בכל פעולה מהמצלמה.')
+      return
+    }
+
+    const cameraCapture = selectedFiles[0]
+    const selectionIssue = getPreflightFileSelectionIssue(cameraCapture)
+    if (selectionIssue) {
+      setError(PREFLIGHT_FAILURE_TEXT[selectionIssue])
+      return
+    }
+
+    if (
+      requiresCameraCaptureReplacementConfirmation({
+        selectedImageCount: files.length,
+        hasPdfSelection: pdfFile !== null,
+        hasPreflightOutcome: outcome !== null,
+      })
+    ) {
+      setError(null)
+      setPendingCameraCapture(cameraCapture)
+      return
+    }
+
+    setSelectedImages([cameraCapture], 'camera')
+  }
+
+  const confirmCameraCaptureReplacement = () => {
+    if (!pendingCameraCapture || preflightActionLock.current) {
+      return
+    }
+
+    setSelectedImages([pendingCameraCapture], 'camera')
   }
 
   const selectPdf = (event: ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files ?? [])
     event.currentTarget.value = ''
 
-    if (preflightActionLock.current || selectedFiles.length === 0) {
+    if (
+      preflightActionLock.current ||
+      pendingCameraCapture ||
+      selectedFiles.length === 0
+    ) {
       return
     }
     if (selectedFiles.length !== 1) {
@@ -501,6 +575,7 @@ export default function DocumentPreflightWorkspace() {
     resetDraftAfterSelectionChange()
     setFiles([])
     setPdfFile(selectedPdf)
+    setSourceSelectionKind('pdf')
   }
 
   const moveSelectedFile = (currentIndex: number, destinationIndex: number) => {
@@ -594,6 +669,10 @@ export default function DocumentPreflightWorkspace() {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (preflightActionLock.current) {
+      return
+    }
+    if (pendingCameraCapture) {
+      setError('יש לאשר או לבטל את החלפת הצילום לפני הפעלת OCR.')
       return
     }
     if (files.length === 0 && !pdfFile) {
@@ -810,6 +889,14 @@ export default function DocumentPreflightWorkspace() {
     }
   }
 
+  const selectedCameraCapture = isSingleCameraCaptureReadyToInspect
+    ? files[0]
+    : null
+  const isCameraCapturePreviewVisible =
+    selectedCameraCapture !== null &&
+    previewedSource?.pageNumber === 1 &&
+    previewedSource.sourceDocumentRef === selectedCameraCapture.sourceDocumentRef
+
   return (
     <div className="manual-review document-preflight" dir="rtl">
       <section className="manual-review__intro">
@@ -821,55 +908,135 @@ export default function DocumentPreflightWorkspace() {
         </p>
       </section>
 
-      <form className="manual-review__form" onSubmit={submit}>
-        <div className="document-preflight__source-actions">
-          <label className="document-preflight__file-label">
-            תמונות מסמך
-            <input
-              accept={PREFLIGHT_FILE_INPUT_ACCEPT}
-              disabled={isSubmitting}
-              multiple
-              onChange={selectFiles}
-              type="file"
-            />
-          </label>
-          <label className="document-preflight__file-label">
-            צלם תמונת מסמך
+      <form
+        aria-busy={isSubmitting}
+        className="manual-review__form"
+        onSubmit={submit}
+      >
+        <section
+          aria-labelledby="document-preflight-camera-title"
+          className="document-preflight__camera-capture"
+        >
+          <p className="document-preflight__step">שלב 1 מתוך 3</p>
+          <h2 id="document-preflight-camera-title">צלם עמוד מהטלפון</h2>
+          <p>
+            צלם עמוד אחד בכל פעם. החזק את הטלפון ישר, מלא את הפריים בטבלה, ודא
+            שאין צל ושהטקסט חד.
+          </p>
+          <label className="document-preflight__camera-button">
+            <span>פתח מצלמה אחורית לצילום עמוד</span>
             <input
               accept={PREFLIGHT_FILE_INPUT_ACCEPT}
               aria-describedby={CAMERA_CAPTURE_NOTE_ID}
+              aria-label="פתח מצלמה אחורית לצילום עמוד מסמך אחד"
               capture={PREFLIGHT_CAMERA_CAPTURE}
-              disabled={isSubmitting}
-              onChange={selectFiles}
+              disabled={isSelectionLocked}
+              onChange={selectCameraCapture}
               type="file"
             />
           </label>
-          <label className="document-preflight__file-label">
-            קובץ PDF
-            <input
-              accept={PDF_PREFLIGHT_FILE_INPUT_ACCEPT}
-              disabled={isSubmitting}
-              onChange={selectPdf}
-              type="file"
-            />
-          </label>
-        </div>
-        <p className="document-preflight__camera-note" id={CAMERA_CAPTURE_NOTE_ID}>
-          הצילום נועד לעמוד אחד ומחליף את הבחירה הנוכחית. הדפדפן בוחר אם לפתוח
-          מצלמה או בורר קבצים; התמונה לא נשלחת עד ללחיצה על יצירת טיוטות OCR.
-        </p>
+          <p className="document-preflight__camera-note" id={CAMERA_CAPTURE_NOTE_ID}>
+            בדפדפן תומך תיפתח המצלמה האחורית; בדפדפנים אחרים עשוי להיפתח בורר
+            קבצים. התמונה נשארת בדפדפן עד ללחיצה המפורשת על בדיקת OCR. נתמכים
+            JPEG, PNG ו־WebP.
+          </p>
+        </section>
+
+        {pendingCameraCapture && (
+          <aside className="document-preflight__camera-confirmation" role="alert">
+            <strong>הצילום החדש עדיין לא החליף את הבחירה הקיימת.</strong>
+            <p>
+              אם תאשר, הבחירה הנוכחית והטיוטות שטרם הועברו יוחלפו בצילום החדש.
+              הצילום עצמו עדיין לא נשלח ל־OCR.
+            </p>
+            <div className="document-preflight__source-actions">
+              <button
+                className="manual-review__primary-button"
+                onClick={confirmCameraCaptureReplacement}
+                type="button"
+              >
+                החלף בצילום החדש
+              </button>
+              <button
+                className="manual-review__secondary-button"
+                onClick={() => setPendingCameraCapture(null)}
+                type="button"
+              >
+                שמור את הבחירה הקיימת
+              </button>
+            </div>
+          </aside>
+        )}
+
+        <details className="document-preflight__alternative-sources">
+          <summary>אפשרויות נוספות: תמונות קיימות או PDF</summary>
+          <div className="document-preflight__source-actions">
+            <label className="document-preflight__file-label">
+              בחר תמונות מסמך קיימות
+              <input
+                accept={PREFLIGHT_FILE_INPUT_ACCEPT}
+                disabled={isSelectionLocked}
+                multiple
+                onChange={selectFiles}
+                type="file"
+              />
+            </label>
+            <label className="document-preflight__file-label">
+              בחר קובץ PDF
+              <input
+                accept={PDF_PREFLIGHT_FILE_INPUT_ACCEPT}
+                disabled={isSelectionLocked}
+                onChange={selectPdf}
+                type="file"
+              />
+            </label>
+          </div>
+        </details>
         {files.length > 0 && (
           <section
             aria-labelledby="document-preflight-selection-title"
             className="document-preflight__selection"
           >
-            <h2 id="document-preflight-selection-title">סדר עמודים לפני OCR</h2>
+            <h2 id="document-preflight-selection-title">
+              {isSingleCameraCaptureReadyToInspect
+                ? 'שלב 2 מתוך 3 — בדוק את הצילום'
+                : 'סדר עמודים לפני OCR'}
+            </h2>
             <p className="document-preflight__selected">
-              נבחרו {files.length} תמונות. שמות הקבצים אינם מוצגים או נשמרים
-              בתוצאה.
+              {isSingleCameraCaptureReadyToInspect
+                ? 'נבחר צילום אחד. הוא עדיין לא נשלח ל־OCR.'
+                : `נבחרו ${files.length} תמונות. שמות הקבצים אינם מוצגים או נשמרים בתוצאה.`}
             </p>
             {canEditSelectedBatch ? (
-              <>
+              isSingleCameraCaptureReadyToInspect && selectedCameraCapture ? (
+                <div className="document-preflight__camera-preview">
+                  <p>
+                    פתח את התצוגה המקדימה ובדוק שהטבלה חדה, ישרה וממלאת את
+                    התמונה. אם צריך, צלם מחדש לפני OCR.
+                  </p>
+                  <SourceImagePreview
+                    hasSourceImage
+                    isVisible={isCameraCapturePreviewVisible}
+                    localPreviewUrl={
+                      activeLocalPreview?.sourceDocumentRef ===
+                      selectedCameraCapture.sourceDocumentRef
+                        ? activeLocalPreview.url
+                        : null
+                    }
+                    onToggle={() =>
+                      toggleSourcePreview(
+                        1,
+                        selectedCameraCapture.sourceDocumentRef
+                      )
+                    }
+                    pageNumber={1}
+                  />
+                  <p className="document-preflight__next-step">
+                    שלב 3 מתוך 3: לאחר שהצילום ברור, הפעל בדיקת OCR.
+                  </p>
+                </div>
+              ) : (
+                <>
                 <p>
                   סדר העמודים כאן יקבע את מספרי העמודים בטיוטת ה־OCR. השינוי
                   מקומי בדפדפן בלבד; התמונות אינן נשלחות עד ללחיצה על יצירת
@@ -910,7 +1077,8 @@ export default function DocumentPreflightWorkspace() {
                     </li>
                   ))}
                 </ol>
-              </>
+                </>
+              )
             ) : (
               <p>
                 סדר האצווה כבר שימש ליצירת טיוטת OCR. כדי לשנות סדר, בחר אצווה
@@ -939,10 +1107,19 @@ export default function DocumentPreflightWorkspace() {
                 : `קורא מחדש את עמוד ${activity.pageNumber}…`}
           </p>
         )}
+        {isSubmitting && (
+          <p className="document-preflight__selection-locked" role="status">
+            הצילום והבחירה נעולים עד לסיום קריאת ה־OCR.
+          </p>
+        )}
         <button
-          className="manual-review__primary-button"
+          className="manual-review__primary-button document-preflight__submit-button"
           type="submit"
-          disabled={(files.length === 0 && !pdfFile) || isSubmitting}
+          disabled={
+            (files.length === 0 && !pdfFile) ||
+            isSubmitting ||
+            pendingCameraCapture !== null
+          }
         >
           {isSubmitting
             ? activity?.kind === 'batch'
@@ -952,7 +1129,11 @@ export default function DocumentPreflightWorkspace() {
               : activity?.kind === 'retry'
                 ? 'מנסה שוב…'
                 : 'קורא מחדש…'
-            : 'צור טיוטות OCR'}
+            : isSingleCameraCaptureReadyToInspect
+              ? 'שלב 3 מתוך 3 — בדוק את הצילום ב־OCR'
+              : files.length > 0
+                ? `צור טיוטות OCR ל־${files.length} תמונות`
+                : 'צור טיוטות OCR ל־PDF'}
         </button>
       </form>
 

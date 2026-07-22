@@ -13,9 +13,10 @@ Available now:
 - A read-only catalog status on `/settings`, a UTF-8 CSV handoff template,
   and a temporary structural check for a completed CSV. The check never saves,
   imports, or verifies catalog entries and returns no uploaded product values.
-- A browser-provided direct-camera chooser for one document image at `/upload`,
-  including a clearer replacement for one existing logical page. It does not
-  upload or process the image until the reviewer explicitly starts OCR.
+- A camera-first, browser-provided direct-camera chooser for one document image
+  at `/upload`, with a local preview before OCR and an explicit confirmation
+  before a new capture replaces existing browser-held work. It does not upload
+  or process the image until the reviewer explicitly starts OCR.
 - A browser-only batch at `/upload` for up to 20 Maayan images, or one
   multi-page PDF of up to 20 pages. It processes one page at a time and returns only transient, review-required table
   drafts with stable page numbers. Before OCR, the reviewer can reorder or

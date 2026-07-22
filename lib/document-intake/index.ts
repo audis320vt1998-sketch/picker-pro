@@ -44,6 +44,7 @@ export {
   moveOcrPreflightSelectionItem,
   removeOcrPreflightSelectionItem,
 } from './preflight-selection'
+export { requiresCameraCaptureReplacementConfirmation } from './camera-capture-flow'
 export {
   createOcrPreflightBatchOutcome,
   removeOcrPreflightBatchOutcomeSource,
@@ -92,3 +93,4 @@ export type {
   OcrPreflightBatchOutcome,
 } from './preflight-outcome'
 export type { OcrPreflightReplacementSlot } from './preflight-replacement'
+export type { CameraCaptureReplacementCheck } from './camera-capture-flow'

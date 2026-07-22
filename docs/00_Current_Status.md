@@ -103,6 +103,13 @@ the review screen maps expected API failure codes to fixed Hebrew guidance
 instead of displaying server error text. Review-issue labels and explanations
 are likewise fixed by their known code rather than copied from API messages.
 
+For every verified product total, the review result can expand two separate
+source lists: one for cases and one for individual units. Each displayed entry
+contains only its page and printed row. The result does not expose source text,
+file names, opaque document references, or a quantity contribution per source;
+the current Foundation contract retains source references but not an individual
+quantity value for each reference.
+
 ## OCR preflight boundary
 
 - `/api/intake/preflight` accepts one JPEG, PNG, or WebP image at a time; the

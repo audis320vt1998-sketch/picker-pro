@@ -489,6 +489,33 @@ nav a:hover {
   margin-top: 0.3rem;
 }
 
+.results-table__source-details {
+  min-width: 13rem;
+}
+
+.results-table__source-details summary {
+  color: #1e3a5f;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.results-table__source-group {
+  margin-top: 0.65rem;
+}
+
+.results-table__source-group ol {
+  color: #475569;
+  font-size: 0.9rem;
+  margin: 0.35rem 0 0;
+  padding-right: 1.25rem;
+}
+
+.results-table__source-group p {
+  color: #78350f;
+  font-size: 0.9rem;
+  margin: 0.35rem 0 0;
+}
+
 .document-preflight__handoff,
 .manual-review__ocr-draft {
   background: #eff6ff;

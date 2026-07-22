@@ -1,6 +1,7 @@
 export { reviewManualRows } from './service'
 export { findDuplicateSourceRows } from './source-duplicate'
 export { getManualReviewRowReadiness } from './row-readiness'
+export { getManualReviewCatalogReadinessState } from './catalog-readiness'
 export {
   manualReviewDuplicateSourceErrorFromResponse,
   manualReviewFailureCodeFromResponse,
@@ -26,6 +27,7 @@ export type {
   ManualReviewRowReadinessProblem,
   ManualReviewRowReadinessProblemCode,
 } from './row-readiness'
+export type { ManualReviewCatalogReadinessState } from './catalog-readiness'
 export type {
   ManualReviewApiFailureCode,
   ManualReviewDuplicateSourceError,

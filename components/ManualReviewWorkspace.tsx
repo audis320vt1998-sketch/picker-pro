@@ -1,8 +1,10 @@
 'use client'
 
+import Link from 'next/link'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import ResultsTable from '@/components/ResultsTable'
 import SummaryCards from '@/components/SummaryCards'
+import type { VerifiedCatalogReadiness } from '@/lib/catalog'
 import type {
   ManualReviewResult,
   ManualReviewRowInput,
@@ -10,6 +12,7 @@ import type {
 import {
   consumeOcrManualReviewHandoff,
   findDuplicateSourceRows,
+  getManualReviewCatalogReadinessState,
   getManualReviewRowReadiness,
   manualReviewDuplicateSourceErrorFromResponse,
   manualReviewFailureCodeFromResponse,
@@ -19,6 +22,10 @@ import {
   type ManualReviewDuplicateSourceError,
   type ManualReviewFailureCode,
 } from '@/lib/manual-review'
+
+interface ManualReviewWorkspaceProps {
+  catalogReadiness: VerifiedCatalogReadiness
+}
 
 interface EditableRow {
   id: number
@@ -42,6 +49,24 @@ const MANUAL_REVIEW_FAILURE_TEXT: Record<ManualReviewFailureCode, string> = {
   UNKNOWN:
     'לא ניתן להשלים את הבדיקה כרגע. נסה שוב מאוחר יותר.',
 }
+
+const CATALOG_READINESS_TEXT = {
+  NO_VERIFIED_PRODUCTS: {
+    title: 'אין עדיין פריטים מאומתים בקטלוג.',
+    message:
+      'אפשר למלא ולבדוק את השורות, אך הן יישארו בחריגים ולא ייכנסו לסיכום תפעולי עד לעדכון קטלוג מבוקר.',
+  },
+  PARTIALLY_VERIFIED_PRODUCTS: {
+    title: 'הקטלוג מאומת באופן חלקי.',
+    message:
+      'רק שורה עם התאמה ייחודית לפריט מאומת יכולה להיכנס לסיכום תפעולי. כל השאר יישארו לבדיקה.',
+  },
+  ALL_PRODUCTS_VERIFIED: {
+    title: 'כל פריטי הקטלוג מסומנים כמאומתים.',
+    message:
+      'שורות עדיין דורשות התאמה ייחודית ובדיקת מקור לפני שהן נכנסות לסיכום תפעולי.',
+  },
+} as const
 
 function createEditableRow(
   id: number,
@@ -89,7 +114,9 @@ function displaySourceQuantity(value: number | null): string {
   return value === null ? 'לא זוהה' : String(value)
 }
 
-export default function ManualReviewWorkspace() {
+export default function ManualReviewWorkspace({
+  catalogReadiness,
+}: ManualReviewWorkspaceProps) {
   const [rows, setRows] = useState<EditableRow[]>([createEditableRow(1)])
   const [nextRowId, setNextRowId] = useState(2)
   const [result, setResult] = useState<ManualReviewResult | null>(null)
@@ -238,6 +265,10 @@ export default function ManualReviewWorkspace() {
     : 0
   const rowReadiness = rows.map((row) => getManualReviewRowReadiness(row))
   const readyRowCount = rowReadiness.filter((readiness) => readiness.isReady).length
+  const catalogReadinessState = getManualReviewCatalogReadinessState(
+    catalogReadiness
+  )
+  const catalogReadinessText = CATALOG_READINESS_TEXT[catalogReadinessState]
 
   return (
     <div className="manual-review">
@@ -248,6 +279,27 @@ export default function ManualReviewWorkspace() {
           נפרדים, ללא חלוקה אוטומטית לפי גודל המארז.
         </p>
       </section>
+
+      <aside
+        className={
+          catalogReadinessState === 'ALL_PRODUCTS_VERIFIED'
+            ? 'manual-review__catalog-readiness manual-review__catalog-readiness--ready'
+            : 'manual-review__catalog-readiness'
+        }
+        role="status"
+      >
+        <strong>{catalogReadinessText.title}</strong>
+        <p>
+          גרסת קטלוג {catalogReadiness.version}: {catalogReadiness.verifiedProducts}{' '}
+          מאומתים מתוך {catalogReadiness.totalProducts} פריטים.{' '}
+          {catalogReadinessText.message}
+        </p>
+        {catalogReadinessState === 'NO_VERIFIED_PRODUCTS' && (
+          <Link className="manual-review__secondary-button" href="/settings">
+            עבור להגדרות הקטלוג
+          </Link>
+        )}
+      </aside>
 
       {importedOcrRowCount > 0 && (
         <p className="manual-review__notice" role="status">

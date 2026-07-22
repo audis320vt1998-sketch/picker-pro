@@ -66,6 +66,12 @@ result, or an API request.
 Manual review remains the only workflow that can evaluate an explicit row
 against the catalog.
 
+When the review screen opens, it shows a server-derived catalog-readiness
+notice with only the catalog version and product counts. If there are no
+verified products, it states before the form is filled that no operational
+total can be produced and links to the read-only catalog onboarding guidance.
+It never sends catalog records to the browser.
+
 1. Enter the source page, source row, raw text, and at least one product
    identifier (barcode, SKU, or product name).
 2. Enter cases and individual units in separate fields.

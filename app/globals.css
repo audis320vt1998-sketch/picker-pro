@@ -187,6 +187,31 @@ nav a:hover {
   padding: 0.75rem;
 }
 
+.manual-review__catalog-readiness {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 0.5rem;
+  color: #78350f;
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.9rem;
+}
+
+.manual-review__catalog-readiness p {
+  line-height: 1.55;
+}
+
+.manual-review__catalog-readiness .manual-review__secondary-button {
+  margin-top: 0.25rem;
+  width: fit-content;
+}
+
+.manual-review__catalog-readiness--ready {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
 .document-preflight__file-label {
   display: grid;
   gap: 0.5rem;

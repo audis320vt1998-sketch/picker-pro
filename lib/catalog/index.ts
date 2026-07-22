@@ -22,6 +22,13 @@ export {
 } from './verified-catalog-loader'
 
 export {
+  allowsIndividualUnitPicking,
+  catalogPickingMode,
+  hasConsistentPickingConfiguration,
+  type CatalogPickingMode,
+} from './picking-policy'
+
+export {
   CATALOG_ONBOARDING_TEMPLATE_COLUMNS,
   CATALOG_ONBOARDING_TEMPLATE_FILENAME,
   createCatalogOnboardingTemplateCsv,

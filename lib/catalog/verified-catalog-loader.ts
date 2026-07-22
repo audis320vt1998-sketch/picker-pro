@@ -4,6 +4,7 @@ import {
   type VerifiedCatalogProduct,
   VerifiedProductCatalog,
 } from './verified-catalog'
+import { hasConsistentPickingConfiguration } from './picking-policy'
 
 export interface VerifiedCatalogReadiness {
   version: string
@@ -97,7 +98,7 @@ function readProduct(value: unknown, index: number): VerifiedCatalogProduct {
     )
   }
 
-  return {
+  const product = {
     productKey: readString(value, 'productKey', location),
     barcode: value.barcode === null ? null : value.barcode.trim(),
     sku: value.sku === null ? null : value.sku.trim(),
@@ -111,6 +112,14 @@ function readProduct(value: unknown, index: number): VerifiedCatalogProduct {
     caseSize: value.caseSize,
     active: value.active,
   }
+
+  if (!hasConsistentPickingConfiguration(product)) {
+    throw new VerifiedCatalogConfigurationError(
+      `${location} cannot be both case-only and available for individual-unit picking.`
+    )
+  }
+
+  return product
 }
 
 function assertUniqueIdentifiers(products: readonly VerifiedCatalogProduct[]): void {

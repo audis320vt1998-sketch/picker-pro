@@ -161,6 +161,9 @@ are likewise fixed by their known code rather than copied from API messages.
   the complete user-supplied product catalog. Exact barcode/SKU matches can
   enter the manual-review operational total; unresolved, conflicting, and
   disallowed unit rows remain in review.
+- Individual-unit permission is enforced by one catalog policy: a product must
+  explicitly allow unit picking and must not be case-only. The policy never
+  converts an entered quantity according to pack size.
 - `/settings` reports catalog readiness, offers a header-only UTF-8 CSV
   onboarding template, and can run a temporary structural check on one
   completed CSV. The check requires `unverified` candidate rows, returns only

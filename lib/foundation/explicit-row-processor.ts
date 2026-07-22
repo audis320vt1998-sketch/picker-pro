@@ -12,6 +12,7 @@ import type {
 } from '@/lib/domain/types'
 import type { SourceReference } from '@/lib/traceability/types'
 import { aggregateProductTotals } from './aggregate-product-totals'
+import { allowsIndividualUnitPicking } from '@/lib/catalog/picking-policy'
 
 export interface ExplicitRowProcessingResult {
   totals: ProductTotals[]
@@ -196,7 +197,7 @@ export function processExplicitRows(
     }
 
     const product = resolution.product
-    if (quantities.units > 0 && (product.caseOnly || !product.allowUnitPicking)) {
+    if (quantities.units > 0 && !allowsIndividualUnitPicking(product)) {
       issues.push(
         createIssue(
           row,

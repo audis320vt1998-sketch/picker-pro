@@ -80,4 +80,21 @@ describe('loadVerifiedCatalog', () => {
       })
     ).toThrow(VerifiedCatalogConfigurationError)
   })
+
+  it('rejects a contradictory individual-unit picking configuration', () => {
+    expect(() =>
+      loadVerifiedCatalog({
+        version: 'test',
+        products: [
+          {
+            ...baseProduct,
+            caseOnly: true,
+            allowUnitPicking: true,
+          },
+        ],
+      })
+    ).toThrow(
+      'cannot be both case-only and available for individual-unit picking'
+    )
+  })
 })

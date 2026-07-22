@@ -410,6 +410,7 @@ export default function DocumentPreflightWorkspace() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<Record<string, boolean>>({})
   const [hasConfirmedSourceCheck, setHasConfirmedSourceCheck] = useState(false)
   const preflightActionLock = useRef(false)
+  const resultHeadingRef = useRef<HTMLHeadingElement>(null)
 
   const isSubmitting = activity !== null
   const pages = outcome?.pages ?? []
@@ -417,6 +418,10 @@ export default function DocumentPreflightWorkspace() {
   const isSelectionLocked = isSubmitting || pendingCameraCapture !== null
   const isSingleCameraCaptureReadyToInspect =
     sourceSelectionKind === 'camera' && files.length === 1 && outcome === null
+  const isCompletedOcrResultReady =
+    outcome !== null &&
+    !isSubmitting &&
+    (pages.length > 0 || failedPages.length > 0)
 
   const previewedFile = previewedSource
     ? files.find(
@@ -438,6 +443,12 @@ export default function DocumentPreflightWorkspace() {
     setActiveLocalPreview({ sourceDocumentRef: previewedSource.sourceDocumentRef, url })
     return () => revokeLocalPreviewUrl(url)
   }, [previewedFile, previewedSource])
+
+  useEffect(() => {
+    if (isCompletedOcrResultReady) {
+      resultHeadingRef.current?.focus()
+    }
+  }, [isCompletedOcrResultReady])
 
   const resetDraftAfterSelectionChange = () => {
     setError(null)
@@ -1141,11 +1152,27 @@ export default function DocumentPreflightWorkspace() {
 
       {outcome && (
         <section className="manual-review__result">
-          <h2>טיוטות OCR — נדרשת בדיקה ידנית</h2>
+          <h2 ref={resultHeadingRef} tabIndex={-1}>
+            טיוטות OCR — נדרשת בדיקה ידנית
+          </h2>
+          {isCompletedOcrResultReady && (
+            <p
+              aria-atomic="true"
+              className="document-preflight__completion"
+              role="status"
+            >
+              קריאת ה־OCR הסתיימה.{' '}
+              {pages.length > 0
+                ? `נוצרו ${pages.length} עמודי טיוטה.`
+                : 'לא נוצרו טיוטות OCR.'}{' '}
+              {failedPages.length > 0 &&
+                `${failedPages.length} עמודים דורשים טיפול.`}
+            </p>
+          )}
           <p className="manual-review__notice">
             אין להשתמש בתוצאה זו כליקוט. בדוק את הברקוד, המק״ט ושלוש עמודות
             הכמות מול המסמך המקורי, ואז הזן במפורש מארזים ובודדים במסך הבדיקה
-            הידנית. אות ה-OCR הוא סימן טכני בלבד ואינו מאשר נכונות של שדה כלשהו.
+            הידנית. ודאות ה־OCR היא סימן טכני בלבד ואינה מאשרת נכונות של שדה כלשהו.
           </p>
 
           {pendingReplacementPages.map((replacementSlot) => {
@@ -1298,82 +1325,140 @@ export default function DocumentPreflightWorkspace() {
                   )}
 
                   {page.rows.length > 0 && (
-                    <div className="manual-review__table-wrapper">
-                      <table>
-                    <thead>
-                      <tr>
-                        <th>להעברה</th>
-                        <th>עמוד</th>
-                        <th>שורת מקור</th>
-                        <th>מק״ט</th>
-                        <th>ברקוד</th>
-                        <th>שם פריט</th>
-                        <th>בדיקות OCR</th>
-                        <th>כמות מארזים</th>
-                        <th>כמות באריזה</th>
-                        <th>כמות בודדים</th>
-                        <th>אות OCR בלבד</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {page.rows.map((row) => {
-                        const key = rowKey(page.pageNumber, row)
-                        const transferable = canTransferRow(row, sourceDocumentRef)
-                        const transferBlockReason = ocrManualReviewHandoffBlockReason({
-                          row,
-                          sourceDocumentRef,
-                        })
-
-                        return (
-                          <tr key={row.source.parserRowIndex}>
-                            <td>
-                              {transferable ? (
-                                <input
-                                  aria-label={`העבר עמוד ${page.pageNumber}, שורת מקור ${row.source.printedRowNumber}`}
-                                  checked={selectedRowKeys[key] ?? false}
-                                  onChange={(event) =>
-                                    toggleRowSelection(key, event.target.checked)
-                                  }
-                                  type="checkbox"
-                                />
-                              ) : (
-                                HANDOFF_BLOCK_REASON_TEXT[
-                                  transferBlockReason ?? 'SOURCE_NOT_TRACEABLE'
-                                ]
-                              )}
-                            </td>
-                            <td>{page.pageNumber}</td>
-                            <td>{row.source.printedRowNumber ?? row.source.parserRowIndex}</td>
-                            <td>{row.sku ?? 'לא זוהה'}</td>
-                            <td>{row.barcode ?? 'לא זוהה'}</td>
-                            <td>
-                              {row.productName ?? 'לא זוהה'}
-                              <details className="document-preflight__trace">
-                                <summary>טקסט מקור</summary>
-                                <span>{row.traceText}</span>
-                              </details>
-                            </td>
-                            <td>
-                              {row.issues.length > 0 ? (
-                                <ul className="document-preflight__row-issues">
-                                  {row.issues.map((issue, issueIndex) => (
-                                    <li key={`${issue.code}-${issue.field ?? 'row'}-${issueIndex}`}>
-                                      {documentPreflightRowIssueText(issue)}
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                '—'
-                              )}
-                            </td>
-                            <td>{displayQuantity(row.sourceQuantities.caseQuantity)}</td>
-                            <td>{displayQuantity(row.sourceQuantities.unitsPerCase)}</td>
-                            <td>{displayQuantity(row.sourceQuantities.totalUnits)}</td>
-                            <td>{Math.round(row.confidence)}%</td>
+                    <div className="manual-review__table-wrapper document-preflight__table-wrapper">
+                      <table className="document-preflight__ocr-table">
+                        <caption className="document-preflight__ocr-table-caption document-preflight__sr-only">
+                          תוצאות OCR לעמוד {page.pageNumber}
+                        </caption>
+                        <thead>
+                          <tr>
+                            <th scope="col">להעברה</th>
+                            <th scope="col">עמוד</th>
+                            <th scope="col">שורת מקור</th>
+                            <th scope="col">מק״ט</th>
+                            <th scope="col">ברקוד</th>
+                            <th scope="col">שם פריט</th>
+                            <th scope="col">בדיקות OCR</th>
+                            <th scope="col">כמות מארזים</th>
+                            <th scope="col">כמות באריזה</th>
+                            <th scope="col">כמות בודדים</th>
+                            <th scope="col">ודאות OCR</th>
                           </tr>
-                        )
-                      })}
-                    </tbody>
+                        </thead>
+                        <tbody>
+                          {page.rows.map((row) => {
+                            const key = rowKey(page.pageNumber, row)
+                            const transferable = canTransferRow(row, sourceDocumentRef)
+                            const transferBlockReason = ocrManualReviewHandoffBlockReason({
+                              row,
+                              sourceDocumentRef,
+                            })
+
+                            return (
+                              <tr key={row.source.parserRowIndex}>
+                                <td
+                                  className="document-preflight__table-cell--transfer"
+                                  data-label="להעברה"
+                                >
+                                  <div className="document-preflight__cell-value">
+                                    {transferable ? (
+                                      <label className="document-preflight__transfer-control">
+                                        <input
+                                          checked={selectedRowKeys[key] ?? false}
+                                          onChange={(event) =>
+                                            toggleRowSelection(key, event.target.checked)
+                                          }
+                                          type="checkbox"
+                                        />
+                                        <span className="document-preflight__sr-only">
+                                          העבר עמוד {page.pageNumber}, שורת מקור{' '}
+                                          {row.source.printedRowNumber ??
+                                            row.source.parserRowIndex}
+                                        </span>
+                                      </label>
+                                    ) : (
+                                      HANDOFF_BLOCK_REASON_TEXT[
+                                        transferBlockReason ?? 'SOURCE_NOT_TRACEABLE'
+                                      ]
+                                    )}
+                                  </div>
+                                </td>
+                                <td data-label="עמוד">
+                                  <div className="document-preflight__cell-value">
+                                    {page.pageNumber}
+                                  </div>
+                                </td>
+                                <td data-label="שורת מקור">
+                                  <div className="document-preflight__cell-value">
+                                    {row.source.printedRowNumber ?? row.source.parserRowIndex}
+                                  </div>
+                                </td>
+                                <td
+                                  className="document-preflight__identifier-cell"
+                                  data-label="מק״ט"
+                                >
+                                  <div className="document-preflight__cell-value">
+                                    <span dir="ltr">{row.sku ?? 'לא זוהה'}</span>
+                                  </div>
+                                </td>
+                                <td
+                                  className="document-preflight__identifier-cell"
+                                  data-label="ברקוד"
+                                >
+                                  <div className="document-preflight__cell-value">
+                                    <span dir="ltr">{row.barcode ?? 'לא זוהה'}</span>
+                                  </div>
+                                </td>
+                                <td data-label="שם פריט">
+                                  <div className="document-preflight__cell-value">
+                                    {row.productName ?? 'לא זוהה'}
+                                    <details className="document-preflight__trace">
+                                      <summary>טקסט מקור</summary>
+                                      <span>{row.traceText}</span>
+                                    </details>
+                                  </div>
+                                </td>
+                                <td data-label="בדיקות OCR">
+                                  <div className="document-preflight__cell-value">
+                                    {row.issues.length > 0 ? (
+                                      <ul className="document-preflight__row-issues">
+                                        {row.issues.map((issue, issueIndex) => (
+                                          <li
+                                            key={`${issue.code}-${issue.field ?? 'row'}-${issueIndex}`}
+                                          >
+                                            {documentPreflightRowIssueText(issue)}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    ) : (
+                                      '—'
+                                    )}
+                                  </div>
+                                </td>
+                                <td data-label="כמות מארזים">
+                                  <div className="document-preflight__cell-value">
+                                    {displayQuantity(row.sourceQuantities.caseQuantity)}
+                                  </div>
+                                </td>
+                                <td data-label="כמות באריזה">
+                                  <div className="document-preflight__cell-value">
+                                    {displayQuantity(row.sourceQuantities.unitsPerCase)}
+                                  </div>
+                                </td>
+                                <td data-label="כמות בודדים">
+                                  <div className="document-preflight__cell-value">
+                                    {displayQuantity(row.sourceQuantities.totalUnits)}
+                                  </div>
+                                </td>
+                                <td data-label="ודאות OCR">
+                                  <div className="document-preflight__cell-value">
+                                    {Math.round(row.confidence)}%
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
                       </table>
                     </div>
                   )}

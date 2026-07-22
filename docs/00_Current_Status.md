@@ -18,6 +18,12 @@ endpoint independently repeats those checks. PDF processing requires Poppler
 `pdfinfo` and `pdftoppm` on the server, or the corresponding
 `PICKER_PRO_PDFINFO_PATH` and `PICKER_PRO_PDFTOPPM_PATH` configuration.
 
+On a narrow phone screen, the OCR result keeps one semantic table but reflows
+each source row into a labeled card for readable product identifiers,
+quantities, OCR checks, and transfer selection. When OCR completes, focus
+moves to the result heading and a short status announces the outcome; the full
+OCR table is not placed in a live region.
+
 Before OCR begins, the reviewer can see generic page positions only, move a
 selected image up or down, or remove it from the batch. This changes only the
 browser-held selection: the opaque source reference remains with its selected

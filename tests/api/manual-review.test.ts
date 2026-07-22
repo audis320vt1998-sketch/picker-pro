@@ -65,7 +65,7 @@ describe('POST /api/manual-review', () => {
     })
   })
 
-  it('returns a review item instead of a picking total for an unverified catalog match', async () => {
+  it('returns an operational picking total for an exact verified catalog match', async () => {
     const response = await POST(
       requestWithJson({
         rows: [
@@ -86,18 +86,23 @@ describe('POST /api/manual-review', () => {
     await expect(response.json()).resolves.toMatchObject({
       reviewId: expect.stringMatching(/^manual-review-/),
       catalog: {
-        verifiedProducts: 0,
+        verifiedProducts: 124,
       },
-      totals: [],
-      acceptedRowCount: 0,
-      totalRowCount: 1,
-      issues: [
+      totals: [
         {
-          code: 'PRODUCT_UNVERIFIED',
-          severity: 'fail',
-          stage: 'row',
+          product: {
+            productKey: 'sku-88135',
+            barcode: '8000380213498',
+            sku: '88135',
+            resolvedBy: 'barcode',
+          },
+          cases: { value: 1 },
+          units: { value: 0 },
         },
       ],
+      acceptedRowCount: 1,
+      totalRowCount: 1,
+      issues: [],
     })
   })
 

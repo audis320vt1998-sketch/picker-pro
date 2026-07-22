@@ -67,10 +67,13 @@ Manual review remains the only workflow that can evaluate an explicit row
 against the catalog.
 
 When the review screen opens, it shows a server-derived catalog-readiness
-notice with only the catalog version and product counts. If there are no
-verified products, it states before the form is filled that no operational
-total can be produced and links to the read-only catalog onboarding guidance.
-It never sends catalog records to the browser.
+notice with only the catalog version and product counts. The active version
+1.3.0 contains 124 verified records imported from the complete catalog supplied
+for this project, so exact barcode/SKU matches can enter an operational total.
+If a future catalog has no verified products, the screen instead states before
+the form is filled that no operational total can be produced and links to the
+read-only catalog onboarding guidance. It never sends catalog records to the
+browser.
 
 1. Enter the source page, source row, raw text, and at least one product
    identifier (barcode, SKU, or product name).
@@ -154,8 +157,10 @@ are likewise fixed by their known code rather than copied from API messages.
 - Name/alias matching is disabled for a catalog product that already has a
   barcode, preventing a name-only match from bypassing that identifier.
 - An `unverified` record produces a `PRODUCT_UNVERIFIED` review issue.
-- The current catalog has no verified records, so a user cannot yet generate an
-  operational pick list. This is intentional.
+- The active catalog is version 1.3.0 with 124 verified records imported from
+  the complete user-supplied product catalog. Exact barcode/SKU matches can
+  enter the manual-review operational total; unresolved, conflicting, and
+  disallowed unit rows remain in review.
 - `/settings` reports catalog readiness, offers a header-only UTF-8 CSV
   onboarding template, and can run a temporary structural check on one
   completed CSV. The check requires `unverified` candidate rows, returns only

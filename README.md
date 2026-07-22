@@ -55,13 +55,13 @@ Not available yet:
   image.
 - Stored jobs, a persistent review queue, exports, city/route grouping, or AI
   assistance.
-- Catalog import or automatic catalog verification.
+- Automatic catalog verification or ERP synchronization.
 
 The canonical file [`catalogs/products.json`](./catalogs/products.json) is
-loaded and validated at runtime. The candidate entries transcribed from the
-supplied document samples are all marked `unverified`, so the application
-correctly produces review items rather than an operational pick list until the
-product catalog is confirmed.
+loaded and validated at runtime. Version 1.3.0 contains 124 verified products
+from the complete catalog supplied for this project. An exact barcode or SKU
+match can therefore enter an operational manual-review total; unrecognized,
+conflicting, or disallowed unit rows still remain in review.
 
 See [Current Status](./docs/00_Current_Status.md) for the precise operating
 boundary and [Legacy Module Isolation](./docs/23_Legacy_Module_Isolation.md)

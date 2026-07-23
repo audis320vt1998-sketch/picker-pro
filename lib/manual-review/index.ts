@@ -11,6 +11,10 @@ export {
 export { manualReviewResultFromResponse } from './success-response'
 export { summarizeManualReviewResult } from './result-summary'
 export {
+  packingSuggestionFailureCodeFromResponse,
+  packingSuggestionFromResponse,
+} from './packing-suggestion-response'
+export {
   consumeOcrManualReviewHandoff,
   createOcrManualReviewHandoff,
   ocrManualReviewHandoffBlockReason,
@@ -24,6 +28,15 @@ export type {
   ManualReviewResult,
   ManualReviewRowInput,
 } from './types'
+export type {
+  PackingSuggestionApiFailureCode,
+  PackingSuggestionFailureCode,
+  PackingSuggestionResponse,
+} from './packing-suggestion-response'
+export type {
+  PackingSuggestionReviewCode,
+  PackingSuggestionRule,
+} from './packing-suggestion'
 export type { DuplicateSourceRow, SourceRowIdentity } from './source-duplicate'
 export type {
   ManualReviewRowDraft,

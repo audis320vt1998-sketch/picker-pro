@@ -841,6 +841,43 @@ nav a:hover {
   margin: 0 0 1rem;
 }
 
+.manual-review__packing-suggestion {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 0.5rem;
+  color: #14532d;
+  margin: 0 0 1rem;
+  padding: 0.9rem;
+}
+
+.manual-review__packing-suggestion p {
+  line-height: 1.55;
+}
+
+.manual-review__packing-suggestion-status {
+  background: #fff;
+  border: 1px solid #bbf7d0;
+  border-radius: 0.375rem;
+  margin: 0.75rem 0;
+  padding: 0.65rem 0.75rem;
+}
+
+.manual-review__packing-suggestion-status--available {
+  font-weight: 700;
+}
+
+.manual-review__packing-suggestion-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.manual-review__packing-suggestion-actions .manual-review__primary-button,
+.manual-review__packing-suggestion-actions .manual-review__secondary-button {
+  margin-top: 0;
+  min-height: 2.75rem;
+}
+
 .manual-review__issues {
   margin-top: 1.5rem;
 }

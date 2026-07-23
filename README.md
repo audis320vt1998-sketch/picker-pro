@@ -52,8 +52,11 @@ Available now:
   review list and filter for those rows. It is not a stored review queue and
   is cleared with the current OCR selection.
 - A one-time, browser-only handoff of explicitly checked OCR identifiers to
-  `/review`; source quantities are comparison-only and the manual case/unit
-  fields remain blank.
+  `/review`; source quantities initially remain comparison-only and the manual
+  case/unit fields stay blank. A reviewer may explicitly request a compact,
+  non-persistent packing suggestion only when three separate source fields, an
+  approved source marker, and the verified catalog all agree; the suggestion
+  cannot change a field until the reviewer explicitly applies it.
 - An opaque source reference per logical document page prevents the same OCR
   document/page/row from being submitted twice. A clearer replacement photo
   of that page retains the reference, while an unrelated page needs a new
@@ -87,9 +90,13 @@ for code that is deliberately outside the active build.
 ## Operating rules
 
 1. Cases and individual units are separate source fields and separate totals.
-2. A quantity is never divided by pack size or converted into a remainder.
-   An OCR source quantity is never copied automatically into a manual case or
-   individual-unit field.
+2. An OCR source quantity is never copied automatically into a manual case or
+   individual-unit field. The only exception is an explicit, non-persistent
+   reviewer action that applies a displayed suggestion after the source marker
+   and verified catalog agree; it never overwrites manually entered values.
+   The active rule configuration recognizes case-only `1/8`, `1/12`, `1/20`,
+   and `1/24` markers, and parenthesized pack sizes from `8` through `24` for
+   individual picking. Any other marker or conflict remains in review.
 3. Barcode has priority, followed by SKU, name, and alias. A product with a
    catalog barcode is not resolved by name alone.
    Name and alias comparison only normalizes presentation variants (Hebrew
@@ -132,8 +139,9 @@ npm run build
 app/
   review/                 Manual-review screen
   api/intake/preflight/   One-image OCR draft endpoint
-  api/manual-review/      Non-persistent validation API
+  api/manual-review/      Non-persistent validation and packing-suggestion APIs
 catalogs/products.json    Canonical product catalog
+catalogs/picking-rules.json  Approved review-suggestion rules
 lib/catalog/              Verified catalog loader and resolver
 lib/foundation/           Explicit-row processing and aggregation
 lib/document-intake/      Maayan profile, OCR preflight, and source parser

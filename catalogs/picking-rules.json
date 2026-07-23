@@ -1,0 +1,10 @@
+{
+  "version": "1.0.0",
+  "conversionMode": "reviewSuggestion",
+  "catalogOverridesSourceMarkers": true,
+  "caseOnlyFractions": [8, 12, 20, 24],
+  "individualPickingParentheses": {
+    "minimum": 8,
+    "maximum": 24
+  }
+}

@@ -83,8 +83,8 @@ user may transfer a minimal, one-time browser draft from `/upload` to
 is removed as soon as the review screen reads it. It carries an opaque,
 random document reference, source page/row, and product identifiers only,
 plus the three OCR source quantities for visual comparison. It does not carry
-a filename, original image, customer/header text, full OCR trace, catalog
-result, or an API request.
+  a filename, original image, customer/header text, full OCR trace, catalog
+  result, or a manual-review API request.
 
 Manual review remains the only workflow that can evaluate an explicit row
 against the catalog.
@@ -108,7 +108,11 @@ browser.
 Before sending, the review screen shows how many rows are ready and marks each
 row as ready, missing values, or requiring correction. This is a client-side
 completeness check only: it never copies an OCR quantity into a manual field,
-infers a pack size, or converts cases and units.
+infers a pack size, or converts cases and units. A separate optional packing
+suggestion action is available only for an OCR draft with three structured
+source quantities. It has no persistence or operational side effect and can
+fill blank manual fields only after the reviewer explicitly presses **Apply
+suggestion**.
 
 When a row carries the opaque document reference from OCR, the client and API
 reject a duplicate combination of document reference, page, and printed row.
@@ -184,14 +188,31 @@ quantity value for each reference.
 
 ## Quantity policy
 
-- Cases and units are explicit fields; a transferred OCR draft leaves both
-  blank until a user enters them.
+- Cases and units are explicit fields; a transferred OCR draft initially leaves
+  both blank.
 - A targeted numeric draft can have no readable printed source-row number. It
   remains visible for comparison, but it cannot be transferred automatically
   to manual review; enter that source row explicitly instead.
 - Values are checked only for being finite and non-negative.
-- The application never splits, converts, or infers quantities from pack size,
-  parentheses, or a `1/N` pattern.
+- It never splits collapsed OCR text or a single ambiguous number. A packing
+  suggestion is considered only from the three separately structured source
+  fields when all are positive integers and `totalUnits = caseQuantity ×
+  unitsPerCase`.
+- The active, versioned rule configuration permits a **review suggestion**,
+  never an automatic conversion: `1/8`, `1/12`, `1/20`, and `1/24` are
+  case-only markers; a number in parentheses from `8` through `24` is an
+  individual-picking marker. Other `1/N` values, other parentheses, a missing
+  marker, or more than one marker remain manual review.
+- The verified catalog always overrides a source marker. The marker's pack size
+  must equal the catalog `caseSize`; `1/N` must match a case-only catalog
+  product and the source `unitsPerCase` must equal `N`; `(N)` must match an
+  individual-picking product and the source `unitsPerCase` must be `1`.
+- For an approved `(N)` suggestion, the structured `caseQuantity` value is
+  treated as requested individual units and is split into `floor(quantity / N)`
+  cases plus `quantity mod N` units. For an approved `1/N` suggestion, that
+  value is retained as cases and the suggested units are zero. In both cases
+  the reviewer must press **Apply suggestion**; existing manual values are
+  never overwritten.
 - When a verified catalog product permits individual-unit picking and has a
   positive case size, an explicit unit quantity that reaches or exceeds that
   case size remains an individual-unit quantity and receives a non-blocking

@@ -5,6 +5,7 @@ import { type FormEvent, useEffect, useRef, useState } from 'react'
 import ResultsTable from '@/components/ResultsTable'
 import SummaryCards from '@/components/SummaryCards'
 import type { VerifiedCatalogReadiness } from '@/lib/catalog'
+import { sourceReferencePresentation } from '@/lib/traceability/source-presentation'
 import type {
   ManualReviewResult,
   ManualReviewRowInput,
@@ -793,6 +794,7 @@ export default function ManualReviewWorkspace({
                 <table>
                   <thead>
                     <tr>
+                      <th>מסמך</th>
                       <th>עמוד</th>
                       <th>שורה</th>
                       <th>קוד</th>
@@ -802,11 +804,15 @@ export default function ManualReviewWorkspace({
                   <tbody>
                     {result.issues.map((issue, index) => {
                       const presentation = manualReviewIssuePresentation(issue.code)
+                      const source = issue.source
+                        ? sourceReferencePresentation(issue.source)
+                        : null
 
                       return (
                         <tr key={index}>
-                          <td>{issue.source?.page.pageNumber ?? '—'}</td>
-                          <td>{issue.source?.row.rowNumber ?? '—'}</td>
+                          <td>{source?.documentOrdinal ?? '—'}</td>
+                          <td>{source?.pageNumber ?? '—'}</td>
+                          <td>{source?.rowNumber ?? '—'}</td>
                           <td>{presentation.label}</td>
                           <td>{presentation.message}</td>
                         </tr>

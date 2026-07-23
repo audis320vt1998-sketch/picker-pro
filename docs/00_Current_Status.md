@@ -138,10 +138,12 @@ an excluded row.
 
 For every verified product total, the review result can expand two separate
 source lists: one for cases and one for individual units. Each displayed entry
-contains only its page and printed row. The result does not expose source text,
-file names, opaque document references, or a quantity contribution per source;
-the current Foundation contract retains source references but not an individual
-quantity value for each reference.
+contains its page and printed row, plus a response-local document number only
+when an OCR-transferred row needs to be distinguished from another document
+with the same page/row. The result does not expose source text, file names,
+opaque document references, or a quantity contribution per source; the current
+Foundation contract retains source references but not an individual quantity
+value for each reference.
 
 ## OCR preflight boundary
 

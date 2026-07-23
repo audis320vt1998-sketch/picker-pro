@@ -6,15 +6,21 @@ import type {
   ManualReviewResult,
   ManualReviewRowInput,
 } from './types'
+import {
+  createSourceDocumentOrdinals,
+  sourceDocumentOrdinalForRow,
+} from './document-ordinal'
 
 function toParsedRow(
   input: ManualReviewRowInput,
-  reviewId: string
+  reviewId: string,
+  documentOrdinal?: number
 ): ParsedRow {
   return {
     source: {
       page: {
         jobId: reviewId,
+        ...(documentOrdinal ? { documentOrdinal } : {}),
         pageNumber: input.pageNumber,
       },
       row: {
@@ -43,7 +49,14 @@ export function reviewManualRows(
   reviewId: string
 ): ManualReviewResult {
   const { catalog, readiness } = loadVerifiedCatalog()
-  const rows = request.rows.map((row) => toParsedRow(row, reviewId))
+  const sourceDocumentOrdinals = createSourceDocumentOrdinals(request.rows)
+  const rows = request.rows.map((row) =>
+    toParsedRow(
+      row,
+      reviewId,
+      sourceDocumentOrdinalForRow(row, sourceDocumentOrdinals)
+    )
+  )
   const result = processExplicitRows(rows, catalog)
 
   return {

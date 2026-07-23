@@ -28,6 +28,7 @@ function validResponse() {
             {
               page: {
                 jobId: 'server-private-review-id',
+                documentOrdinal: 2,
                 pageNumber: 2,
                 pageId: 'private-page-id',
               },
@@ -97,7 +98,11 @@ describe('manualReviewResultFromResponse', () => {
             value: 1,
             sources: [
               {
-                page: { jobId: 'manual-review', pageNumber: 2 },
+                page: {
+                  jobId: 'manual-review',
+                  documentOrdinal: 2,
+                  pageNumber: 2,
+                },
                 row: { rowNumber: 5 },
               },
             ],
@@ -142,6 +147,10 @@ describe('manualReviewResultFromResponse', () => {
     const malformedSource = validResponse()
     malformedSource.totals[0].units.sources[0].row.rowNumber = 0
     expect(manualReviewResultFromResponse(malformedSource, 1)).toBeNull()
+
+    const malformedDocumentOrdinal = validResponse()
+    malformedDocumentOrdinal.totals[0].cases.sources[0].page.documentOrdinal = 0
+    expect(manualReviewResultFromResponse(malformedDocumentOrdinal, 1)).toBeNull()
   })
 
   it('rejects contradictory counts and catalog summaries', () => {

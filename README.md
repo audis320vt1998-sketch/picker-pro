@@ -66,7 +66,9 @@ Available now:
 - Product resolution in the order barcode → SKU → canonical name → alias.
 - Source traceability for every accepted quantity (page and row), with an
   expandable results view that separates case sources from individual-unit
-  sources without exposing document text or file information.
+  sources. When several OCR documents use the same page and row, a
+  response-local document number distinguishes them without exposing an opaque
+  reference, document text, or file information.
 - Validation for unresolved, conflicting, unverified, and case-only products.
 - Aggregation that never converts or merges cases and units.
 

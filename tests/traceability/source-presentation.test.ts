@@ -30,18 +30,28 @@ describe('source traceability presentation', () => {
   it('preserves duplicate-looking references instead of assuming one document', () => {
     const sources = [
       {
-        page: { jobId: 'review-a', pageNumber: 1 },
+        page: { jobId: 'review-a', documentOrdinal: 1, pageNumber: 1 },
         row: { rowNumber: 2 },
       },
       {
-        page: { jobId: 'review-b', pageNumber: 1 },
+        page: { jobId: 'review-b', documentOrdinal: 2, pageNumber: 1 },
         row: { rowNumber: 2 },
       },
     ]
 
     expect(sourceReferencePresentations(sources)).toEqual([
-      { pageNumber: 1, rowNumber: 2, label: 'עמוד 1, שורה 2' },
-      { pageNumber: 1, rowNumber: 2, label: 'עמוד 1, שורה 2' },
+      {
+        documentOrdinal: 1,
+        pageNumber: 1,
+        rowNumber: 2,
+        label: 'מסמך 1, עמוד 1, שורה 2',
+      },
+      {
+        documentOrdinal: 2,
+        pageNumber: 1,
+        rowNumber: 2,
+        label: 'מסמך 2, עמוד 1, שורה 2',
+      },
     ])
   })
 
@@ -60,5 +70,11 @@ describe('source traceability presentation', () => {
         },
       ])
     ).toEqual([])
+    expect(
+      sourceReferencePresentation({
+        page: { jobId: 'review-a', documentOrdinal: 0, pageNumber: 2 },
+        row: { rowNumber: 2 },
+      })
+    ).toBeNull()
   })
 })

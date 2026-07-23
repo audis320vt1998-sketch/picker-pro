@@ -178,6 +178,47 @@ describe('POST /api/manual-review', () => {
     expect(response.status).toBe(200)
   })
 
+  it('returns distinct non-identifying document positions for matching page and row values', async () => {
+    const response = await POST(
+      requestWithJson({
+        rows: [
+          validRow({ sourceDocumentRef }),
+          validRow({ sourceDocumentRef: secondSourceDocumentRef }),
+        ],
+      })
+    )
+
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body.totals[0]).toMatchObject({
+      cases: { value: 2 },
+      units: { value: 0 },
+    })
+    expect(body.totals[0].cases.sources).toEqual([
+      expect.objectContaining({
+        page: expect.objectContaining({ documentOrdinal: 1, pageNumber: 1 }),
+        row: { rowNumber: 1 },
+      }),
+      expect.objectContaining({
+        page: expect.objectContaining({ documentOrdinal: 2, pageNumber: 1 }),
+        row: { rowNumber: 1 },
+      }),
+    ])
+    const serialized = JSON.stringify(body)
+    expect(serialized).not.toContain(sourceDocumentRef)
+    expect(serialized).not.toContain(secondSourceDocumentRef)
+  })
+
+  it('does not assign a document position to a direct manual row', async () => {
+    const response = await POST(requestWithJson({ rows: [validRow()] }))
+
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body.totals[0].cases.sources[0].page).not.toHaveProperty(
+      'documentOrdinal'
+    )
+  })
+
   it('uses an opaque source reference only for request validation', async () => {
     const response = await POST(
       requestWithJson({

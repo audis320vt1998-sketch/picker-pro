@@ -1,6 +1,7 @@
 import type { SourceReference } from './types'
 
 export interface SourceReferencePresentation {
+  documentOrdinal?: number
   pageNumber: number
   rowNumber: number
   label: string
@@ -17,24 +18,33 @@ function isPositiveInteger(value: unknown): value is number {
 export function sourceReferencePresentation(
   source: SourceReference
 ): SourceReferencePresentation | null {
+  const documentOrdinal = source?.page?.documentOrdinal
   const pageNumber = source?.page?.pageNumber
   const rowNumber = source?.row?.rowNumber
 
-  if (!isPositiveInteger(pageNumber) || !isPositiveInteger(rowNumber)) {
+  if (
+    !isPositiveInteger(pageNumber) ||
+    !isPositiveInteger(rowNumber) ||
+    (documentOrdinal !== undefined && !isPositiveInteger(documentOrdinal))
+  ) {
     return null
   }
 
   return {
+    ...(documentOrdinal ? { documentOrdinal } : {}),
     pageNumber,
     rowNumber,
-    label: `עמוד ${pageNumber}, שורה ${rowNumber}`,
+    label: documentOrdinal
+      ? `מסמך ${documentOrdinal}, עמוד ${pageNumber}, שורה ${rowNumber}`
+      : `עמוד ${pageNumber}, שורה ${rowNumber}`,
   }
 }
 
 /**
  * Preserves every source entry in its original total. Similar-looking
  * page/row pairs are not deduplicated because they may have originated from
- * distinct, non-persistent documents whose identities are not returned.
+ * distinct, non-persistent documents. When available, a response-local
+ * document ordinal distinguishes them without exposing their identities.
  */
 export function sourceReferencePresentations(
   sources: readonly SourceReference[]

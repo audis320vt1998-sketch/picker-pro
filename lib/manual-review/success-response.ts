@@ -115,13 +115,19 @@ function parseSourceReference(value: unknown): SourceReference | null {
     return null
   }
 
-  if (!isPositiveInteger(value.page.pageNumber) || !isPositiveInteger(value.row.rowNumber)) {
+  const documentOrdinal = value.page.documentOrdinal
+  if (
+    !isPositiveInteger(value.page.pageNumber) ||
+    !isPositiveInteger(value.row.rowNumber) ||
+    (documentOrdinal !== undefined && !isPositiveInteger(documentOrdinal))
+  ) {
     return null
   }
 
   return {
     page: {
       jobId: CLIENT_RESULT_SOURCE_ID,
+      ...(documentOrdinal ? { documentOrdinal } : {}),
       pageNumber: value.page.pageNumber,
     },
     row: {

@@ -11,6 +11,10 @@ export {
 export { manualReviewResultFromResponse } from './success-response'
 export { summarizeManualReviewResult } from './result-summary'
 export {
+  createSourceDocumentOrdinals,
+  sourceDocumentOrdinalForRow,
+} from './document-ordinal'
+export {
   packingSuggestionFailureCodeFromResponse,
   packingSuggestionFromResponse,
 } from './packing-suggestion-response'
@@ -28,6 +32,7 @@ export type {
   ManualReviewResult,
   ManualReviewRowInput,
 } from './types'
+export type { SourceDocumentOrdinals } from './document-ordinal'
 export type {
   PackingSuggestionApiFailureCode,
   PackingSuggestionFailureCode,

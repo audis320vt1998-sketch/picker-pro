@@ -48,6 +48,7 @@ export {
   requiresCameraCaptureReplacementConfirmation,
   requiresSourceSelectionReplacementConfirmation,
 } from './camera-capture-flow'
+export { assessLocalCameraCaptureReadiness } from './camera-capture-readiness'
 export {
   createOcrPreflightBatchOutcome,
   removeOcrPreflightBatchOutcomeSource,
@@ -101,3 +102,4 @@ export type {
   CameraCaptureReplacementCheck,
   SourceSelectionReplacementCheck,
 } from './camera-capture-flow'
+export type { LocalCameraCaptureReadiness } from './camera-capture-readiness'

@@ -9,6 +9,7 @@ import {
   useState,
 } from 'react'
 import {
+  assessLocalCameraCaptureReadiness,
   createOcrPreflightBatchPage,
   createOcrPreflightBatchOutcome,
   createOcrSourceDocumentRef,
@@ -26,6 +27,7 @@ import {
   removeOcrPreflightBatchOutcomeSource,
   removeOcrPreflightPageRowSelections,
   removeOcrPreflightReplacementSlot,
+  readImageMetadata,
   recordOcrPreflightBatchFailure,
   recordOcrPreflightBatchSuccess,
   requiresSourceSelectionReplacementConfirmation,
@@ -34,6 +36,7 @@ import {
   type DocumentPreflightIssue,
   type DocumentPreflightResult,
   type DocumentPreflightRow,
+  type LocalCameraCaptureReadiness,
   type OcrPreflightBatchPage,
   type OcrPreflightBatchFailure,
   type OcrPreflightBatchOutcome,
@@ -133,6 +136,10 @@ type PendingSourceSelection =
   | { kind: 'camera'; file: File }
   | { kind: 'images'; files: readonly File[] }
   | { kind: 'pdf'; file: File }
+
+type CameraCaptureReadinessState =
+  | { kind: 'CHECKING' }
+  | LocalCameraCaptureReadiness
 
 interface PreviewedSourceImage {
   pageNumber: number
@@ -344,6 +351,100 @@ function SourceImagePreview({
   )
 }
 
+function CameraCaptureReadinessNotice({
+  readiness,
+}: {
+  readiness: CameraCaptureReadinessState | null
+}) {
+  if (!readiness) {
+    return null
+  }
+
+  if (readiness.kind === 'CHECKING') {
+    return (
+      <p
+        aria-atomic="true"
+        className="document-preflight__camera-readiness"
+        role="status"
+      >
+        בודק מקומית את ממדי הצילום. התמונה עדיין לא נשלחת ל־OCR.
+      </p>
+    )
+  }
+
+  const dimensions =
+    readiness.kind === 'UNREADABLE' ? null : (
+      <span className="document-preflight__camera-dimensions" dir="ltr">
+        {readiness.width} × {readiness.height}
+      </span>
+    )
+
+  if (readiness.kind === 'READY') {
+    return (
+      <p
+        aria-atomic="true"
+        className="document-preflight__camera-readiness document-preflight__camera-readiness--ready"
+        role="status"
+      >
+        בדיקה מקומית בדפדפן: ממדי הצילום {dimensions} עומדים בסף הבסיסי ל־OCR.
+        הבדיקה אינה נשלחת לרשת ואינה בודקת חדות או צל.
+      </p>
+    )
+  }
+
+  if (readiness.kind === 'LOW_RESOLUTION') {
+    return (
+      <p
+        aria-atomic="true"
+        className="document-preflight__camera-readiness document-preflight__camera-readiness--advisory"
+        role="status"
+      >
+        בדיקה מקומית בדפדפן: ממדי הצילום {dimensions} קטנים מדי ל־OCR אמין.
+        מומלץ לצלם שוב מקרוב. אפשר לשלוח לבדיקה בשרת, אך ייתכן שלא תיווצר
+        טיוטת OCR.
+      </p>
+    )
+  }
+
+  if (readiness.kind === 'TOO_MANY_PIXELS') {
+    return (
+      <p
+        aria-atomic="true"
+        className="document-preflight__camera-readiness document-preflight__camera-readiness--advisory"
+        role="status"
+      >
+        בדיקה מקומית בדפדפן: ממדי הצילום {dimensions} גדולים מדי לעיבוד בטוח.
+        מומלץ לצלם ברזולוציה נמוכה יותר או לבחור צילום קטן יותר. אפשר לשלוח
+        לבדיקה בשרת, אך הקובץ עשוי להידחות.
+      </p>
+    )
+  }
+
+  if (readiness.kind === 'TYPE_MISMATCH') {
+    return (
+      <p
+        aria-atomic="true"
+        className="document-preflight__camera-readiness document-preflight__camera-readiness--advisory"
+        role="status"
+      >
+        בדיקה מקומית בדפדפן: סוג הקובץ אינו תואם לתוכן הצילום. מומלץ לצלם שוב.
+        אפשר לשלוח לבדיקה בשרת, אך הקובץ עשוי להידחות.
+      </p>
+    )
+  }
+
+  return (
+    <p
+      aria-atomic="true"
+      className="document-preflight__camera-readiness document-preflight__camera-readiness--advisory"
+      role="status"
+    >
+      בדיקה מקומית בדפדפן: לא ניתן לאמת את ממדי הצילום. מומלץ לצלם שוב או
+      לבדוק את התצוגה המקדימה. אפשר לשלוח לבדיקה בשרת, אך הקובץ עשוי להידחות.
+    </p>
+  )
+}
+
 function SourceImageReplacement({
   disabled,
   onSelect,
@@ -408,6 +509,8 @@ export default function DocumentPreflightWorkspace() {
     readonly OcrPreflightReplacementSlot[]
   >([])
   const [error, setError] = useState<string | null>(null)
+  const [cameraCaptureReadiness, setCameraCaptureReadiness] =
+    useState<CameraCaptureReadinessState | null>(null)
   const [activity, setActivity] = useState<PreflightActivity>(null)
   const [previewedSource, setPreviewedSource] = useState<PreviewedSourceImage | null>(
     null
@@ -417,6 +520,7 @@ export default function DocumentPreflightWorkspace() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<Record<string, boolean>>({})
   const [hasConfirmedSourceCheck, setHasConfirmedSourceCheck] = useState(false)
   const preflightActionLock = useRef(false)
+  const sourceSelectionConfirmationRef = useRef<HTMLElement>(null)
   const resultHeadingRef = useRef<HTMLHeadingElement>(null)
 
   const isSubmitting = activity !== null
@@ -425,6 +529,13 @@ export default function DocumentPreflightWorkspace() {
   const isSelectionLocked = isSubmitting || pendingSourceSelection !== null
   const isSingleCameraCaptureReadyToInspect =
     sourceSelectionKind === 'camera' && files.length === 1 && outcome === null
+  const selectedCameraCapture = isSingleCameraCaptureReadyToInspect
+    ? files[0] ?? null
+    : null
+  const isCameraCapturePreviewVisible =
+    selectedCameraCapture !== null &&
+    previewedSource?.pageNumber === 1 &&
+    previewedSource.sourceDocumentRef === selectedCameraCapture.sourceDocumentRef
   const isCompletedOcrResultReady = shouldFocusCompletedOcrPreflightResult(
     outcome,
     isSubmitting
@@ -452,10 +563,52 @@ export default function DocumentPreflightWorkspace() {
   }, [previewedFile, previewedSource])
 
   useEffect(() => {
+    let isCurrentCapture = true
+
+    if (!selectedCameraCapture) {
+      setCameraCaptureReadiness(null)
+      return () => {
+        isCurrentCapture = false
+      }
+    }
+
+    setCameraCaptureReadiness({ kind: 'CHECKING' })
+    void (async () => {
+      try {
+        const buffer = await selectedCameraCapture.file.arrayBuffer()
+        if (!isCurrentCapture) {
+          return
+        }
+
+        setCameraCaptureReadiness(
+          assessLocalCameraCaptureReadiness({
+            declaredMediaType: selectedCameraCapture.file.type,
+            metadata: readImageMetadata(new Uint8Array(buffer)),
+          })
+        )
+      } catch {
+        if (isCurrentCapture) {
+          setCameraCaptureReadiness({ kind: 'UNREADABLE' })
+        }
+      }
+    })()
+
+    return () => {
+      isCurrentCapture = false
+    }
+  }, [selectedCameraCapture])
+
+  useEffect(() => {
     if (isCompletedOcrResultReady) {
       resultHeadingRef.current?.focus()
     }
   }, [isCompletedOcrResultReady])
+
+  useEffect(() => {
+    if (pendingSourceSelection) {
+      sourceSelectionConfirmationRef.current?.focus()
+    }
+  }, [pendingSourceSelection])
 
   const resetDraftAfterSelectionChange = () => {
     setError(null)
@@ -929,14 +1082,6 @@ export default function DocumentPreflightWorkspace() {
     }
   }
 
-  const selectedCameraCapture = isSingleCameraCaptureReadyToInspect
-    ? files[0]
-    : null
-  const isCameraCapturePreviewVisible =
-    selectedCameraCapture !== null &&
-    previewedSource?.pageNumber === 1 &&
-    previewedSource.sourceDocumentRef === selectedCameraCapture.sourceDocumentRef
-
   return (
     <div className="manual-review document-preflight" dir="rtl">
       <section className="manual-review__intro">
@@ -983,7 +1128,12 @@ export default function DocumentPreflightWorkspace() {
         </section>
 
         {pendingSourceSelection && (
-          <aside className="document-preflight__camera-confirmation" role="alert">
+          <aside
+            className="document-preflight__camera-confirmation"
+            ref={sourceSelectionConfirmationRef}
+            role="alert"
+            tabIndex={-1}
+          >
             <strong>
               {pendingSourceSelection.kind === 'camera'
                 ? 'הצילום החדש עדיין לא החליף את הבחירה הקיימת.'
@@ -1066,9 +1216,24 @@ export default function DocumentPreflightWorkspace() {
               isSingleCameraCaptureReadyToInspect && selectedCameraCapture ? (
                 <div className="document-preflight__camera-preview">
                   <p>
-                    פתח את התצוגה המקדימה ובדוק שהטבלה חדה, ישרה וממלאת את
-                    התמונה. אם צריך, צלם מחדש לפני OCR.
+                    בדיקת הממדים המקומית אינה בודקת חדות או צל. פתח את התצוגה
+                    המקדימה ובדוק שהטבלה חדה, ישרה וממלאת את התמונה.
                   </p>
+                  <CameraCaptureReadinessNotice
+                    readiness={cameraCaptureReadiness}
+                  />
+                  <label className="document-preflight__camera-button document-preflight__camera-recapture">
+                    <span>צלם שוב — צילום חדש יחליף רק לאחר אישור</span>
+                    <input
+                      accept={PREFLIGHT_FILE_INPUT_ACCEPT}
+                      aria-describedby={CAMERA_CAPTURE_NOTE_ID}
+                      aria-label="צלם שוב עמוד מסמך; הצילום החדש יחליף רק לאחר אישור"
+                      capture={PREFLIGHT_CAMERA_CAPTURE}
+                      disabled={isSelectionLocked}
+                      onChange={selectCameraCapture}
+                      type="file"
+                    />
+                  </label>
                   <SourceImagePreview
                     hasSourceImage
                     isVisible={isCameraCapturePreviewVisible}
@@ -1087,7 +1252,8 @@ export default function DocumentPreflightWorkspace() {
                     pageNumber={1}
                   />
                   <p className="document-preflight__next-step">
-                    שלב 3 מתוך 3: לאחר שהצילום ברור, הפעל בדיקת OCR.
+                    שלב 3 מתוך 3: לאחר שהצילום ברור, הפעל בדיקת OCR. בדיקת
+                    השרת היא הסופית.
                   </p>
                 </div>
               ) : (

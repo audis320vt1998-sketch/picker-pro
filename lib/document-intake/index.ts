@@ -44,12 +44,16 @@ export {
   moveOcrPreflightSelectionItem,
   removeOcrPreflightSelectionItem,
 } from './preflight-selection'
-export { requiresCameraCaptureReplacementConfirmation } from './camera-capture-flow'
+export {
+  requiresCameraCaptureReplacementConfirmation,
+  requiresSourceSelectionReplacementConfirmation,
+} from './camera-capture-flow'
 export {
   createOcrPreflightBatchOutcome,
   removeOcrPreflightBatchOutcomeSource,
   recordOcrPreflightBatchFailure,
   recordOcrPreflightBatchSuccess,
+  shouldFocusCompletedOcrPreflightResult,
 } from './preflight-outcome'
 export {
   removeOcrPreflightPageRowSelections,
@@ -93,4 +97,7 @@ export type {
   OcrPreflightBatchOutcome,
 } from './preflight-outcome'
 export type { OcrPreflightReplacementSlot } from './preflight-replacement'
-export type { CameraCaptureReplacementCheck } from './camera-capture-flow'
+export type {
+  CameraCaptureReplacementCheck,
+  SourceSelectionReplacementCheck,
+} from './camera-capture-flow'

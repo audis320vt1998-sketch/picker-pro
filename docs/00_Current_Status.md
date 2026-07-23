@@ -29,17 +29,17 @@ selected image up or down, or remove it from the batch. This changes only the
 browser-held selection: the opaque source reference remains with its selected
 image and the final order becomes the OCR page numbering. File names are never
 displayed. Once OCR starts, that batch order is locked; selecting a new batch
-is required to make a different order.
+is required to make a different order. Any new source choice — camera capture,
+existing images, or PDF — waits for explicit confirmation before it replaces a
+browser-held selection or OCR draft.
 
 On a supported mobile browser, the same screen offers a camera-first,
 direct-camera chooser for one document image. It guides the reviewer to take
 one sharp, straight, shadow-free table photo, then allows a browser-only local
-preview before OCR. If a selection or OCR outcome already exists, the new
-capture waits for explicit confirmation before it replaces that browser-held
-work. A confirmed capture receives a new opaque source reference and is not
-uploaded until the reviewer explicitly starts OCR. The browser may offer a
-regular file chooser instead of a camera, so camera availability is never
-assumed.
+preview before OCR. A confirmed capture receives a new opaque source reference
+and is not uploaded until the reviewer explicitly starts OCR. The browser may
+offer a regular file chooser instead of a camera, so camera availability is
+never assumed.
 
 For the known temporary OCR states (busy, timeout, or unavailable), the user
 may explicitly retry that one page. The screen never retries automatically or

@@ -28,7 +28,8 @@ import {
   removeOcrPreflightReplacementSlot,
   recordOcrPreflightBatchFailure,
   recordOcrPreflightBatchSuccess,
-  requiresCameraCaptureReplacementConfirmation,
+  requiresSourceSelectionReplacementConfirmation,
+  shouldFocusCompletedOcrPreflightResult,
   upsertOcrPreflightReplacementSlot,
   type DocumentPreflightIssue,
   type DocumentPreflightResult,
@@ -127,6 +128,11 @@ interface SelectedSourceImage {
 }
 
 type SourceSelectionKind = 'camera' | 'images' | 'pdf' | null
+
+type PendingSourceSelection =
+  | { kind: 'camera'; file: File }
+  | { kind: 'images'; files: readonly File[] }
+  | { kind: 'pdf'; file: File }
 
 interface PreviewedSourceImage {
   pageNumber: number
@@ -394,7 +400,8 @@ export default function DocumentPreflightWorkspace() {
   const [pdfFile, setPdfFile] = useState<File | null>(null)
   const [sourceSelectionKind, setSourceSelectionKind] =
     useState<SourceSelectionKind>(null)
-  const [pendingCameraCapture, setPendingCameraCapture] = useState<File | null>(null)
+  const [pendingSourceSelection, setPendingSourceSelection] =
+    useState<PendingSourceSelection | null>(null)
   const [pdfPageSourceRefs, setPdfPageSourceRefs] = useState<readonly string[]>([])
   const [outcome, setOutcome] = useState<OcrPreflightBatchOutcome | null>(null)
   const [pendingReplacementPages, setPendingReplacementPages] = useState<
@@ -415,13 +422,13 @@ export default function DocumentPreflightWorkspace() {
   const isSubmitting = activity !== null
   const pages = outcome?.pages ?? []
   const failedPages = outcome?.failures ?? []
-  const isSelectionLocked = isSubmitting || pendingCameraCapture !== null
+  const isSelectionLocked = isSubmitting || pendingSourceSelection !== null
   const isSingleCameraCaptureReadyToInspect =
     sourceSelectionKind === 'camera' && files.length === 1 && outcome === null
-  const isCompletedOcrResultReady =
-    outcome !== null &&
-    !isSubmitting &&
-    (pages.length > 0 || failedPages.length > 0)
+  const isCompletedOcrResultReady = shouldFocusCompletedOcrPreflightResult(
+    outcome,
+    isSubmitting
+  )
 
   const previewedFile = previewedSource
     ? files.find(
@@ -461,7 +468,7 @@ export default function DocumentPreflightWorkspace() {
     setPdfFile(null)
     setPdfPageSourceRefs([])
     setSourceSelectionKind(null)
-    setPendingCameraCapture(null)
+    setPendingSourceSelection(null)
   }
 
   const canEditSelectedBatch = !isSelectionLocked && outcome === null
@@ -487,13 +494,48 @@ export default function DocumentPreflightWorkspace() {
     }
   }
 
+  const setSelectedPdf = (selectedPdf: File) => {
+    resetDraftAfterSelectionChange()
+    setFiles([])
+    setPdfFile(selectedPdf)
+    setSourceSelectionKind('pdf')
+  }
+
+  const applySourceSelection = (selection: PendingSourceSelection) => {
+    if (selection.kind === 'pdf') {
+      setSelectedPdf(selection.file)
+      return
+    }
+
+    setSelectedImages(
+      selection.kind === 'camera' ? [selection.file] : selection.files,
+      selection.kind
+    )
+  }
+
+  const queueSourceSelection = (selection: PendingSourceSelection) => {
+    if (
+      requiresSourceSelectionReplacementConfirmation({
+        selectedImageCount: files.length,
+        hasPdfSelection: pdfFile !== null,
+        hasPreflightOutcome: outcome !== null,
+      })
+    ) {
+      setError(null)
+      setPendingSourceSelection(selection)
+      return
+    }
+
+    applySourceSelection(selection)
+  }
+
   const selectFiles = (event: ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files ?? [])
     event.currentTarget.value = ''
 
     if (
       preflightActionLock.current ||
-      pendingCameraCapture ||
+      pendingSourceSelection ||
       selectedFiles.length === 0
     ) {
       return
@@ -511,7 +553,7 @@ export default function DocumentPreflightWorkspace() {
       return
     }
 
-    setSelectedImages(selectedFiles, 'images')
+    queueSourceSelection({ kind: 'images', files: selectedFiles })
   }
 
   const selectCameraCapture = (event: ChangeEvent<HTMLInputElement>) => {
@@ -520,7 +562,7 @@ export default function DocumentPreflightWorkspace() {
 
     if (
       preflightActionLock.current ||
-      pendingCameraCapture ||
+      pendingSourceSelection ||
       selectedFiles.length === 0
     ) {
       return
@@ -537,27 +579,15 @@ export default function DocumentPreflightWorkspace() {
       return
     }
 
-    if (
-      requiresCameraCaptureReplacementConfirmation({
-        selectedImageCount: files.length,
-        hasPdfSelection: pdfFile !== null,
-        hasPreflightOutcome: outcome !== null,
-      })
-    ) {
-      setError(null)
-      setPendingCameraCapture(cameraCapture)
-      return
-    }
-
-    setSelectedImages([cameraCapture], 'camera')
+    queueSourceSelection({ kind: 'camera', file: cameraCapture })
   }
 
-  const confirmCameraCaptureReplacement = () => {
-    if (!pendingCameraCapture || preflightActionLock.current) {
+  const confirmSourceSelectionReplacement = () => {
+    if (!pendingSourceSelection || preflightActionLock.current) {
       return
     }
 
-    setSelectedImages([pendingCameraCapture], 'camera')
+    applySourceSelection(pendingSourceSelection)
   }
 
   const selectPdf = (event: ChangeEvent<HTMLInputElement>) => {
@@ -566,7 +596,7 @@ export default function DocumentPreflightWorkspace() {
 
     if (
       preflightActionLock.current ||
-      pendingCameraCapture ||
+      pendingSourceSelection ||
       selectedFiles.length === 0
     ) {
       return
@@ -583,10 +613,7 @@ export default function DocumentPreflightWorkspace() {
       return
     }
 
-    resetDraftAfterSelectionChange()
-    setFiles([])
-    setPdfFile(selectedPdf)
-    setSourceSelectionKind('pdf')
+    queueSourceSelection({ kind: 'pdf', file: selectedPdf })
   }
 
   const moveSelectedFile = (currentIndex: number, destinationIndex: number) => {
@@ -682,8 +709,8 @@ export default function DocumentPreflightWorkspace() {
     if (preflightActionLock.current) {
       return
     }
-    if (pendingCameraCapture) {
-      setError('יש לאשר או לבטל את החלפת הצילום לפני הפעלת OCR.')
+    if (pendingSourceSelection) {
+      setError('יש לאשר או לבטל את החלפת המקור לפני הפעלת OCR.')
       return
     }
     if (files.length === 0 && !pdfFile) {
@@ -704,6 +731,7 @@ export default function DocumentPreflightWorkspace() {
       try {
         const attempt = await requestPdfPreflight(pdfFile)
         if (attempt.kind === 'failure') {
+          setOutcome(null)
           setError(PDF_PREFLIGHT_FAILURE_TEXT[attempt.code])
           return
         }
@@ -726,6 +754,7 @@ export default function DocumentPreflightWorkspace() {
           setPdfPageSourceRefs(nextSourceRefs)
           setOutcome(nextOutcome)
         } catch {
+          setOutcome(null)
           setError(PDF_PREFLIGHT_FAILURE_TEXT.UNKNOWN)
         }
         return
@@ -953,24 +982,39 @@ export default function DocumentPreflightWorkspace() {
           </p>
         </section>
 
-        {pendingCameraCapture && (
+        {pendingSourceSelection && (
           <aside className="document-preflight__camera-confirmation" role="alert">
-            <strong>הצילום החדש עדיין לא החליף את הבחירה הקיימת.</strong>
+            <strong>
+              {pendingSourceSelection.kind === 'camera'
+                ? 'הצילום החדש עדיין לא החליף את הבחירה הקיימת.'
+                : pendingSourceSelection.kind === 'images'
+                  ? 'התמונות החדשות עדיין לא החליפו את הבחירה הקיימת.'
+                  : 'קובץ ה־PDF החדש עדיין לא החליף את הבחירה הקיימת.'}
+            </strong>
             <p>
-              אם תאשר, הבחירה הנוכחית והטיוטות שטרם הועברו יוחלפו בצילום החדש.
-              הצילום עצמו עדיין לא נשלח ל־OCR.
+              אם תאשר, הבחירה הנוכחית והטיוטות שטרם הועברו יוחלפו{' '}
+              {pendingSourceSelection.kind === 'camera'
+                ? 'בצילום החדש.'
+                : pendingSourceSelection.kind === 'images'
+                  ? `ב־${pendingSourceSelection.files.length} תמונות חדשות.`
+                  : 'בקובץ ה־PDF החדש.'}{' '}
+              המקור החדש עדיין לא נשלח ל־OCR.
             </p>
             <div className="document-preflight__source-actions">
               <button
                 className="manual-review__primary-button"
-                onClick={confirmCameraCaptureReplacement}
+                onClick={confirmSourceSelectionReplacement}
                 type="button"
               >
-                החלף בצילום החדש
+                {pendingSourceSelection.kind === 'camera'
+                  ? 'החלף בצילום החדש'
+                  : pendingSourceSelection.kind === 'images'
+                    ? 'החלף בתמונות החדשות'
+                    : 'החלף בקובץ ה־PDF החדש'}
               </button>
               <button
                 className="manual-review__secondary-button"
-                onClick={() => setPendingCameraCapture(null)}
+                onClick={() => setPendingSourceSelection(null)}
                 type="button"
               >
                 שמור את הבחירה הקיימת
@@ -1129,7 +1173,7 @@ export default function DocumentPreflightWorkspace() {
           disabled={
             (files.length === 0 && !pdfFile) ||
             isSubmitting ||
-            pendingCameraCapture !== null
+            pendingSourceSelection !== null
           }
         >
           {isSubmitting

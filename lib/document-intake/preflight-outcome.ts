@@ -24,6 +24,22 @@ export function createOcrPreflightBatchOutcome(): OcrPreflightBatchOutcome {
   return { pages: [], failures: [] }
 }
 
+/**
+ * The upload UI may move focus to a completed result only after OCR has
+ * finished and there is an actual page draft or page-level failure to review.
+ * An empty in-progress or cleared outcome must not be announced as a result.
+ */
+export function shouldFocusCompletedOcrPreflightResult(
+  outcome: OcrPreflightBatchOutcome | null,
+  isSubmitting: boolean
+): boolean {
+  return (
+    outcome !== null &&
+    !isSubmitting &&
+    (outcome.pages.length > 0 || outcome.failures.length > 0)
+  )
+}
+
 function sortFailures(
   failures: readonly OcrPreflightBatchFailure[]
 ): readonly OcrPreflightBatchFailure[] {

@@ -7,6 +7,7 @@ import {
   removeOcrPreflightBatchOutcomeSource,
   recordOcrPreflightBatchFailure,
   recordOcrPreflightBatchSuccess,
+  shouldFocusCompletedOcrPreflightResult,
 } from '@/lib/document-intake/preflight-outcome'
 import { createOcrPreflightBatchPage } from '@/lib/document-intake/preflight-batch'
 
@@ -22,6 +23,25 @@ function page(): DocumentPreflightPage {
 }
 
 describe('OCR preflight batch outcome', () => {
+  it('moves focus only to a completed outcome that contains a draft or failure', () => {
+    const emptyOutcome = createOcrPreflightBatchOutcome()
+    const failedOutcome = recordOcrPreflightBatchFailure(emptyOutcome, {
+      pageNumber: 1,
+      sourceDocumentRef: firstSourceDocumentRef,
+      code: 'OCR_PREFLIGHT_UNAVAILABLE',
+    })
+    const successfulOutcome = recordOcrPreflightBatchSuccess(
+      emptyOutcome,
+      createOcrPreflightBatchPage(page(), 1, firstSourceDocumentRef)
+    )
+
+    expect(shouldFocusCompletedOcrPreflightResult(null, false)).toBe(false)
+    expect(shouldFocusCompletedOcrPreflightResult(emptyOutcome, false)).toBe(false)
+    expect(shouldFocusCompletedOcrPreflightResult(successfulOutcome, true)).toBe(false)
+    expect(shouldFocusCompletedOcrPreflightResult(successfulOutcome, false)).toBe(true)
+    expect(shouldFocusCompletedOcrPreflightResult(failedOutcome, false)).toBe(true)
+  })
+
   it('keeps a source image in one outcome and restores it in selected order after retry', () => {
     const firstPage = createOcrPreflightBatchPage(page(), 1, firstSourceDocumentRef)
     const secondPage = createOcrPreflightBatchPage(page(), 2, secondSourceDocumentRef)

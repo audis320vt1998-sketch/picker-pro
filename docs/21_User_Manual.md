@@ -1,157 +1,186 @@
-# 21 — User Manual
+# 21 — מדריך שימוש פעיל
 
-## 1. Introduction
+## מטרת הכלי
 
-**Picker Pro** turns photographs of paper order sheets into validated, printable pick lists. This manual covers the end-to-end workflow for warehouse managers and pickers.
+Picker Pro הוא כלי עזר לבדיקת הזמנות. הוא אינו יוצר רשימת ליקוט תפעולית
+מתמונות, אינו שומר הזמנות, ואינו ממיר כמויות אוטומטית לפי גודל מארז. הצעת
+אריזה, כאשר היא זמינה, היא פעולה מפורשת לבדיקה בלבד ואינה משנה שורה בלי לחיצה
+על כפתור החלה.
 
-## 2. Getting Started
+יש שני מסכים פעילים:
 
-### 2.1 Installing the App
+- `/upload` — יצירת טיוטות OCR לבדיקת אדם.
+- `/review` — הזנה ובדיקה ידנית של שורות, מארזים ובודדים.
 
-1. Open your browser and navigate to the Picker Pro URL provided by your administrator.
-2. On **iOS**: tap the Share button → **Add to Home Screen**.
-3. On **Android**: tap the browser menu → **Install App** (or **Add to Home Screen**).
-4. The Picker Pro icon will appear on your home screen.
+## יצירת טיוטות OCR
 
-### 2.2 First Launch
+1. פתח את `/upload`.
+2. במסך הטלפון העדף את **פתח מצלמה אחורית לצילום עמוד**. צלם עמוד אחד בכל
+   פעולה, החזק את הטלפון ישר, מלא את הפריים בטבלה והימנע מצל. בדפדפן תומך
+   עשויה להיפתח המצלמה האחורית; בדפדפנים אחרים עשוי להיפתח בורר קבצים.
+3. אחרי צילום, פתח את התצוגה המקדימה המקומית ובדוק שהטבלה חדה וקריאה. הצילום
+   עדיין לא נשלח. אם קיימת בחירה קודמת, אשר במפורש את החלפתה בצילום החדש או
+   בחר לשמור את הבחירה הקיימת.
+   במסך זה מוצגת גם בדיקה מקומית של סוג התמונה וממדיה בלבד. הודעה ירוקה אומרת
+   שהממדים עומדים בסף הבסיסי; אזהרה צהובה ממליצה לצלם שוב. הבדיקה אינה בוחנת
+   חדות או צל, אינה שולחת או שומרת את התמונה, ואינה מחליפה את בדיקת השרת.
+   אפשר ללחוץ **צלם שוב** בכל מצב; הצילום החדש יחליף את הקיים רק לאחר אישור.
+4. לחץ על **בדוק את הצילום ב־OCR**. רק בשלב זה התמונה נשלחת לעיבוד. אפשר גם
+   לבחור עד 20 תמונות JPEG, PNG או WebP של טבלאות הזמנה, או קובץ PDF אחד של
+   עד 20 עמודים, דרך האפשרויות הנוספות. שמות הקבצים אינם מוצגים או נשמרים
+   בתוצאה.
+   אם כבר נבחר מקור או נוצרה טיוטת OCR, כל בחירה חדשה — צילום, תמונות קיימות
+   או PDF — ממתינה לאישור מפורש לפני שהיא מחליפה את העבודה המקומית.
+5. לפני OCR אפשר לסדר את הרשימה הגנרית **עמוד 1, עמוד 2…** באמצעות **העבר
+   למעלה**, **העבר למטה** או **הסר עמוד**. לא מוצגים שמות קבצים; הסדר הסופי
+   בלבד יקבע את מספרי העמודים בטיוטה. הפעולה מקומית בדפדפן ואינה שולחת קובץ.
+6. לחץ על **צור טיוטות OCR**. התמונות נבדקות אחת־אחת ובסדר שבחרת. לאחר
+   תחילת OCR הסדר נעול; כדי לשנותו יש לבחור אצווה חדשה.
+7. קרא את הטיוטה מול מסמך המקור. התוצאה היא `NEEDS_REVIEW` בלבד — אינה
+   רשימת ליקוט, אינה התאמת קטלוג, ואינה מאשרת שהכמויות נכונות.
 
-No login is required in v1.0. The home screen shows your recent jobs.
+בעמודת **ודאות OCR** מופיעה ודאות כללית לשורה, ואפשר לפתוח **פירוט לפי שדה**
+כדי לראות את הוודאות של מספר השורה, המק״ט, הברקוד, השם ושלוש כמויות המקור.
+כאשר ודאות של שדה נמוכה, הוא מסומן ב־**בדיקות OCR** ככזה שנדרש לאימות מול
+המסמך. הסימון אינו מאשר, משנה או מעביר כמות אוטומטית.
 
-## 3. Creating a New Job
+כאשר קיימים שדות כאלה, מוצגת גם **רשימת בדיקות OCR זמנית**. אפשר לסמן
+**הצג רק שורות עם ודאות OCR נמוכה** כדי להתמקד בהן. הרשימה קיימת רק בדפדפן
+ונמחקת בבחירת מקור חדש או בעזיבת המסך; היא אינה תור בדיקה שמור.
 
-### 3.1 Camera Capture (Recommended on Mobile)
+בצילום תקריב מתאים, ה־OCR עשוי לקרוא גם את עמודת **שם הפריט** באזור הטבלה
+של אותה שורת מק״ט. אם אין טקסט OCR באזור, או שמילה נמצאת בין שתי שורות, השם
+נשאר ריק ומסומן לבדיקה; המערכת אינה משייכת שם לשורה אחרת ואינה מחפשת התאמת
+קטלוג.
 
-1. Tap **New Job** on the home screen.
-2. Tap **Take Photo** — your device's rear camera opens.
-3. Photograph each order sheet page clearly and squarely.
-4. Tap **Add More** to photograph additional pages.
-5. Optionally select a **City** and **Delivery Route** if known.
-6. Tap **Submit**.
+בטלפון, כל שורת OCR מוצגת ככרטיס עם כותרות ברורות (מזהה פריט, כמויות,
+בדיקות OCR והעברה). לאחר סיום הקריאה המסך עובר לכותרת התוצאה ומודיע בקצרה
+כמה עמודי טיוטה נוצרו ואילו עמודים דורשים טיפול.
 
-### 3.2 File Upload
+הדפדפן מתריע מראש על קובץ ריק, גדול מ־12MB או מסוג לא נתמך. השרת בודק את
+אותם גבולות מחדש, ולכן התרעת הדפדפן אינה תחליף לבדיקה בצד השרת.
 
-1. Tap **New Job** → **Upload Files**.
-2. Select one or more image files (JPEG, PNG, WEBP, HEIC) or a PDF.
-3. Drag to reorder pages if needed.
-4. Optionally select a City and Delivery Route.
-5. Tap **Submit**.
+ב־PDF, העמודים מומרים זמנית לתמונות לצורך OCR ומוסרים לאחר העיבוד. כדי להחליף
+עמוד PDF יש לבחור PDF מתוקן מחדש; אין להחליף אותו בתמונה בודדת ממסמך אחר.
 
-### 3.3 Tips for Best Results
+### כאשר OCR לא מצליח
 
-- Photograph pages on a flat, well-lit surface.
-- Avoid shadows across the text.
-- Keep the camera parallel to the page (avoid angled shots).
-- Ensure all four corners of the page are visible.
+- בכשל זמני בלבד (עסוק, timeout או שירות לא זמין), אפשר ללחוץ במפורש על
+  **נסה שוב** עבור אותו עמוד. אין ניסיון חוזר אוטומטי או מקביל.
+- אם התמונה אינה חדה מספיק, אינה תקינה או אינה מתאימה, בחר **החלף תמונה
+  לעמוד** או **צלם מחדש — עמוד**. פעולה זו מיועדת לצילום חד יותר של
+  אותו עמוד בלבד; בדפדפן אחר עשוי להופיע בורר קבצים במקום מצלמה.
+- בחירת תמונה חלופית מסירה את הטיוטה הקודמת ואת השורות שנבחרו מאותו עמוד,
+  אך אינה שולחת את התמונה מיד. לחץ אחר כך במפורש על **צור טיוטת OCR חדשה**.
+  לצד התמונה החלופית מוצגת אותה בדיקת ממדים וסוג מקומית; היא ייעוצית בלבד,
+  אינה חוסמת את הפעולה ואינה מחליפה את בדיקת השרת.
+- לתמונה של מסמך או עמוד אחר יש להתחיל אצווה חדשה.
 
-## 4. Monitoring Progress
+התמונה החלופית שומרת את מזהה העמוד האטום של אותו עמוד לוגי. המזהה אינו שם
+קובץ ואינו כולל פרטי לקוח או כותרת מסמך.
 
-After submitting, you are taken to the **Results** page for your job.
+### תצוגת מקור זמנית
 
-- The **progress bar** shows OCR and processing stages.
-- Processing typically completes in under 30 seconds for a 5-page job.
-- You can navigate away and return; the job continues in the background.
+אפשר להציג תמונת מקור אחת בכל פעם ליד הטיוטה. זו התמונה המקורית ולכן היא
+עשויה להכיל פרטי מסמך או לקוח. התצוגה נוצרת מקומית בדפדפן בלבד, אינה נשמרת,
+ואינה נכללת בתוצאת ה־OCR או בהעברה למסך הבדיקה. היא נסגרת כאשר מחליפים את
+התמונה של אותו עמוד, מחליפים אצווה או עוזבים את המסך.
 
-## 5. Reviewing Results
+## העברה לבדיקת ידנית
 
-### 5.1 Summary Cards
+1. בחר רק שורות שיש להן מספר שורת מקור ברור.
+2. בדוק מול המסמך המקורי את המק״ט, הברקוד ושלוש עמודות הכמות.
+3. סמן את אישור בדיקת המקור.
+4. לחץ על **העבר לטיוטת בדיקה ידנית**.
 
-At the top of the Results page you will see:
+ההעברה היא חד־פעמית ונשמרת בדפדפן למשך עד 15 דקות. היא מעבירה מזהה עמוד
+אטום, מיקום שורה, מזהי מוצר ושלוש כמויות מקור להשוואה בלבד. היא אינה מעבירה
+תמונה, שם קובץ, כותרת מסמך, טקסט OCR מלא או כמות תפעולית.
 
-| Card | Meaning |
-|---|---|
-| Products | Total number of unique products found |
-| Total Cases | Sum of all case quantities |
-| Total Units | Sum of all individual unit quantities |
-| Flagged | Items requiring your review |
+## בדיקה ידנית
 
-### 5.2 Results Table
+בפתיחת `/review` מוצג מצב הקטלוג. הקטלוג הפעיל בגרסה 1.3.0 כולל 124
+פריטים מאומתים מהקטלוג המלא שסופק, ולכן התאמת ברקוד או מק״ט מדויקת יכולה
+להיכנס לסיכום תפעולי. אם בעתיד לא יהיו פריטים מאומתים, אפשר למלא ולבדוק
+שורות אך לא ייווצר סיכום תפעולי; יש לעבור להגדרות ולהשלים עדכון קטלוג מבוקר.
 
-The table is grouped by **City** → **Delivery Route** → **Product**.
+במסך `/review` יש להזין או לאמת עבור כל שורה:
 
-| Column | Meaning |
-|---|---|
-| Product Key | Barcode or SKU |
-| Product Name | Hebrew product name |
-| Cases | Total case quantity |
-| Units | Total individual unit quantity |
-| Sources | Original page and row references |
+- מספר עמוד ומספר שורת מקור.
+- טקסט מקור ולפחות מזהה אחד: שם פריט, ברקוד או SKU.
+- מספר מארזים ומספר בודדים בשני שדות נפרדים.
 
-### 5.3 Source Traceability
+מעל הטופס מוצג כמה שורות מוכנות לבדיקה. בכל שורה מופיע אם היא מוכנה, אילו
+שדות חסרים, או אילו ערכים דורשים תיקון. הסימון אינו ממלא כמות OCR ואינו
+ממיר בין מארזים לבודדים.
 
-The **Sources** column shows codes like `p1r3, p2r7`. These mean:
+כאשר שורה הגיעה מ־OCR, שלוש כמויות המקור מוצגות תחילה להשוואה בלבד ושדות
+המארזים והבודדים נשארים ריקים. אפשר ללחוץ על **חשב הצעת אריזה** רק כדי לקבל
+הצעה לבדיקה; הפעולה אינה משנה את השדות ואינה שולחת את השורה לבדיקה. אם ההצעה
+נראית נכונה מול המסמך, לוחצים במפורש על **החל הצעה על השדות**. אם כבר הוזנו
+מארזים או בודדים, ההצעה אינה דורסת אותם.
 
-- `p1r3` → page 1, row 3 of your scanned order sheets.
+הצעה יכולה להופיע רק כאשר שלוש כמויות המקור הופרדו בפועל בעמודות OCR ברורות
+והן מתאימות זו לזו, שם הפריט מכיל סימון מאושר, ונמצאה התאמה יחידה לפריט מאומת
+בקטלוג. הקטלוג גובר תמיד על השם: גודל המארז ומדיניות ליקוט הבודדים חייבים
+להתאים.
 
-Tap a source code to view the original scanned region (if supported by your installation).
+- סימון `1/8`, `1/12`, `1/20` או `1/24` בשם פריט מאושר־קטלוג מסמן מארזים
+  בלבד. ההצעה משאירה את הכמות כמספר מארזים.
+- מספר בסוגריים בין `8` ל־`24`, למשל `(12)`, בפריט שהקטלוג מאשר לו ליקוט
+  בודדים, מאפשר הצעה של מארזים מלאים ושארית בודדים. לדוגמה, שלוש כמויות מקור
+  ברורות `25`, `1`, `25` עם `(12)` מציעות `2` מארזים ו־`1` בודד; `3`, `1`,
+  `3` מציעות `0` מארזים ו־`3` בודדים.
 
-## 6. Handling Flagged Items
+סימון אחר, ערכים חסרים או סותרים, יותר מסימון אריזה אחד, אי־התאמה לקטלוג או
+פריט שאינו מאומת — כולם נשארים לבדיקה ידנית; אין ניחוש ואין המרה אוטומטית.
 
-### 6.1 Opening the Review Queue
+בדיקה ידנית משתמשת בקטלוג המקומי כדי לאתר בעיות התאמה. רק רשומת קטלוג
+מאומתת ולא־חד־משמעית יכולה להיכנס לסיכום. הקטלוג הפעיל כבר כולל 124 רשומות
+מאומתות; התאמה מדויקת יכולה להיכנס לסיכום, אך המערכת עדיין אינה יוצרת
+רשימת ליקוט אוטומטית מתמונה.
 
-Tap the **Flagged** badge or the **Review** button to open the review queue.
+בהשוואת שם או alias למוצר שאין לו ברקוד בקטלוג, המערכת מאחדת רק הבדלי תצוגה
+שכיחים — ניקוד, רווחים, מקפים, מרכאות ואותיות אנגליות גדולות/קטנות. היא אינה
+מתרגמת, מנחשת או מבצעת התאמה מטושטשת לשם מוצר.
 
-### 6.2 Reviewing an Item
+אחרי בדיקת שורות מוצג סיכום מאומת. בכל פריט אפשר לפתוח **הצג מקורות מארזים
+ובודדים** כדי לראות בנפרד את העמוד ושורת המקור לכל סוג כמות. הפירוט אינו
+מציג שם קובץ, טקסט מקור או מזהה מסמך, ואינו מציג כמות נפרדת לכל מקור. כאשר
+יש שני מסמכי OCR שונים עם אותו עמוד ושורה, יוצג מספר מסמך מקומי (למשל
+**מסמך 2, עמוד 1, שורה 3**) כדי להבדיל ביניהם; המספר אינו מזהה המסמך האטום
+ואינו נשמר.
 
-For each flagged item you will see:
+## הכנת קטלוג לאימות
 
-- The original scanned text.
-- The data the system extracted (product, quantity, unit type).
-- The reason it was flagged.
+1. פתח את `/settings` ובדוק את גרסת הקטלוג ומספר הרשומות המאומתות.
+2. לחץ על **הורד תבנית קטלוג CSV**. הקובץ ריק ונפתח ב־Excel כ־UTF-8.
+3. מלא את העמודות מול קטלוג המחסן או ERP. השאר את
+   `verificationStatus` כ־`unverified` עד שאדם מוסמך יאשר את הרשומה.
+4. שמור ברקודים ומק&quot;טים כטקסט, וכתוב שדות אמת/שקר כ־`true` או `false`.
+   מוצר שמסומן `caseOnly=true` חייב להיות גם
+   `allowUnitPicking=false`; אחרת בדיקת הקובץ תדחה את השורה.
+5. בשדה `aliases` רשום מערך JSON, לדוגמה `["שם חלופי"]`.
+6. בחר את הקובץ המלא תחת **בדיקת קובץ CSV ממולא** ולחץ על **בדוק קובץ CSV**.
+   הדוח מציג רק מספרי שורות, שמות עמודות וסוגי בעיות — ללא שמות מוצרים,
+   ברקודים או שם הקובץ.
+7. השאר את כל הרשומות כ־`unverified` בבדיקה. ערך `verified` אינו מתקבל כאן;
+   אימות אפשרי רק בעדכון JSON מבוקר.
+8. העבר קובץ שעבר בדיקה מבנית לעדכון מבוקר של `catalogs/products.json`.
 
-Choose one of:
+מתחת לקטלוג המוצרים מוצג גם מצב הקריאה־בלבד של קטלוגי הערים וקווי החלוקה.
+הוא מציג גרסאות, כמויות וסיבות מוכנות קבועות בלבד. כרגע הנתונים הם נתוני
+דוגמה, ולכן המסך אינו מאפשר לבחור עיר או קו ואינו משייך אותם להזמנה.
 
-| Action | When to use |
-|---|---|
-| **Approve** | The extracted data is correct. |
-| **Correct** | You can fix the extracted data (e.g. wrong quantity). |
-| **Reject** | The row is invalid and should be excluded from the pick list. |
+ההורדה והבדיקה אינן מייבאות נתונים, אינן משנות או מאמתות את הקטלוג הפעיל,
+ואינן שומרות את הקובץ.
 
-### 6.3 Completing the Review
+## מה אינו זמין
 
-Work through all items until the **Flagged** count reaches 0. You can export before completing the review, but the export will include a warning and pending items will be excluded.
+- HEIC או תיקון פרספקטיבה.
+- שמירת עבודות, תור בדיקה מתמשך, עבודה לא מקוונת או שחזור לאחר סגירת הדפדפן.
+- ייצוא Excel/PDF, הדפסה, ערים, מסלולים או רשימת ליקוט תפעולית.
+- אימות קטלוג אוטומטי, סנכרון ERP או סיוע AI.
+- ייבוא קטלוג מתוך קובץ CSV.
 
-## 7. Exporting Results
-
-### 7.1 Per-City Export
-
-Under each city group, tap:
-
-- **Excel** — downloads an XLSX file for that city.
-- **PDF** — downloads a PDF file for that city.
-- **Print** — opens a print-ready view in your browser.
-
-### 7.2 What the Export Contains
-
-Each export includes:
-
-- One section per delivery route.
-- Product key, Hebrew product name, total cases, total units.
-- Source references for every line item.
-
-## 8. Offline Use
-
-- If your connection drops, the **Offline** banner appears at the top of the screen.
-- You can still review and navigate completed jobs.
-- Uploads and new submissions are queued and sent automatically when connectivity is restored.
-
-## 9. Frequently Asked Questions
-
-**Q: Cases and units appear as separate columns — is that correct?**
-A: Yes. Picker Pro always keeps cases and individual units separate. Never combine them manually.
-
-**Q: A product appears on multiple pages — will it be counted correctly?**
-A: Yes. Picker Pro automatically aggregates the same product across all pages.
-
-**Q: I photographed the wrong page. Can I remove it?**
-A: Currently you must submit a new job. Page removal after submission is planned for v1.x.
-
-**Q: Can I use Picker Pro on a desktop computer?**
-A: Yes. All features are available in a desktop browser. Camera capture requires a webcam.
-
-## 10. Support
-
-Contact your IT administrator for:
-
-- Access issues.
-- Catalog updates (new products, cities, or delivery routes).
-- Data retention and privacy questions.
+היכולות האלו אינן חלק מהתהליך הפעיל ואין להסתמך עליהן בהפעלת המחסן.

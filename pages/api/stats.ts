@@ -1,1 +1,29 @@
-import type { NextApiRequest, NextApiResponse } from 'next'\nimport { initializeCatalog } from '../../lib/catalog'\n\ninterface StatsResponse {\n  success: boolean\n  data?: any\n  error?: string\n}\n\nexport default async function handler(\n  req: NextApiRequest,\n  res: NextApiResponse<StatsResponse>\n) {\n  if (req.method !== 'GET') {\n    return res.status(405).json({ success: false, error: 'Method not allowed' })\n  }\n\n  try {\n    const catalog = await initializeCatalog()\n\n    const statistics = await catalog.getStatistics()\n    const categories = await catalog.getCategories()\n    const suppliers = await catalog.getSuppliers()\n\n    res.status(200).json({\n      success: true,\n      data: {\n        statistics,\n        categories,\n        suppliers,\n        timestamp: new Date().toISOString()\n      }\n    })\n  } catch (error) {\n    console.error('Stats error:', error)\n    res.status(500).json({\n      success: false,\n      error: error instanceof Error ? error.message : 'Unknown error'\n    })\n  }\n}\n
+import type { NextApiRequest, NextApiResponse } from 'next'
+
+interface StatsResponse {
+  success: false
+  error: string
+  code: 'CATALOG_STATS_UNAVAILABLE'
+}
+
+export default function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<StatsResponse>
+) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({
+      success: false,
+      error: 'Method not allowed',
+      code: 'CATALOG_STATS_UNAVAILABLE',
+    })
+  }
+
+  // The legacy catalog contains demo data and must not be reported as operational
+  // warehouse statistics. This route will be enabled after the verified catalog
+  // adapter is implemented.
+  return res.status(503).json({
+    success: false,
+    error: 'Verified catalog statistics are not available yet.',
+    code: 'CATALOG_STATS_UNAVAILABLE',
+  })
+}

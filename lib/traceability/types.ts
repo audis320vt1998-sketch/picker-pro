@@ -1,8 +1,14 @@
 export interface SourcePageRef {
   jobId: string
+  /**
+   * A response-local, non-identifying position for an OCR source document.
+   * It exists only when a manual-review request contains an opaque document
+   * reference, and never contains that reference, a filename, or customer
+   * information.
+   */
+  documentOrdinal?: number
   pageNumber: number
   pageId?: string
-  sourceFileName?: string
 }
 
 export interface SourceRowRef {

@@ -40,8 +40,11 @@
 
 ### 3.4 Rate Limiting
 
-- The `/api/process` endpoint enforces a rate limit per IP (configurable; default: 10 requests/minute).
-- The `/api/ai` endpoint enforces a stricter rate limit (default: 5 requests/minute) to control OpenAI API costs.
+- `/api/process` and `/api/ai` are currently disabled; both return a fixed,
+  non-cacheable `501` response and do not process request data.
+- IP-based rate limiting must be implemented and tested before either endpoint
+  is activated. No active endpoint claims a rate limit that is not present in
+  the code.
 
 ## 4. File Upload Security
 

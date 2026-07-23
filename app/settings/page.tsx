@@ -1,49 +1,65 @@
-'use client'
+import {
+  loadCityRouteCatalogReadiness,
+  loadVerifiedCatalog,
+  type CityRouteCatalogReadinessIssueCode,
+} from '@/lib/catalog'
+import CatalogOnboardingPreflight from '@/components/CatalogOnboardingPreflight'
 
-import React, { useState } from 'react'
+const settings = {
+  appName: 'Picker Pro',
+  exportFormat: 'csv',
+  theme: 'light',
+}
+
+const CITY_ROUTE_READINESS_TEXT: Record<
+  CityRouteCatalogReadinessIssueCode,
+  string
+> = {
+  CITY_CATALOG_INVALID: 'מבנה קטלוג הערים אינו תקין.',
+  ROUTE_CATALOG_INVALID: 'מבנה קטלוג קווי החלוקה אינו תקין.',
+  CITY_CATALOG_SAMPLE_ONLY: 'קטלוג הערים הוא נתון דוגמה בלבד.',
+  ROUTE_CATALOG_SAMPLE_ONLY: 'קטלוג קווי החלוקה הוא נתון דוגמה בלבד.',
+  DUPLICATE_CITY_ID: 'נמצאו מזהי עיר כפולים.',
+  DUPLICATE_ROUTE_ID: 'נמצאו מזהי קו חלוקה כפולים.',
+  ROUTE_CITY_CONFLICT: 'אותו קו חלוקה מצביע ליותר מעיר אחת.',
+  ROUTE_CITY_UNKNOWN: 'קו חלוקה מפנה לעיר שאינה קיימת בקטלוג.',
+  ROUTE_CITY_INACTIVE: 'קו חלוקה מפנה לעיר לא פעילה.',
+  NO_ACTIVE_CITIES: 'אין ערים פעילות בקטלוג.',
+  NO_ACTIVE_ROUTES: 'אין קווי חלוקה פעילים בקטלוג.',
+}
+
+function catalogVersionText(version: string | null): string {
+  return version ?? 'לא תקין'
+}
 
 export default function SettingsPage() {
-  const [settings, setSettings] = useState({
-    appName: 'Picker Pro',
-    debugMode: false,
-    exportFormat: 'csv',
-    theme: 'light',
-  })
-
-  const handleChange = (key: string, value: any) => {
-    setSettings((prev) => ({
-      ...prev,
-      [key]: value,
-    }))
-  }
-
-  const handleSave = () => {
-    console.log('Saving settings:', settings)
-    // TODO: Implement save to backend
-  }
+  const { readiness } = loadVerifiedCatalog()
+  const cityRouteReadiness = loadCityRouteCatalogReadiness()
 
   return (
     <main>
-      <h1>Settings</h1>
-      
-      <form style={{ maxWidth: '500px', marginTop: '2rem' }}>
+      <h1>הגדרות</h1>
+      <p role="status">
+        שמירת הגדרות עדיין אינה זמינה. הערכים להלן מוצגים לקריאה בלבד.
+      </p>
+
+      <fieldset disabled style={{ maxWidth: '500px', marginTop: '2rem' }}>
         <div style={{ marginBottom: '1rem' }}>
-          <label htmlFor="appName">Application Name:</label>
+          <label htmlFor="appName">שם היישום:</label>
           <input
             id="appName"
             type="text"
             value={settings.appName}
-            onChange={(e) => handleChange('appName', e.target.value)}
+            readOnly
             style={{ width: '100%', padding: '0.5rem', marginTop: '0.5rem' }}
           />
         </div>
 
         <div style={{ marginBottom: '1rem' }}>
-          <label htmlFor="exportFormat">Default Export Format:</label>
+          <label htmlFor="exportFormat">פורמט ייצוא ברירת מחדל:</label>
           <select
             id="exportFormat"
             value={settings.exportFormat}
-            onChange={(e) => handleChange('exportFormat', e.target.value)}
             style={{ width: '100%', padding: '0.5rem', marginTop: '0.5rem' }}
           >
             <option value="csv">CSV</option>
@@ -53,45 +69,92 @@ export default function SettingsPage() {
         </div>
 
         <div style={{ marginBottom: '1rem' }}>
-          <label htmlFor="theme">Theme:</label>
+          <label htmlFor="theme">ערכת צבעים:</label>
           <select
             id="theme"
             value={settings.theme}
-            onChange={(e) => handleChange('theme', e.target.value)}
             style={{ width: '100%', padding: '0.5rem', marginTop: '0.5rem' }}
           >
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
+            <option value="light">בהירה</option>
+            <option value="dark">כהה</option>
           </select>
         </div>
+      </fieldset>
 
-        <div style={{ marginBottom: '1rem' }}>
-          <label>
-            <input
-              type="checkbox"
-              checked={settings.debugMode}
-              onChange={(e) => handleChange('debugMode', e.target.checked)}
-            />
-            {' '}Enable Debug Mode
-          </label>
-        </div>
+      <section aria-labelledby="catalog-onboarding-heading" className="settings__catalog">
+        <h2 id="catalog-onboarding-heading">קטלוג מוצרים</h2>
+        <p className="settings__catalog-status" role="status">
+          קטלוג פעיל — גרסה {readiness.version}: {readiness.verifiedProducts}{' '}
+          מאומתים מתוך {readiness.totalProducts} פריטים;{' '}
+          {readiness.unverifiedProducts} ממתינים לאימות.
+        </p>
+        <p>
+          פריט לא מאומת אינו נכנס לסיכום תפעולי. הורדת התבנית אינה מעלה קובץ,
+          אינה משנה את הקטלוג ואינה מאשרת מוצר.
+        </p>
+        <a className="settings__download" href="/api/catalog/template">
+          הורד תבנית קטלוג CSV
+        </a>
+        <ul>
+          <li>
+            התבנית ריקה ומכילה רק את העמודות של רשומת מוצר בחוזה הקטלוג הפעיל.
+          </li>
+          <li>
+            מלא את השדה <code>verificationStatus</code> כ־<code>unverified</code>{' '}
+            עד לאימות אנושי מול קטלוג המחסן או ERP.
+          </li>
+          <li>
+            שמור ברקודים ומק&quot;טים כטקסט, וכתוב ערכי אמת/שקר כ־<code>true</code>{' '}
+            או <code>false</code>.
+          </li>
+          <li>
+            בשדה <code>aliases</code> השתמש במערך JSON, לדוגמה{' '}
+            <code>[&quot;שם חלופי&quot;]</code>.
+          </li>
+          <li>
+            לאחר הבדיקה יש להעביר את הקובץ לעדכון מבוקר של{' '}
+            <code>catalogs/products.json</code>; אין עדיין ייבוא מתוך המערכת.
+          </li>
+        </ul>
 
-        <button
-          type="button"
-          onClick={handleSave}
-          style={{
-            padding: '0.75rem 1.5rem',
-            backgroundColor: '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '1rem',
-          }}
+        <CatalogOnboardingPreflight />
+      </section>
+
+      <section aria-labelledby="city-route-catalog-heading" className="settings__catalog">
+        <h2 id="city-route-catalog-heading">ערים וקווי חלוקה</h2>
+        <p
+          className={
+            cityRouteReadiness.isReady
+              ? 'settings__catalog-status settings__catalog-status--ready'
+              : 'settings__catalog-status settings__catalog-status--blocked'
+          }
+          role="status"
         >
-          Save Settings
-        </button>
-      </form>
+          קטלוג ערים — גרסה {catalogVersionText(cityRouteReadiness.cityCatalogVersion)}:{' '}
+          {cityRouteReadiness.activeCities} פעילות מתוך {cityRouteReadiness.totalCities}.{' '}
+          קטלוג קווי חלוקה — גרסה{' '}
+          {catalogVersionText(cityRouteReadiness.routeCatalogVersion)}:{' '}
+          {cityRouteReadiness.activeRoutes} פעילים מתוך {cityRouteReadiness.totalRoutes}.
+        </p>
+        {cityRouteReadiness.isReady ? (
+          <p>
+            הקטלוגים עברו בדיקת מבנה בסיסית. שיוך עיר או קו להזמנה עדיין אינו
+            פעיל במסך הבדיקה.
+          </p>
+        ) : (
+          <>
+            <p>
+              קיבוץ לפי עיר או קו חלוקה עדיין אינו פעיל. יש להחליף את נתוני
+              הדוגמה בקטלוגים תפעוליים מאומתים לפני שמוסיפים בחירה או שיוך.
+            </p>
+            <ul>
+              {cityRouteReadiness.issues.map((issue) => (
+                <li key={issue}>{CITY_ROUTE_READINESS_TEXT[issue]}</li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
     </main>
   )
 }

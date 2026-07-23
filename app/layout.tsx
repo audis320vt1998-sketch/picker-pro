@@ -3,7 +3,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Picker Pro',
-  description: 'OCR-based product picker and data processing application',
+  description: 'כלי ליקוט עם הפרדה בין מארזים ובודדים',
 }
 
 export default function RootLayout({
@@ -12,7 +12,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="he" dir="rtl">
       <body>{children}</body>
     </html>
   )

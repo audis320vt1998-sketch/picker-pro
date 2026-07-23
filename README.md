@@ -1,132 +1,159 @@
 # Picker Pro
 
-**Picker Pro** is an OCR-powered, Hebrew-aware order-picking and product-aggregation platform built with **Next.js 14** and **TypeScript**. It digitises physical order sheets, aggregates quantities by product key (barcode → SKU → normalised name), and exports results per city and delivery route.
+Picker Pro is a Hebrew-first order-picking application built with Next.js and
+TypeScript. Its current working workflow is a safe, non-persistent **manual
+review** of order rows.
 
-## Core Business Rules
+## Current status
 
-1. Aggregate repeated products across all pages by product key (barcode → SKU → normalised name).
-2. Keep **cases** and **individual units** as separate totals — never combine them.
-3. Product names containing `(6)`, `(8)`, `(9)`, `(12)`, `(18)`, `(24)` allow individual-unit picking according to product rules.
-4. Product names containing `1/8`, `1/12`, `1/20`, `1/24` are **full-case only**.
-5. Barcode is the highest-priority identifier; then SKU; then normalised name and aliases.
-6. City and delivery route are separate fields — group first by city, then by delivery route.
-7. Every reported number must be traceable to its original page and source row.
-8. Never guess when verified data exists.
-9. All business rules are versioned and configurable.
-10. Product catalog rules (`caseOnly`, `allowUnitPicking`) override name-based heuristics (rules 3–4) when a catalog entry is resolved.
+Available now:
 
-## Features
+- A Hebrew right-to-left manual-review screen at `/review`.
+- Explicit, separate input fields for cases and individual units.
+- A read-only catalog status on `/settings`, a UTF-8 CSV handoff template,
+  and a temporary structural check for a completed CSV. The check never saves,
+  imports, or verifies catalog entries and returns no uploaded product values.
+- A read-only city/route catalog-readiness notice on `/settings`. It reports
+  only fixed configuration problems and counts; it does not expose catalog
+  entries, offer city selection, or assign a route to an order.
+- A camera-first, browser-provided direct-camera chooser for one document image
+  at `/upload`, with a local preview and an advisory browser-only size/type
+  check before OCR, including after an image replacement. The check does not
+  upload, store, or inspect OCR text; it uses the same dimensions and pixel
+  limit as the server and still requires a human check for focus and shadows.
+  An explicit confirmation is required
+  before a new source choice (camera capture, image batch, or PDF) replaces
+  existing browser-held work. It does not upload or process the image until
+  the reviewer explicitly starts OCR.
+- A browser-only batch at `/upload` for up to 20 Maayan images, or one
+  multi-page PDF of up to 20 pages. It processes one page at a time and returns only transient, review-required table
+  drafts with stable page numbers. Before OCR, the reviewer can reorder or
+  remove generic page positions without seeing a file name; the final local
+  order becomes the page numbering. The browser gives an early rejection for
+  unsupported, empty, or oversized images, while the server remains the
+  authoritative boundary. A failed page can be retried only by explicit user
+  action when OCR is temporarily busy, timed out, or unavailable; it never
+  retries automatically. A reviewer can explicitly replace only one logical
+  page with a clearer photo, then separately request OCR again without
+  discarding drafts from the other pages.
+- An opt-in, temporary source-image preview beside each draft, so a reviewer
+  can compare a row with the selected image before handoff. Only one preview
+  is open at a time; it may show the original document or customer details,
+  stays in browser memory, and is never included in the OCR result or review
+  handoff.
+- For a sufficiently clear Maayan close-up, a calibrated OCR pass can recover
+  repeated SKU/barcode/quantity rows and scan the bounded product-name column
+  for each calibrated row. An unreadable name stays blank for review; the pass
+  never creates totals, resolves the catalog, or fills manual quantities.
+- Each displayed OCR field carries its own confidence value. A field below the
+  review threshold is marked for source-document verification; it never
+  changes a quantity, accepts a row, or creates a pick list.
+- When low-confidence fields exist, `/upload` offers a temporary browser-only
+  review list and filter for those rows. It is not a stored review queue and
+  is cleared with the current OCR selection.
+- A one-time, browser-only handoff of explicitly checked OCR identifiers to
+  `/review`; source quantities initially remain comparison-only and the manual
+  case/unit fields stay blank. A reviewer may explicitly request a compact,
+  non-persistent packing suggestion only when three separate source fields, an
+  approved source marker, and the verified catalog all agree; the suggestion
+  cannot change a field until the reviewer explicitly applies it.
+- An opaque source reference per logical document page prevents the same OCR
+  document/page/row from being submitted twice. A clearer replacement photo
+  of that page retains the reference, while an unrelated page needs a new
+  batch. No file name or document header is retained in that reference; the
+  manual-review API rejects source filenames and other unrecognized row
+  metadata.
+- Product resolution in the order barcode → SKU → canonical name → alias.
+- Source traceability for every accepted quantity (page and row), with an
+  expandable results view that separates case sources from individual-unit
+  sources. When several OCR documents use the same page and row, a
+  response-local document number distinguishes them without exposing an opaque
+  reference, document text, or file information.
+- Validation for unresolved, conflicting, unverified, and case-only products.
+- Aggregation that never converts or merges cases and units.
 
-| Feature | Details |
-|---|---|
-| Hebrew OCR | Tesseract.js with Hebrew (`heb`) language pack |
-| Input methods | Direct phone-camera capture · image upload · PDF upload |
-| Mobile experience | Installable PWA (future Capacitor wrapper option) |
-| Offline recovery | Job state persisted locally; resumed on reconnect |
-| Validation & review | Rule-based validation queue with manual override |
-| Export | Excel (XLSX) · PDF · Print view — all scoped per city |
-| Traceability | Every value linked to original page + row |
+Not available yet:
 
-## Project Structure
+- Automatic pick-list creation from an image or PDF.
+- Stored jobs, a persistent review queue, exports, operational city/route
+  grouping, or AI assistance.
+- Automatic catalog verification or ERP synchronization.
 
-```
-picker-pro/
-├── app/                    # Next.js App Router
-│   ├── upload/             # Camera / file upload workflows
-│   ├── results/            # Processed results views
-│   ├── settings/           # Runtime configuration
-│   └── api/                # Server-side API routes
-├── components/             # Reusable React components
-├── lib/                    # Domain service modules
-│   ├── ocr/                # Hebrew OCR extraction (Tesseract.js)
-│   ├── parser/             # Structured-value parser
-│   ├── rules/              # Versioned business-rules engine
-│   ├── aggregator/         # Cross-page product aggregation
-│   ├── calculator/         # Case/unit calculation engine
-│   ├── export/             # XLSX / PDF / print export
-│   ├── catalog/            # Product / city / route catalogs
-│   ├── engine/             # Orchestration engines
-│   ├── ai/                 # OpenAI-assisted OCR correction
-│   └── database/           # Persistence abstraction
-├── catalogs/               # JSON reference catalogs
-│   ├── products.json
-│   ├── cities.json
-│   ├── delivery_routes.json
-│   ├── rules.json
-│   └── ocr_dictionary.json
-├── docs/                   # Full documentation suite
-├── data/                   # Static seed data
-└── [config files]
-```
+The canonical file [`catalogs/products.json`](./catalogs/products.json) is
+loaded and validated at runtime. Version 1.3.0 contains 124 verified products
+from the complete catalog supplied for this project. An exact barcode or SKU
+match can therefore enter an operational manual-review total; unrecognized,
+conflicting, or disallowed unit rows still remain in review.
 
-## Getting Started
+See [Current Status](./docs/00_Current_Status.md) for the precise operating
+boundary and [Legacy Module Isolation](./docs/23_Legacy_Module_Isolation.md)
+for code that is deliberately outside the active build.
 
-### Prerequisites
+## Operating rules
 
-- Node.js 18+
-- npm
+1. Cases and individual units are separate source fields and separate totals.
+2. An OCR source quantity is never copied automatically into a manual case or
+   individual-unit field. The only exception is an explicit, non-persistent
+   reviewer action that applies a displayed suggestion after the source marker
+   and verified catalog agree; it never overwrites manually entered values.
+   The active rule configuration recognizes case-only `1/8`, `1/12`, `1/20`,
+   and `1/24` markers, and parenthesized pack sizes from `8` through `24` for
+   individual picking. Any other marker or conflict remains in review.
+3. Barcode has priority, followed by SKU, name, and alias. A product with a
+   catalog barcode is not resolved by name alone.
+   Name and alias comparison only normalizes presentation variants (Hebrew
+   marks, whitespace, dash, quote, and Latin case); it never uses fuzzy
+   matching or changes an identifier.
+4. Only a `verified` catalog match can enter an operational total.
+5. A case-only product, or a product that does not allow unit picking, is sent
+   to review if it has a positive individual-unit value.
+6. For an individual-unit product with a positive catalog case size, an entered
+   unit quantity at or above that size stays in the unit total and is flagged
+   for non-blocking review; it is never converted into cases.
+7. Every accepted value retains its source page and row.
 
-### Installation
+## Run locally
 
 ```bash
-git clone https://github.com/audis320vt1998-sketch/picker-pro.git
-cd picker-pro
 npm install
-cp .env.example .env.local
 npm run dev
 ```
 
-The development server starts at `http://localhost:3000`.
+Open `http://localhost:3000/upload` for OCR preflight, or
+`http://localhost:3000/review` for explicit manual review.
 
-## Available Scripts
+PDF preflight additionally requires local Poppler commands `pdfinfo` and
+`pdftoppm` on the server PATH. Set `PICKER_PRO_PDFINFO_PATH` and
+`PICKER_PRO_PDFTOPPM_PATH` when they are installed elsewhere.
+
+## Verify
 
 ```bash
-npm run dev     # Development server with hot-reload
-npm run build   # Production build
-npm start       # Start production server
-npm run lint    # ESLint via Next.js
-npm test        # Jest test suite
+npm test
+npm run lint
+npx tsc --noEmit
+npm run build
 ```
 
-## Documentation
+## Active structure
 
-See the [`docs/`](./docs/) directory for the full documentation suite:
+```text
+app/
+  review/                 Manual-review screen
+  api/intake/preflight/   One-image OCR draft endpoint
+  api/manual-review/      Non-persistent validation and packing-suggestion APIs
+catalogs/products.json    Canonical product catalog
+catalogs/picking-rules.json  Approved review-suggestion rules
+lib/catalog/              Verified catalog loader and resolver
+lib/foundation/           Explicit-row processing and aggregation
+lib/document-intake/      Maayan profile, OCR preflight, and source parser
+lib/manual-review/        Request-to-result workflow
+```
 
-| # | Document |
-|---|---|
-| 01 | [Executive Summary](./docs/01_Executive_Summary.md) |
-| 02 | [Business Requirements](./docs/02_Business_Requirements.md) |
-| 03 | [Software Design Specification](./docs/03_Software_Design_Specification.md) |
-| 04 | [System Architecture](./docs/04_System_Architecture.md) |
-| 05 | [OCR Engine](./docs/05_OCR_Engine.md) |
-| 06 | [Parser Engine](./docs/06_Parser_Engine.md) |
-| 07 | [Product Engine](./docs/07_Product_Engine.md) |
-| 08 | [Rules Engine](./docs/08_Rules_Engine.md) |
-| 09 | [Calculator Engine](./docs/09_Calculator_Engine.md) |
-| 10 | [Aggregator Engine](./docs/10_Aggregator_Engine.md) |
-| 11 | [City Engine](./docs/11_City_Engine.md) |
-| 12 | [Delivery Route Engine](./docs/12_Delivery_Route_Engine.md) |
-| 13 | [Validation Engine](./docs/13_Validation_Engine.md) |
-| 14 | [Export Engine](./docs/14_Export_Engine.md) |
-| 15 | [Database Design](./docs/15_Database_Design.md) |
-| 16 | [User Interface](./docs/16_User_Interface.md) |
-| 17 | [Testing](./docs/17_Testing.md) |
-| 18 | [Deployment](./docs/18_Deployment.md) |
-| 19 | [Security](./docs/19_Security.md) |
-| 20 | [Developer Guide](./docs/20_Developer_Guide.md) |
-| 21 | [User Manual](./docs/21_User_Manual.md) |
-| 22 | [Roadmap](./docs/22_Roadmap.md) |
-
-Reference catalogs are in [`catalogs/`](./catalogs/).
-
-## Environment Variables
-
-See [`.env.example`](./.env.example) for all required variables.
+The numbered design documents in [`docs/`](./docs/) describe the target
+architecture. Consult the Current Status document before treating a feature in
+those documents as implemented.
 
 ## License
 
 MIT
-
-## Author
-
-[audis320vt1998-sketch](https://github.com/audis320vt1998-sketch)

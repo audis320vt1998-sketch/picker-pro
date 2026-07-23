@@ -598,6 +598,40 @@ nav a:hover {
   padding: 0.75rem;
 }
 
+.document-preflight__low-confidence-review {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 0.5rem;
+  color: #78350f;
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1rem;
+  max-width: 48rem;
+  padding: 0.9rem;
+}
+
+.document-preflight__low-confidence-review h3 {
+  color: #78350f;
+  font-size: 1rem;
+}
+
+.document-preflight__low-confidence-review p {
+  line-height: 1.55;
+}
+
+.document-preflight__low-confidence-filter {
+  align-items: center;
+  display: flex;
+  font-weight: 700;
+  gap: 0.55rem;
+  min-height: 2.75rem;
+}
+
+.document-preflight__low-confidence-filter input {
+  block-size: 1.1rem;
+  inline-size: 1.1rem;
+}
+
 .document-preflight .manual-review__result h2:focus {
   outline: 3px solid #f59e0b;
   outline-offset: 4px;

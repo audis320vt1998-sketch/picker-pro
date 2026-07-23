@@ -1,3 +1,5 @@
+import { normalizeCatalogProductName } from './product-name-normalization'
+
 export type CatalogVerificationStatus = 'verified' | 'unverified'
 
 export interface VerifiedCatalogProduct {
@@ -54,15 +56,6 @@ const RESOLUTION_PRIORITY: readonly ProductResolutionMethod[] = [
   'canonical_name',
   'alias',
 ]
-
-function normalizeName(value: string): string {
-  return value
-    .normalize('NFKC')
-    .replace(/[\u0591-\u05c7]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLocaleLowerCase('he')
-}
 
 function normalizeIdentifier(value: string): string {
   return value.trim()
@@ -125,7 +118,9 @@ export class VerifiedProductCatalog {
     const matches: Match[] = []
     const barcode = input.barcode ? normalizeIdentifier(input.barcode) : null
     const sku = input.sku ? normalizeIdentifier(input.sku) : null
-    const productName = input.productName ? normalizeName(input.productName) : null
+    const productName = input.productName
+      ? normalizeCatalogProductName(input.productName)
+      : null
 
     for (const product of this.products) {
       const catalogBarcode = product.barcode
@@ -146,7 +141,7 @@ export class VerifiedProductCatalog {
       if (
         productName &&
         !catalogBarcode &&
-        normalizeName(product.name) === productName
+        normalizeCatalogProductName(product.name) === productName
       ) {
         matches.push({ product, method: 'canonical_name' })
       }
@@ -154,7 +149,9 @@ export class VerifiedProductCatalog {
       if (
         productName &&
         !catalogBarcode &&
-        product.aliases.some((alias) => normalizeName(alias) === productName)
+        product.aliases.some(
+          (alias) => normalizeCatalogProductName(alias) === productName
+        )
       ) {
         matches.push({ product, method: 'alias' })
       }

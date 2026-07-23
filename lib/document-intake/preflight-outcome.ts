@@ -3,6 +3,7 @@ import {
   type OcrPreflightBatchPage,
   upsertOcrPreflightBatchPage,
 } from './preflight-batch'
+import type { DocumentPreflightRow } from './types'
 
 /**
  * One selected source image can have exactly one visible outcome. Keeping
@@ -18,6 +19,48 @@ export interface OcrPreflightBatchFailure {
 export interface OcrPreflightBatchOutcome {
   pages: readonly OcrPreflightBatchPage[]
   failures: readonly OcrPreflightBatchFailure[]
+}
+
+export interface LowConfidenceOcrPreflightReviewSummary {
+  rowCount: number
+  fieldCount: number
+  pageNumbers: readonly number[]
+}
+
+/**
+ * A low-confidence issue stays a review hint only. This helper lets the
+ * browser create a temporary, non-persistent review list without inspecting
+ * source text or turning an OCR draft into an operational quantity.
+ */
+export function hasLowConfidenceOcrPreflightRow(
+  row: DocumentPreflightRow
+): boolean {
+  return row.issues.some((issue) => issue.code === 'LOW_FIELD_CONFIDENCE')
+}
+
+export function summarizeLowConfidenceOcrPreflightReview(
+  pages: readonly OcrPreflightBatchPage[]
+): LowConfidenceOcrPreflightReviewSummary {
+  const reviewRows = pages.flatMap(({ page }) =>
+    page.rows.filter(hasLowConfidenceOcrPreflightRow)
+  )
+
+  return {
+    rowCount: reviewRows.length,
+    fieldCount: reviewRows.reduce(
+      (count, row) =>
+        count +
+        row.issues.filter((issue) => issue.code === 'LOW_FIELD_CONFIDENCE').length,
+      0
+    ),
+    pageNumbers: [
+      ...new Set(
+        pages
+          .filter(({ page }) => page.rows.some(hasLowConfidenceOcrPreflightRow))
+          .map(({ page }) => page.pageNumber)
+      ),
+    ],
+  }
 }
 
 export function createOcrPreflightBatchOutcome(): OcrPreflightBatchOutcome {

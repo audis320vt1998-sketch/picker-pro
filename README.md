@@ -44,6 +44,9 @@ Available now:
 - Each displayed OCR field carries its own confidence value. A field below the
   review threshold is marked for source-document verification; it never
   changes a quantity, accepts a row, or creates a pick list.
+- When low-confidence fields exist, `/upload` offers a temporary browser-only
+  review list and filter for those rows. It is not a stored review queue and
+  is cleared with the current OCR selection.
 - A one-time, browser-only handoff of explicitly checked OCR identifiers to
   `/review`; source quantities are comparison-only and the manual case/unit
   fields remain blank.
@@ -85,6 +88,9 @@ for code that is deliberately outside the active build.
    individual-unit field.
 3. Barcode has priority, followed by SKU, name, and alias. A product with a
    catalog barcode is not resolved by name alone.
+   Name and alias comparison only normalizes presentation variants (Hebrew
+   marks, whitespace, dash, quote, and Latin case); it never uses fuzzy
+   matching or changes an identifier.
 4. Only a `verified` catalog match can enter an operational total.
 5. A case-only product, or a product that does not allow unit picking, is sent
    to review if it has a positive individual-unit value.

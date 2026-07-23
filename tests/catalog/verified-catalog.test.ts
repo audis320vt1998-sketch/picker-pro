@@ -31,6 +31,20 @@ const unverifiedProduct: VerifiedCatalogProduct = {
   active: true,
 }
 
+const normalizedNameProduct: VerifiedCatalogProduct = {
+  productKey: 'normalized-name-product',
+  barcode: null,
+  sku: null,
+  verificationStatus: 'verified',
+  name: 'Little Moons מוצ’י',
+  aliases: ['האגן־דאז'],
+  allowUnitPicking: true,
+  caseOnly: false,
+  unitSize: 1,
+  caseSize: null,
+  active: true,
+}
+
 describe('VerifiedProductCatalog', () => {
   it('uses barcode before every other exact identifier', () => {
     const catalog = new VerifiedProductCatalog([verifiedProduct])
@@ -63,6 +77,40 @@ describe('VerifiedProductCatalog', () => {
 
     expect(catalog.resolve({ productName: 'Verified Prodct' })).toEqual({
       status: 'unresolved',
+    })
+  })
+
+  it('matches only normalized presentation variants for a product without a barcode', () => {
+    const catalog = new VerifiedProductCatalog([normalizedNameProduct])
+
+    expect(
+      catalog.resolve({ productName: " little  moons  מוצ'י " })
+    ).toEqual({
+      status: 'resolved',
+      product: normalizedNameProduct,
+      resolvedBy: 'canonical_name',
+    })
+    expect(catalog.resolve({ productName: 'הָאַגָּן-דאז' })).toEqual({
+      status: 'resolved',
+      product: normalizedNameProduct,
+      resolvedBy: 'alias',
+    })
+  })
+
+  it('reports a conflict when two barcode-free names normalize to the same value', () => {
+    const catalog = new VerifiedProductCatalog([
+      normalizedNameProduct,
+      {
+        ...normalizedNameProduct,
+        productKey: 'normalized-name-conflict',
+        name: "little moons מוצ'י",
+        aliases: [],
+      },
+    ])
+
+    expect(catalog.resolve({ productName: 'Little Moons מוצ’י' })).toMatchObject({
+      status: 'conflict',
+      matchedBy: ['canonical_name'],
     })
   })
 

@@ -16,6 +16,7 @@ import {
   documentPreflightRowIssueText,
   getPreflightFileSelectionIssue,
   getPdfPreflightFileSelectionIssue,
+  hasLowConfidenceOcrPreflightRow,
   isRetryablePreflightFailure,
   MAX_PREFLIGHT_BATCH_IMAGES,
   moveOcrPreflightSelectionItem,
@@ -32,6 +33,7 @@ import {
   recordOcrPreflightBatchSuccess,
   requiresSourceSelectionReplacementConfirmation,
   shouldFocusCompletedOcrPreflightResult,
+  summarizeLowConfidenceOcrPreflightReview,
   upsertOcrPreflightReplacementSlot,
   type DocumentPreflightIssue,
   type DocumentPreflightResult,
@@ -589,6 +591,7 @@ export default function DocumentPreflightWorkspace() {
     useState<ActiveLocalPreview | null>(null)
   const [selectedRowKeys, setSelectedRowKeys] = useState<Record<string, boolean>>({})
   const [hasConfirmedSourceCheck, setHasConfirmedSourceCheck] = useState(false)
+  const [showOnlyLowConfidenceRows, setShowOnlyLowConfidenceRows] = useState(false)
   const preflightActionLock = useRef(false)
   const sourceSelectionConfirmationRef = useRef<HTMLElement>(null)
   const resultHeadingRef = useRef<HTMLHeadingElement>(null)
@@ -610,6 +613,7 @@ export default function DocumentPreflightWorkspace() {
     outcome,
     isSubmitting
   )
+  const lowConfidenceReviewSummary = summarizeLowConfidenceOcrPreflightReview(pages)
 
   const previewedFile = previewedSource
     ? files.find(
@@ -644,6 +648,12 @@ export default function DocumentPreflightWorkspace() {
     }
   }, [pendingSourceSelection])
 
+  useEffect(() => {
+    if (showOnlyLowConfidenceRows && lowConfidenceReviewSummary.rowCount === 0) {
+      setShowOnlyLowConfidenceRows(false)
+    }
+  }, [lowConfidenceReviewSummary.rowCount, showOnlyLowConfidenceRows])
+
   const resetDraftAfterSelectionChange = () => {
     setError(null)
     setOutcome(null)
@@ -652,6 +662,7 @@ export default function DocumentPreflightWorkspace() {
     setActiveLocalPreview(null)
     setSelectedRowKeys({})
     setHasConfirmedSourceCheck(false)
+    setShowOnlyLowConfidenceRows(false)
     setPdfFile(null)
     setPdfPageSourceRefs([])
     setSourceSelectionKind(null)
@@ -1420,6 +1431,33 @@ export default function DocumentPreflightWorkspace() {
             הידנית. ודאות ה־OCR היא סימן טכני בלבד ואינה מאשרת נכונות של שדה כלשהו.
           </p>
 
+          {lowConfidenceReviewSummary.rowCount > 0 && (
+            <section
+              aria-labelledby="document-preflight-low-confidence-title"
+              className="document-preflight__low-confidence-review"
+            >
+              <h3 id="document-preflight-low-confidence-title">
+                רשימת בדיקות OCR זמנית
+              </h3>
+              <p>
+                נמצאו {lowConfidenceReviewSummary.fieldCount} שדות בעלי ודאות נמוכה
+                ב־{lowConfidenceReviewSummary.rowCount} שורות בעמודים{' '}
+                {lowConfidenceReviewSummary.pageNumbers.join(', ')}. הרשימה נשארת
+                בדפדפן בלבד ונמחקת בהחלפת הבחירה או בעזיבת המסך.
+              </p>
+              <label className="document-preflight__low-confidence-filter">
+                <input
+                  checked={showOnlyLowConfidenceRows}
+                  onChange={(event) =>
+                    setShowOnlyLowConfidenceRows(event.target.checked)
+                  }
+                  type="checkbox"
+                />
+                <span>הצג רק שורות עם ודאות OCR נמוכה</span>
+              </label>
+            </section>
+          )}
+
           {pendingReplacementPages.map((replacementSlot) => {
             const { pageNumber, sourceDocumentRef } = replacementSlot
             const sourceImage =
@@ -1527,6 +1565,9 @@ export default function DocumentPreflightWorkspace() {
             const isPreviewVisible =
               previewedSource?.pageNumber === page.pageNumber &&
               previewedSource.sourceDocumentRef === sourceDocumentRef
+            const visibleRows = showOnlyLowConfidenceRows
+              ? page.rows.filter(hasLowConfidenceOcrPreflightRow)
+              : page.rows
 
             return (
               <div className="document-preflight__page" key={sourceDocumentRef}>
@@ -1577,7 +1618,7 @@ export default function DocumentPreflightWorkspace() {
                     />
                   )}
 
-                  {page.rows.length > 0 && (
+                  {visibleRows.length > 0 && (
                     <div className="manual-review__table-wrapper document-preflight__table-wrapper">
                       <table className="document-preflight__ocr-table">
                         <caption className="document-preflight__ocr-table-caption document-preflight__sr-only">
@@ -1599,7 +1640,7 @@ export default function DocumentPreflightWorkspace() {
                           </tr>
                         </thead>
                         <tbody>
-                          {page.rows.map((row) => {
+                          {visibleRows.map((row) => {
                             const key = rowKey(page.pageNumber, row)
                             const transferable = canTransferRow(row, sourceDocumentRef)
                             const transferBlockReason = ocrManualReviewHandoffBlockReason({
@@ -1730,6 +1771,13 @@ export default function DocumentPreflightWorkspace() {
                       </table>
                     </div>
                   )}
+                  {showOnlyLowConfidenceRows &&
+                    page.rows.length > 0 &&
+                    visibleRows.length === 0 && (
+                      <p className="document-preflight__selected" role="status">
+                        אין בעמוד זה שורות עם ודאות OCR נמוכה.
+                      </p>
+                    )}
                 </div>
               </div>
             )

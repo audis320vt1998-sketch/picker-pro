@@ -55,10 +55,12 @@ export {
 export { assessLocalCameraCaptureReadiness } from './camera-capture-readiness'
 export {
   createOcrPreflightBatchOutcome,
+  hasLowConfidenceOcrPreflightRow,
   removeOcrPreflightBatchOutcomeSource,
   recordOcrPreflightBatchFailure,
   recordOcrPreflightBatchSuccess,
   shouldFocusCompletedOcrPreflightResult,
+  summarizeLowConfidenceOcrPreflightReview,
 } from './preflight-outcome'
 export {
   removeOcrPreflightPageRowSelections,
@@ -102,6 +104,7 @@ export type { OcrPreflightBatchPage } from './preflight-batch'
 export type {
   OcrPreflightBatchFailure,
   OcrPreflightBatchOutcome,
+  LowConfidenceOcrPreflightReviewSummary,
 } from './preflight-outcome'
 export type { OcrPreflightReplacementSlot } from './preflight-replacement'
 export type {

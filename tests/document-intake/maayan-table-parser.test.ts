@@ -102,6 +102,34 @@ describe('parseMaayanTable', () => {
     )
   })
 
+  it('keeps split source numbers in their separate geometric columns', () => {
+    const rows = parseMaayanTable(
+      [
+        word('1', 950, 200),
+        word('92101', 840, 200),
+        word('07290020531001', 690, 200),
+        word('מוצר', 620, 200),
+        word('3', 250, 200),
+        word('1', 170, 200),
+        word('3', 90, 200),
+      ],
+      layout
+    )
+
+    expect(rows[0]).toEqual(
+      expect.objectContaining({
+        rawQuantities: {
+          caseQuantity: 3,
+          unitsPerCase: 1,
+          totalUnits: 3,
+        },
+      })
+    )
+    expect(rows[0]?.issues).not.toContainEqual(
+      expect.objectContaining({ code: 'AMBIGUOUS_NUMERIC_FIELD' })
+    )
+  })
+
   it('adds a wrapped product-name line to its anchored row without changing quantities', () => {
     const rows = parseMaayanTable(
       [

@@ -24,6 +24,12 @@ quantities, OCR checks, and transfer selection. When OCR completes, focus
 moves to the result heading and a short status announces the outcome; the full
 OCR table is not placed in a live region.
 
+When one or more fields have low OCR confidence, the upload result also shows
+a temporary browser-only review list and can filter the visible rows to those
+items. It is derived only from fixed parser issue codes, contains no source
+text, and is cleared when the selection changes or the page is left; it is not
+a stored review queue.
+
 Before OCR begins, the reviewer can see generic page positions only, move a
 selected image up or down, or remove it from the batch. This changes only the
 browser-held selection: the opaque source reference remains with its selected
@@ -195,6 +201,9 @@ quantity value for each reference.
 - Identifier priority is barcode, SKU, canonical name, then alias.
 - Name/alias matching is disabled for a catalog product that already has a
   barcode, preventing a name-only match from bypassing that identifier.
+- For products without a catalog barcode, name/alias comparison normalizes
+  only Hebrew marks, whitespace, dashes, quote variants, and Latin case. It
+  never transliterates, guesses, or fuzzy-matches a product name.
 - An `unverified` record produces a `PRODUCT_UNVERIFIED` review issue.
 - The active catalog is version 1.3.0 with 124 verified records imported from
   the complete user-supplied product catalog. Exact barcode/SKU matches can

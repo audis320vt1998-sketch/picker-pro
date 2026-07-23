@@ -14,6 +14,8 @@ export {
   type VerifiedCatalogProduct,
 } from './verified-catalog'
 
+export { normalizeCatalogProductName } from './product-name-normalization'
+
 export {
   loadVerifiedCatalog,
   VerifiedCatalogConfigurationError,

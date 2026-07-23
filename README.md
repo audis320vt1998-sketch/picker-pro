@@ -38,9 +38,10 @@ Available now:
   is open at a time; it may show the original document or customer details,
   stays in browser memory, and is never included in the OCR result or review
   handoff.
-- For a sufficiently clear Maayan close-up, a calibrated numeric OCR pass can
-  recover repeated SKU/barcode/quantity rows as a review-only draft. It never
-  creates totals, resolves the catalog, or fills manual quantities.
+- For a sufficiently clear Maayan close-up, a calibrated OCR pass can recover
+  repeated SKU/barcode/quantity rows and scan the bounded product-name column
+  for each calibrated row. An unreadable name stays blank for review; the pass
+  never creates totals, resolves the catalog, or fills manual quantities.
 - Each displayed OCR field carries its own confidence value. A field below the
   review threshold is marked for source-document verification; it never
   changes a quantity, accepts a row, or creates a pick list.

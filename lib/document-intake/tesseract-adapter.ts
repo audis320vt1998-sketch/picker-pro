@@ -4,11 +4,13 @@ import { join } from 'node:path'
 import Tesseract from 'tesseract.js'
 import type { ImageDimensions } from './image-metadata'
 import {
+  groupTargetedProductNameWords,
   hasEnoughTargetedRows,
   recoverTargetedMaayanRows,
   selectTargetedQuantityCenters,
   selectTargetedSkuCalibration,
   targetedBarcodeRectangle,
+  targetedProductNameRectangle,
   targetedPrintedRowRectangle,
   targetedQuantityRectangle,
   targetedQuantityScoutRectangle,
@@ -18,6 +20,7 @@ import {
 import type { MaayanParsedRow, OcrPage, OcrWord } from './types'
 
 const TARGETED_RECOVERY_BUDGET_MS = 35_000
+const TARGETED_PRODUCT_NAME_MINIMUM_REMAINING_MS = 8_000
 const MAX_TARGETED_ROW_ATTEMPTS = 12
 
 export class OcrImageDecodeError extends Error {
@@ -73,6 +76,13 @@ function hasBudget(startedAt: number): boolean {
   return Date.now() - startedAt < TARGETED_RECOVERY_BUDGET_MS
 }
 
+function hasProductNamePassBudget(startedAt: number): boolean {
+  return (
+    Date.now() - startedAt <
+    TARGETED_RECOVERY_BUDGET_MS - TARGETED_PRODUCT_NAME_MINIMUM_REMAINING_MS
+  )
+}
+
 async function recognizeNumericRectangle(
   worker: Tesseract.Worker,
   image: Buffer,
@@ -83,6 +93,21 @@ async function recognizeNumericRectangle(
   await worker.setParameters({
     tessedit_pageseg_mode: psm,
     tessedit_char_whitelist: whitelist,
+  })
+  const result = await worker.recognize(image, { rectangle }, { blocks: true })
+  return toOcrWords(result)
+}
+
+async function recognizeProductNameRectangle(
+  worker: Tesseract.Worker,
+  image: Buffer,
+  rectangle: OcrRectangle
+): Promise<OcrWord[]> {
+  await worker.setParameters({
+    tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT,
+    // Numeric calibration sets a restrictive whitelist. Clear it before the
+    // Hebrew/English product-name pass so only the bounded name column is read.
+    tessedit_char_whitelist: '',
   })
   const result = await worker.recognize(image, { rectangle }, { blocks: true })
   return toOcrWords(result)
@@ -182,8 +207,33 @@ async function tryTargetedMaayanRecovery(
     )
   }
 
+  // Product names are informative OCR draft fields only. A failed or expired
+  // text pass must not discard the already traceable numeric draft; missing
+  // names remain explicit review issues instead of guessed values.
+  let productNameWords: OcrWord[] = []
+  if (hasProductNamePassBudget(startedAt)) {
+    try {
+      await worker.reinitialize('heb+eng')
+      if (hasProductNamePassBudget(startedAt)) {
+        productNameWords = await recognizeProductNameRectangle(
+          worker,
+          image,
+          targetedProductNameRectangle(dimensions, calibration)
+        )
+      }
+    } catch (error) {
+      if (isImageDecodeFailure(error)) {
+        throw new OcrImageDecodeError()
+      }
+    }
+  }
+
   const recoveredRows = recoverTargetedMaayanRows(calibration, {
     barcodeWordsByAnchor,
+    productNameWordsByAnchor: groupTargetedProductNameWords(
+      calibration,
+      productNameWords
+    ),
     printedRowWords,
     quantityWords,
   })

@@ -1,10 +1,12 @@
 import type { OcrPage, OcrWord } from '../../lib/document-intake'
 import {
+  groupTargetedProductNameWords,
   hasEnoughTargetedRows,
   recoverTargetedMaayanRows,
   selectTargetedQuantityCenters,
   selectTargetedSkuCalibration,
   targetedBarcodeRectangle,
+  targetedProductNameRectangle,
   targetedQuantityRectangle,
   targetedSkuScanRectangle,
 } from '../../lib/document-intake/maayan-targeted-recovery'
@@ -67,6 +69,33 @@ describe('Maayan targeted numeric recovery', () => {
     expect(targetedQuantityRectangle(page, calibration, centers!, 'totalUnits')).toEqual(
       expect.objectContaining({ left: 80, width: 90 })
     )
+  })
+
+  it('scans only the calibrated product-name column and assigns each word to one SKU row', () => {
+    const calibration = selectTargetedSkuCalibration(page, skuWords())!
+    const grouped = groupTargetedProductNameWords(calibration, [
+      word('טורבו', 540, rowYs[0], 81),
+      word('וניל', 450, rowYs[0], 82),
+      // A cropped edge can touch a barcode column; it is never name text.
+      word('07290020531001', 650, rowYs[0], 91),
+      word('גלידת', 540, rowYs[1], 90),
+      word('שוקולד', 440, rowYs[1], 92),
+      // Exactly between the first two rows: do not choose a SKU row for it.
+      word('לא-משויך', 500, 575, 88),
+    ])
+
+    expect(targetedProductNameRectangle(page, calibration)).toEqual({
+      left: 390,
+      top: 420,
+      width: 280,
+      height: 630,
+    })
+    expect(grouped.map((row) => row.map((candidate) => candidate.text))).toEqual([
+      ['טורבו', 'וניל'],
+      ['גלידת', 'שוקולד'],
+      [],
+      [],
+    ])
   })
 
   it('recovers only rows with one barcode and all three explicit source quantities', () => {
@@ -136,5 +165,61 @@ describe('Maayan targeted numeric recovery', () => {
     expect(rows[0]?.issues).toContainEqual(
       expect.objectContaining({ code: 'LOW_FIELD_CONFIDENCE', field: 'sku' })
     )
+  })
+
+  it('keeps a same-row product name and its separate field confidence', () => {
+    const calibration = selectTargetedSkuCalibration(page, skuWords())!
+    const rows = recoverTargetedMaayanRows(calibration, {
+      barcodeWordsByAnchor: rowYs.map((y, index) => [
+        word(`0729002053100${index + 1}`, 700, y, 91),
+      ]),
+      productNameWordsByAnchor: rowYs.map((y, index) => [
+        word(index === 0 ? 'טורבו' : `שם${index + 1}`, 540, y, 80),
+        word(index === 0 ? 'וניל' : 'מוצר', 450, y, 84),
+      ]),
+      printedRowWords: rowYs.map((y, index) => word(String(index + 1), 950, y, 93)),
+      quantityWords: {
+        caseQuantity: rowYs.map((y) => word('2.00', 275, y, 84)),
+        unitsPerCase: rowYs.map((y) => word('10.00', 205, y, 85)),
+        totalUnits: rowYs.map((y) => word('20.00', 115, y, 86)),
+      },
+    })
+
+    expect(rows[0]).toMatchObject({
+      productName: 'טורבו וניל',
+      fieldConfidences: expect.objectContaining({ productName: 82 }),
+    })
+    expect(rows[0]?.rawText).toContain('טורבו וניל')
+    expect(rows[0]?.issues).not.toContainEqual(
+      expect.objectContaining({ code: 'MISSING_PRODUCT_NAME', field: 'productName' })
+    )
+  })
+
+  it('keeps an adjacent Latin phrase left-to-right inside a Hebrew product name', () => {
+    const calibration = selectTargetedSkuCalibration(page, skuWords())!
+    const rows = recoverTargetedMaayanRows(calibration, {
+      barcodeWordsByAnchor: rowYs.map((y, index) => [
+        word(`0729002053100${index + 1}`, 700, y, 91),
+      ]),
+      productNameWordsByAnchor: rowYs.map((y, index) =>
+        index === 0
+          ? [
+              word('גלידת', 610, y, 86),
+              // The visual RTL order is Cola then Coca; the Latin run must
+              // remain its natural left-to-right order in the draft.
+              word('Cola', 540, y, 87),
+              word('Coca', 470, y, 88),
+            ]
+          : [word(`מוצר${index + 1}`, 540, y, 82)]
+      ),
+      printedRowWords: rowYs.map((y, index) => word(String(index + 1), 950, y, 93)),
+      quantityWords: {
+        caseQuantity: rowYs.map((y) => word('2.00', 275, y, 84)),
+        unitsPerCase: rowYs.map((y) => word('10.00', 205, y, 85)),
+        totalUnits: rowYs.map((y) => word('20.00', 115, y, 86)),
+      },
+    })
+
+    expect(rows[0]?.productName).toBe('גלידת Coca Cola')
   })
 })

@@ -158,10 +158,13 @@ quantity value for each reference.
 - Every displayed table field has its own OCR confidence. A low-confidence
   field becomes a non-persistent review issue with fixed UI guidance; it does
   not accept, reject, convert, or automatically transfer a quantity.
-- On a high-resolution Maayan close-up, it may first use a numeric-only
-  calibration pass. That pass requires at least four vertically aligned SKU
-  candidates, one unambiguous barcode per accepted row, and all three source
-  quantity values. It omits a row instead of guessing any missing value.
+- On a high-resolution Maayan close-up, it may first use a numeric calibration
+  pass. That pass requires at least four vertically aligned SKU candidates,
+  one unambiguous barcode per accepted row, and all three source quantity
+  values. It omits a row instead of guessing any missing value. After that
+  calibration, it may scan only the bounded product-name column and assigns a
+  returned name to just one nearby SKU row; no returned text, or a
+  boundary-ambiguous word, remains blank with a review issue.
 - It never returns the filename, document header, customer information, full
   OCR text, original image, catalog match, totals, or a pick list.
 - The upload screen can render an explicitly opened local image preview, but

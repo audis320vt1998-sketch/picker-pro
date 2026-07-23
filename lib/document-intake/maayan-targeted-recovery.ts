@@ -28,6 +28,12 @@ export type TargetedQuantityCenters = Record<
 
 export interface TargetedRecoveryPasses {
   barcodeWordsByAnchor: readonly (readonly OcrWord[])[]
+  /**
+   * The product-name scan covers only the calibrated text column. Words are
+   * assigned to a single SKU row before they reach recovery, so a wrapped
+   * name cannot be silently borrowed from a neighbouring row.
+   */
+  productNameWordsByAnchor?: readonly (readonly OcrWord[])[]
   printedRowWords: readonly OcrWord[]
   quantityWords: Record<keyof MaayanRawQuantities, readonly OcrWord[]>
 }
@@ -55,6 +61,10 @@ const QUANTITY_CROP_WIDTH: Record<keyof MaayanRawQuantities, number> = {
   unitsPerCase: 0.09,
   totalUnits: 0.09,
 }
+const PRODUCT_NAME_SCAN_BOUNDS = {
+  xMin: 0.39,
+  xMax: 0.67,
+} as const
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(Math.max(value, minimum), maximum)
@@ -320,6 +330,26 @@ export function targetedQuantityScoutRectangle(
 }
 
 /**
+ * The name column is scanned only after numeric calibration succeeds. Its
+ * horizontal position follows the calibrated SKU shift, while its vertical
+ * range is limited to the table body. It deliberately excludes headers and
+ * customer details outside that body.
+ */
+export function targetedProductNameRectangle(
+  page: Pick<OcrPage, 'width' | 'height'>,
+  calibration: TargetedSkuCalibration
+): OcrRectangle {
+  const horizontalShift = calibration.skuCenterX / page.width - EXPECTED_SKU_CENTER
+  return rectangle(
+    page,
+    page.width * (PRODUCT_NAME_SCAN_BOUNDS.xMin + horizontalShift),
+    page.width * (PRODUCT_NAME_SCAN_BOUNDS.xMax + horizontalShift),
+    calibration.bodyBounds.y0,
+    calibration.bodyBounds.y1
+  )
+}
+
+/**
  * Finds the three quantity columns from a table-only numeric scout pass. Each
  * chosen column must be a repeated, vertically aligned numeric group. This
  * makes a nearby price column ineligible unless it actually fits the expected
@@ -430,6 +460,129 @@ function nearbyPrintedRow(
   )
 }
 
+function wordsForTargetedProductName(
+  calibration: TargetedSkuCalibration,
+  words: readonly OcrWord[],
+  anchorIndex: number
+): OcrWord[] {
+  const anchor = calibration.anchors[anchorIndex]
+  if (!anchor) {
+    return []
+  }
+
+  const currentCenter = centerY(anchor)
+  const previousCenter =
+    anchorIndex > 0 ? centerY(calibration.anchors[anchorIndex - 1]) : null
+  const nextCenter =
+    anchorIndex < calibration.anchors.length - 1
+      ? centerY(calibration.anchors[anchorIndex + 1])
+      : null
+  const rowStart = previousCenter === null
+    ? calibration.bodyBounds.y0
+    : (previousCenter + currentCenter) / 2
+  const rowEnd = nextCenter === null
+    ? calibration.bodyBounds.y1
+    : (currentCenter + nextCenter) / 2
+  const maximumAnchorDistance = Math.max(calibration.rowPitch * 0.3, 24)
+
+  return words.filter((word) => {
+    // The right edge of a tight text crop can still touch an identifier
+    // column. Identifiers are never a product-name word, so omit them rather
+    // than echoing a barcode or SKU into the name draft.
+    if (isBarcode(word) || isSku(word)) {
+      return false
+    }
+    const y = centerY(word)
+    // A word must be fully inside this row's partition and close to its SKU
+    // anchor. The deliberate proximity limit can omit a distant wrapped line,
+    // but prevents it from silently becoming the next product's name.
+    return (
+      word.boundingBox.y0 > rowStart &&
+      word.boundingBox.y1 < rowEnd &&
+      Math.abs(y - currentCenter) <= maximumAnchorDistance
+    )
+  })
+}
+
+/**
+ * Keeps one product-name OCR word in at most one calibrated row. The OCR crop
+ * itself is already restricted to the product-name column; this vertical
+ * partition prevents a two-line name from leaking into a nearby row.
+ */
+export function groupTargetedProductNameWords(
+  calibration: TargetedSkuCalibration,
+  words: readonly OcrWord[]
+): readonly OcrWord[][] {
+  return calibration.anchors.map((_, index) =>
+    wordsForTargetedProductName(calibration, words, index)
+  )
+}
+
+function hasLatinLetter(value: string): boolean {
+  return /[A-Za-z]/.test(value)
+}
+
+function hasProductNameLetter(value: string): boolean {
+  return /[A-Za-z\u05d0-\u05ea]/.test(value)
+}
+
+function orderTargetedProductNameLine(words: readonly OcrWord[]): OcrWord[] {
+  const visualWords = [...words].sort((left, right) => centerX(right) - centerX(left))
+  const ordered: OcrWord[] = []
+
+  for (let index = 0; index < visualWords.length; ) {
+    if (!hasLatinLetter(visualWords[index].text)) {
+      ordered.push(visualWords[index])
+      index += 1
+      continue
+    }
+
+    let end = index + 1
+    while (end < visualWords.length && hasLatinLetter(visualWords[end].text)) {
+      end += 1
+    }
+    // Coordinates are visual RTL order. Reverse only an adjacent Latin run so
+    // "Coca Cola" remains left-to-right inside a Hebrew product name.
+    ordered.push(...visualWords.slice(index, end).reverse())
+    index = end
+  }
+
+  return ordered
+}
+
+function targetedProductName(
+  words: readonly OcrWord[],
+  rowPitchValue: number
+): string | null {
+  if (words.length === 0) {
+    return null
+  }
+
+  const lineTolerance = Math.max(rowPitchValue * 0.12, 12)
+  const lines: OcrWord[][] = []
+  for (const word of [...words].sort((left, right) => centerY(left) - centerY(right))) {
+    const line = lines[lines.length - 1]
+    const lineCenter = line ? average(line.map(centerY)) : null
+    if (!line || lineCenter === null || Math.abs(centerY(word) - lineCenter) > lineTolerance) {
+      lines.push([word])
+      continue
+    }
+    line.push(word)
+  }
+
+  const text = lines
+    .map((line) =>
+      orderTargetedProductNameLine(line)
+        .map((word) => word.text.trim())
+        .filter(Boolean)
+        .join(' ')
+    )
+    .filter(Boolean)
+    .join(' ')
+
+  return text && hasProductNameLetter(text) ? text : null
+}
+
 function numericIssue(
   field: keyof MaayanRawQuantities,
   words: readonly OcrWord[],
@@ -491,6 +644,8 @@ export function recoverTargetedMaayanRows(
       anchor,
       calibration.rowPitch
     )
+    const productNameWords = passes.productNameWordsByAnchor?.[index] ?? []
+    const productName = targetedProductName(productNameWords, calibration.rowPitch)
     const rawQuantities: MaayanRawQuantities = {
       caseQuantity: quantities.caseQuantity.value,
       unitsPerCase: quantities.unitsPerCase.value,
@@ -503,23 +658,28 @@ export function recoverTargetedMaayanRows(
       quantities.unitsPerCase.word,
       quantities.totalUnits.word,
       ...(printedRow ? [printedRow] : []),
+      ...productNameWords,
     ]
     const fieldConfidences = {
       printedRowNumber: printedRow?.confidence ?? null,
       sku: anchor.confidence,
       barcode: barcode.confidence,
-      productName: null,
+      productName: productName ? average(productNameWords.map((word) => word.confidence)) : null,
       caseQuantity: quantities.caseQuantity.word.confidence,
       unitsPerCase: quantities.unitsPerCase.word.confidence,
       totalUnits: quantities.totalUnits.word.confidence,
     }
     const issues: MaayanParsedRow['issues'] = [
-      {
-        code: 'MISSING_PRODUCT_NAME' as const,
-        field: 'productName' as const,
-        message:
-          'Product name is not included in the targeted numeric OCR draft and must be checked manually.',
-      },
+      ...(productName
+        ? []
+        : [
+            {
+              code: 'MISSING_PRODUCT_NAME' as const,
+              field: 'productName' as const,
+              message:
+                'Product name is missing from the targeted OCR draft and must be checked manually.',
+            },
+          ]),
       ...(['caseQuantity', 'unitsPerCase', 'totalUnits'] as const)
         .map((field) =>
           numericIssue(
@@ -541,7 +701,7 @@ export function recoverTargetedMaayanRows(
         sku: token(anchor),
         barcode: token(barcode),
         trayBarcode: null,
-        productName: null,
+        productName,
         rawQuantities,
         rawText: sourceWords.map(token).join(' '),
         confidence: average(sourceWords.map((word) => word.confidence)),

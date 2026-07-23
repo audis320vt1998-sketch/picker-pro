@@ -223,6 +223,10 @@ quantity value for each reference.
   catalog records. A human must review the completed template against the
   authoritative warehouse catalog before a controlled update to
   `catalogs/products.json`.
+- `/settings` also performs a read-only structural readiness check for the
+  bundled city and route configuration. It returns only versions, counts, and
+  fixed readiness codes. The current catalogs are explicitly sample-only, so
+  that notice cannot activate a selector, assign an order, or create a group.
 
 ## Unavailable capabilities
 
@@ -231,8 +235,9 @@ quantity value for each reference.
 - The legacy `/api/process` endpoint is deliberately disabled. It returns a
   fixed, non-cacheable `501` response without parsing an uploaded request; it
   is not an alternative to `/api/intake/preflight`.
-- Persisted jobs, review decisions, export files, cities, routes, and offline
-  recovery.
+- Persisted jobs, review decisions, export files, operational city/route
+  assignment or grouping, and offline recovery. The settings page currently
+  reports only city/route catalog readiness.
 - AI assistance.
 
 Those capabilities must be rebuilt against the Foundation contracts and added

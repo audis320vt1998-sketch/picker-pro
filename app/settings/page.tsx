@@ -1,4 +1,8 @@
-import { loadVerifiedCatalog } from '@/lib/catalog'
+import {
+  loadCityRouteCatalogReadiness,
+  loadVerifiedCatalog,
+  type CityRouteCatalogReadinessIssueCode,
+} from '@/lib/catalog'
 import CatalogOnboardingPreflight from '@/components/CatalogOnboardingPreflight'
 
 const settings = {
@@ -7,8 +11,30 @@ const settings = {
   theme: 'light',
 }
 
+const CITY_ROUTE_READINESS_TEXT: Record<
+  CityRouteCatalogReadinessIssueCode,
+  string
+> = {
+  CITY_CATALOG_INVALID: 'מבנה קטלוג הערים אינו תקין.',
+  ROUTE_CATALOG_INVALID: 'מבנה קטלוג קווי החלוקה אינו תקין.',
+  CITY_CATALOG_SAMPLE_ONLY: 'קטלוג הערים הוא נתון דוגמה בלבד.',
+  ROUTE_CATALOG_SAMPLE_ONLY: 'קטלוג קווי החלוקה הוא נתון דוגמה בלבד.',
+  DUPLICATE_CITY_ID: 'נמצאו מזהי עיר כפולים.',
+  DUPLICATE_ROUTE_ID: 'נמצאו מזהי קו חלוקה כפולים.',
+  ROUTE_CITY_CONFLICT: 'אותו קו חלוקה מצביע ליותר מעיר אחת.',
+  ROUTE_CITY_UNKNOWN: 'קו חלוקה מפנה לעיר שאינה קיימת בקטלוג.',
+  ROUTE_CITY_INACTIVE: 'קו חלוקה מפנה לעיר לא פעילה.',
+  NO_ACTIVE_CITIES: 'אין ערים פעילות בקטלוג.',
+  NO_ACTIVE_ROUTES: 'אין קווי חלוקה פעילים בקטלוג.',
+}
+
+function catalogVersionText(version: string | null): string {
+  return version ?? 'לא תקין'
+}
+
 export default function SettingsPage() {
   const { readiness } = loadVerifiedCatalog()
+  const cityRouteReadiness = loadCityRouteCatalogReadiness()
 
   return (
     <main>
@@ -92,6 +118,42 @@ export default function SettingsPage() {
         </ul>
 
         <CatalogOnboardingPreflight />
+      </section>
+
+      <section aria-labelledby="city-route-catalog-heading" className="settings__catalog">
+        <h2 id="city-route-catalog-heading">ערים וקווי חלוקה</h2>
+        <p
+          className={
+            cityRouteReadiness.isReady
+              ? 'settings__catalog-status settings__catalog-status--ready'
+              : 'settings__catalog-status settings__catalog-status--blocked'
+          }
+          role="status"
+        >
+          קטלוג ערים — גרסה {catalogVersionText(cityRouteReadiness.cityCatalogVersion)}:{' '}
+          {cityRouteReadiness.activeCities} פעילות מתוך {cityRouteReadiness.totalCities}.{' '}
+          קטלוג קווי חלוקה — גרסה{' '}
+          {catalogVersionText(cityRouteReadiness.routeCatalogVersion)}:{' '}
+          {cityRouteReadiness.activeRoutes} פעילים מתוך {cityRouteReadiness.totalRoutes}.
+        </p>
+        {cityRouteReadiness.isReady ? (
+          <p>
+            הקטלוגים עברו בדיקת מבנה בסיסית. שיוך עיר או קו להזמנה עדיין אינו
+            פעיל במסך הבדיקה.
+          </p>
+        ) : (
+          <>
+            <p>
+              קיבוץ לפי עיר או קו חלוקה עדיין אינו פעיל. יש להחליף את נתוני
+              הדוגמה בקטלוגים תפעוליים מאומתים לפני שמוסיפים בחירה או שיוך.
+            </p>
+            <ul>
+              {cityRouteReadiness.issues.map((issue) => (
+                <li key={issue}>{CITY_ROUTE_READINESS_TEXT[issue]}</li>
+              ))}
+            </ul>
+          </>
+        )}
       </section>
     </main>
   )

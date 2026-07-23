@@ -17,6 +17,12 @@ export {
 export { normalizeCatalogProductName } from './product-name-normalization'
 
 export {
+  loadCityRouteCatalogReadiness,
+  type CityRouteCatalogReadiness,
+  type CityRouteCatalogReadinessIssueCode,
+} from './city-route-catalog-readiness'
+
+export {
   loadVerifiedCatalog,
   VerifiedCatalogConfigurationError,
   type LoadedVerifiedCatalog,

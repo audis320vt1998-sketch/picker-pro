@@ -13,6 +13,9 @@ Available now:
 - A read-only catalog status on `/settings`, a UTF-8 CSV handoff template,
   and a temporary structural check for a completed CSV. The check never saves,
   imports, or verifies catalog entries and returns no uploaded product values.
+- A read-only city/route catalog-readiness notice on `/settings`. It reports
+  only fixed configuration problems and counts; it does not expose catalog
+  entries, offer city selection, or assign a route to an order.
 - A camera-first, browser-provided direct-camera chooser for one document image
   at `/upload`, with a local preview and an advisory browser-only size/type
   check before OCR, including after an image replacement. The check does not
@@ -67,8 +70,8 @@ Available now:
 Not available yet:
 
 - Automatic pick-list creation from an image or PDF.
-- Stored jobs, a persistent review queue, exports, city/route grouping, or AI
-  assistance.
+- Stored jobs, a persistent review queue, exports, operational city/route
+  grouping, or AI assistance.
 - Automatic catalog verification or ERP synchronization.
 
 The canonical file [`catalogs/products.json`](./catalogs/products.json) is

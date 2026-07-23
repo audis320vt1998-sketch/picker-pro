@@ -449,6 +449,18 @@ nav a:hover {
   padding: 0.75rem;
 }
 
+.settings__catalog-status--ready {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.settings__catalog-status--blocked {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #78350f;
+}
+
 .settings__catalog ul {
   display: grid;
   gap: 0.5rem;

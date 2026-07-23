@@ -57,9 +57,49 @@ describe('parseMaayanTable', () => {
           unitsPerCase: 10,
           totalUnits: 20,
         },
+        fieldConfidences: {
+          printedRowNumber: 90,
+          sku: 90,
+          barcode: 90,
+          productName: 90,
+          caseQuantity: 90,
+          unitsPerCase: 90,
+          totalUnits: 90,
+        },
         issues: [],
       }),
     ])
+  })
+
+  it('retains confidence for each accepted field and flags only a low-confidence field', () => {
+    const rows = parseMaayanTable(
+      [
+        word('1', 950, 200, 92),
+        word('92101', 840, 200, 58),
+        word('07290020531001', 690, 200, 88),
+        word('טורבו', 620, 200, 78),
+        word('2.00', 250, 200, 85),
+        word('10.00', 170, 200, 86),
+        word('20.00', 90, 200, 87),
+      ],
+      layout
+    )
+
+    expect(rows[0]?.fieldConfidences).toEqual({
+      printedRowNumber: 92,
+      sku: 58,
+      barcode: 88,
+      productName: 78,
+      caseQuantity: 85,
+      unitsPerCase: 86,
+      totalUnits: 87,
+    })
+    expect(rows[0]?.issues).toContainEqual(
+      expect.objectContaining({ code: 'LOW_FIELD_CONFIDENCE', field: 'sku' })
+    )
+    expect(rows[0]?.issues).not.toContainEqual(
+      expect.objectContaining({ code: 'LOW_FIELD_CONFIDENCE', field: 'barcode' })
+    )
   })
 
   it('adds a wrapped product-name line to its anchored row without changing quantities', () => {

@@ -49,21 +49,34 @@ export interface MaayanRawQuantities {
   totalUnits: number | null
 }
 
+/**
+ * Fields that are shown to the reviewer from a Maayan table row. Each value
+ * retains the OCR confidence of the word or words that produced it. A null
+ * value means that the parser did not produce a field value, not a guessed
+ * confidence score.
+ */
+export type MaayanFieldConfidenceField =
+  | 'printedRowNumber'
+  | 'sku'
+  | 'barcode'
+  | 'productName'
+  | keyof MaayanRawQuantities
+
+export type MaayanFieldConfidences = Readonly<
+  Record<MaayanFieldConfidenceField, number | null>
+>
+
 export type MaayanParseIssueCode =
   | 'MISSING_SKU'
   | 'MISSING_BARCODE'
   | 'MISSING_PRODUCT_NAME'
   | 'AMBIGUOUS_NUMERIC_FIELD'
   | 'INVALID_NUMERIC_FIELD'
+  | 'LOW_FIELD_CONFIDENCE'
 
 export interface MaayanParseIssue {
   code: MaayanParseIssueCode
-  field?:
-    | 'printedRowNumber'
-    | 'sku'
-    | 'barcode'
-    | 'productName'
-    | keyof MaayanRawQuantities
+  field?: MaayanFieldConfidenceField
   message: string
 }
 
@@ -76,6 +89,7 @@ export interface MaayanParsedRow {
   rawQuantities: MaayanRawQuantities
   rawText: string
   confidence: number
+  fieldConfidences: MaayanFieldConfidences
   boundingBox: BoundingBox
   issues: MaayanParseIssue[]
 }
@@ -107,6 +121,7 @@ export interface DocumentPreflightRow {
   sourceQuantities: MaayanRawQuantities
   traceText: string
   confidence: number
+  fieldConfidences: MaayanFieldConfidences
   boundingBox: BoundingBox
   issues: readonly MaayanParseIssue[]
 }

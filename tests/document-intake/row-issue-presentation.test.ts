@@ -25,6 +25,10 @@ describe('documentPreflightRowIssueText', () => {
       { code: 'INVALID_NUMERIC_FIELD', field: 'totalUnits' },
       'הערך עבור כמות הבודדים אינו מספר תקין. יש לבדוק מול המסמך.',
     ],
+    [
+      { code: 'LOW_FIELD_CONFIDENCE', field: 'barcode' },
+      'ודאות ה־OCR עבור ברקוד נמוכה. נדרש אימות מול המסמך.',
+    ],
   ] as const)(
     'returns a fixed Hebrew message for %o',
     (issue, expected) => {

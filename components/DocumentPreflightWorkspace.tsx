@@ -37,6 +37,7 @@ import {
   type DocumentPreflightResult,
   type DocumentPreflightRow,
   type LocalCameraCaptureReadiness,
+  type MaayanFieldConfidenceField,
   type OcrPreflightBatchPage,
   type OcrPreflightBatchFailure,
   type OcrPreflightBatchOutcome,
@@ -58,6 +59,26 @@ const HANDOFF_BLOCK_REASON_TEXT = {
   SOURCE_NOT_TRACEABLE: 'חסר מספר שורת מקור',
   PRODUCT_IDENTIFIER_MISSING: 'חסר מזהה פריט',
 } as const
+
+const FIELD_CONFIDENCE_FIELDS: readonly MaayanFieldConfidenceField[] = [
+  'printedRowNumber',
+  'sku',
+  'barcode',
+  'productName',
+  'caseQuantity',
+  'unitsPerCase',
+  'totalUnits',
+]
+
+const FIELD_CONFIDENCE_LABELS: Record<MaayanFieldConfidenceField, string> = {
+  printedRowNumber: 'מספר שורת מקור',
+  sku: 'מק״ט',
+  barcode: 'ברקוד',
+  productName: 'שם פריט',
+  caseQuantity: 'כמות מארזים',
+  unitsPerCase: 'כמות באריזה',
+  totalUnits: 'כמות בודדים',
+}
 
 const ISSUE_TEXT: Record<DocumentPreflightIssue['code'], string> = {
   OCR_DRAFT_REQUIRES_REVIEW:
@@ -267,6 +288,12 @@ async function requestPdfPreflight(file: File): Promise<PdfPreflightAttempt> {
 
 function displayQuantity(value: number | null): string {
   return value === null ? 'לא זוהה' : String(value)
+}
+
+function displayFieldConfidence(value: number | null | undefined): string {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? `${Math.round(value)}%`
+    : 'לא זוהה'
 }
 
 function rowKey(pageNumber: number, row: DocumentPreflightRow): string {
@@ -1679,6 +1706,21 @@ export default function DocumentPreflightWorkspace() {
                                 <td data-label="ודאות OCR">
                                   <div className="document-preflight__cell-value">
                                     {Math.round(row.confidence)}%
+                                    <details className="document-preflight__field-confidence">
+                                      <summary>פירוט לפי שדה</summary>
+                                      <ul>
+                                        {FIELD_CONFIDENCE_FIELDS.map((field) => (
+                                          <li key={field}>
+                                            <span>{FIELD_CONFIDENCE_LABELS[field]}: </span>
+                                            <span dir="ltr">
+                                              {displayFieldConfidence(
+                                                row.fieldConfidences?.[field]
+                                              )}
+                                            </span>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </details>
                                   </div>
                                 </td>
                               </tr>

@@ -7,6 +7,7 @@ import type {
   MaayanTableLayout,
   OcrWord,
 } from './types'
+import { lowConfidenceFieldIssues } from './field-confidence'
 
 interface OcrLine {
   words: OcrWord[]
@@ -99,9 +100,12 @@ function isExpectedIdentifier(
     : value.length >= 10 && value.length <= 15
 }
 
+function wordsForBand(words: readonly OcrWord[], band: ColumnBand): OcrWord[] {
+  return words.filter((word) => belongsToBand(word, band))
+}
+
 function textForBand(words: readonly OcrWord[], band: ColumnBand): string {
-  return words
-    .filter((word) => belongsToBand(word, band))
+  return wordsForBand(words, band)
     .sort((left, right) => centerX(right) - centerX(left))
     .map((word) => word.text.trim())
     .filter(Boolean)
@@ -132,17 +136,18 @@ function traceTextForLines(
     .join(' ')
 }
 
-function numericValue(
+function numericCandidateWords(
   words: readonly OcrWord[],
-  band: ColumnBand,
+  band: ColumnBand
+): OcrWord[] {
+  return wordsForBand(words, band).filter((word) => numericToken(word.text) !== null)
+}
+
+function numericValueFromCandidates(
+  candidates: readonly OcrWord[],
   field: 'printedRowNumber' | keyof MaayanRawQuantities,
   issues: MaayanParseIssue[]
 ): number | null {
-  const candidates = words
-    .filter((word) => belongsToBand(word, band))
-    .map((word) => numericToken(word.text))
-    .filter((candidate): candidate is string => candidate !== null)
-
   if (candidates.length === 0) {
     return null
   }
@@ -156,7 +161,12 @@ function numericValue(
     return null
   }
 
-  const value = Number(candidates[0])
+  const numeric = numericToken(candidates[0].text)
+  if (!numeric) {
+    return null
+  }
+
+  const value = Number(numeric)
   if (!Number.isFinite(value) || value < 0) {
     issues.push({
       code: 'INVALID_NUMERIC_FIELD',
@@ -181,20 +191,31 @@ function numericValue(
   return value
 }
 
-function identifierValue(
+function numericValue(
   words: readonly OcrWord[],
   band: ColumnBand,
+  field: 'printedRowNumber' | keyof MaayanRawQuantities,
+  issues: MaayanParseIssue[]
+): number | null {
+  return numericValueFromCandidates(numericCandidateWords(words, band), field, issues)
+}
+
+function identifierCandidateWords(
+  words: readonly OcrWord[],
+  band: ColumnBand,
+  field: 'sku' | 'barcode'
+): OcrWord[] {
+  return wordsForBand(words, band).filter((word) => {
+    const candidate = identifierToken(word.text)
+    return candidate !== null && isExpectedIdentifier(candidate, field)
+  })
+}
+
+function identifierValueFromCandidates(
+  candidates: readonly OcrWord[],
   field: 'sku' | 'barcode',
   issues: MaayanParseIssue[]
 ): string | null {
-  const candidates = words
-    .filter((word) => belongsToBand(word, band))
-    .map((word) => identifierToken(word.text))
-    .filter(
-      (candidate): candidate is string =>
-        candidate !== null && isExpectedIdentifier(candidate, field)
-    )
-
   if (candidates.length === 0) {
     issues.push({
       code: field === 'sku' ? 'MISSING_SKU' : 'MISSING_BARCODE',
@@ -213,7 +234,20 @@ function identifierValue(
     return null
   }
 
-  return candidates[0]
+  return identifierToken(candidates[0].text)
+}
+
+function identifierValue(
+  words: readonly OcrWord[],
+  band: ColumnBand,
+  field: 'sku' | 'barcode',
+  issues: MaayanParseIssue[]
+): string | null {
+  return identifierValueFromCandidates(
+    identifierCandidateWords(words, band, field),
+    field,
+    issues
+  )
 }
 
 function lineHasAnchor(line: OcrLine, layout: MaayanTableLayout): boolean {
@@ -276,9 +310,30 @@ function averageConfidence(words: readonly OcrWord[]): number {
   return words.reduce((sum, word) => sum + word.confidence, 0) / words.length
 }
 
+function fieldConfidence(
+  value: string | number | null,
+  sourceWords: readonly OcrWord[]
+): number | null {
+  return value === null || sourceWords.length === 0
+    ? null
+    : averageConfidence(sourceWords)
+}
+
 function parseRow(row: RowGroup, layout: MaayanTableLayout): MaayanParsedRow {
   const words = row.lines.flatMap((line) => line.words)
   const issues: MaayanParseIssue[] = []
+  const printedRowWords = numericCandidateWords(words, layout.columns.printedRowNumber)
+  const skuWords = identifierCandidateWords(words, layout.columns.sku, 'sku')
+  const barcodeWords = identifierCandidateWords(words, layout.columns.barcode, 'barcode')
+  const trayBarcodeWords = identifierCandidateWords(
+    words,
+    layout.columns.trayBarcode,
+    'barcode'
+  )
+  const productNameWords = wordsForBand(words, layout.columns.productName)
+  const caseQuantityWords = numericCandidateWords(words, layout.columns.caseQuantity)
+  const unitsPerCaseWords = numericCandidateWords(words, layout.columns.unitsPerCase)
+  const totalUnitsWords = numericCandidateWords(words, layout.columns.totalUnits)
   const productName = textForLines(row.lines, layout.columns.productName) || null
   if (!productName) {
     issues.push({
@@ -289,40 +344,52 @@ function parseRow(row: RowGroup, layout: MaayanTableLayout): MaayanParsedRow {
   }
 
   const rawQuantities: MaayanRawQuantities = {
-    caseQuantity: numericValue(
-      words,
-      layout.columns.caseQuantity,
+    caseQuantity: numericValueFromCandidates(
+      caseQuantityWords,
       'caseQuantity',
       issues
     ),
-    unitsPerCase: numericValue(
-      words,
-      layout.columns.unitsPerCase,
+    unitsPerCase: numericValueFromCandidates(
+      unitsPerCaseWords,
       'unitsPerCase',
       issues
     ),
-    totalUnits: numericValue(
-      words,
-      layout.columns.totalUnits,
+    totalUnits: numericValueFromCandidates(
+      totalUnitsWords,
       'totalUnits',
       issues
     ),
   }
 
+  const printedRowNumber = numericValueFromCandidates(
+    printedRowWords,
+    'printedRowNumber',
+    issues
+  )
+  const sku = identifierValueFromCandidates(skuWords, 'sku', issues)
+  const barcode = identifierValueFromCandidates(barcodeWords, 'barcode', issues)
+  const trayBarcode = identifierValueFromCandidates(trayBarcodeWords, 'barcode', [])
+  const fieldConfidences = {
+    printedRowNumber: fieldConfidence(printedRowNumber, printedRowWords),
+    sku: fieldConfidence(sku, skuWords),
+    barcode: fieldConfidence(barcode, barcodeWords),
+    productName: fieldConfidence(productName, productNameWords),
+    caseQuantity: fieldConfidence(rawQuantities.caseQuantity, caseQuantityWords),
+    unitsPerCase: fieldConfidence(rawQuantities.unitsPerCase, unitsPerCaseWords),
+    totalUnits: fieldConfidence(rawQuantities.totalUnits, totalUnitsWords),
+  }
+  issues.push(...lowConfidenceFieldIssues(fieldConfidences))
+
   return {
-    printedRowNumber: numericValue(
-      words,
-      layout.columns.printedRowNumber,
-      'printedRowNumber',
-      issues
-    ),
-    sku: identifierValue(words, layout.columns.sku, 'sku', issues),
-    barcode: identifierValue(words, layout.columns.barcode, 'barcode', issues),
-    trayBarcode: identifierValue(words, layout.columns.trayBarcode, 'barcode', []),
+    printedRowNumber,
+    sku,
+    barcode,
+    trayBarcode,
     productName,
     rawQuantities,
     rawText: traceTextForLines(row.lines, layout),
     confidence: averageConfidence(words),
+    fieldConfidences,
     boundingBox: row.boundingBox,
     issues,
   }

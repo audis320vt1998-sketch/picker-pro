@@ -710,6 +710,28 @@ nav a:hover {
   margin-top: 0.3rem;
 }
 
+.document-preflight__field-confidence {
+  color: #334155;
+  font-size: 0.85rem;
+  font-weight: 400;
+  line-height: 1.5;
+  margin-top: 0.45rem;
+}
+
+.document-preflight__field-confidence summary {
+  color: #1e3a5f;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.document-preflight__field-confidence ul {
+  display: grid;
+  gap: 0.2rem;
+  list-style: none;
+  margin: 0.45rem 0 0;
+  padding: 0;
+}
+
 .results-table__source-details {
   min-width: 13rem;
 }

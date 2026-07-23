@@ -49,6 +49,15 @@ function preflightRow(
     },
     traceText: 'טקסט OCR מלא שעלול להכיל פרטי מסמך וכמויות 2 12 24',
     confidence: 82,
+    fieldConfidences: {
+      printedRowNumber: 82,
+      sku: 82,
+      barcode: 82,
+      productName: 82,
+      caseQuantity: 82,
+      unitsPerCase: 82,
+      totalUnits: 82,
+    },
     boundingBox: { x0: 1, y0: 2, x1: 3, y1: 4 },
     issues: [],
     ...overrides,
@@ -93,6 +102,7 @@ describe('OCR manual-review handoff', () => {
     expect(serialized).not.toContain('טקסט OCR מלא')
     expect(serialized).not.toContain('traceText')
     expect(serialized).not.toContain('sourceFileName')
+    expect(serialized).not.toContain('fieldConfidences')
     expect(serialized).not.toContain('"cases"')
     expect(serialized).not.toContain('"units"')
   })

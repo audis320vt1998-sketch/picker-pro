@@ -34,6 +34,10 @@ export {
 } from './preflight-failure'
 export { documentPreflightRowIssueText } from './row-issue-presentation'
 export {
+  lowConfidenceFieldIssues,
+  OCR_FIELD_CONFIDENCE_REVIEW_THRESHOLD,
+} from './field-confidence'
+export {
   createOcrPreflightBatchPage,
   createOcrSourceDocumentRef,
   isOcrSourceDocumentRef,
@@ -70,6 +74,8 @@ export type {
   DocumentPreflightResult,
   DocumentPreflightRow,
   MaayanParsedRow,
+  MaayanFieldConfidenceField,
+  MaayanFieldConfidences,
   MaayanParseIssue,
   MaayanParseIssueCode,
   MaayanRawQuantities,

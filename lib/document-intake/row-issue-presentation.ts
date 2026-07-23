@@ -30,5 +30,7 @@ export function documentPreflightRowIssueText(issue: MaayanParseIssue): string {
       return `זוהה יותר מערך OCR אפשרי עבור ${fieldLabel(issue.field)}. יש לבדוק מול המסמך.`
     case 'INVALID_NUMERIC_FIELD':
       return `הערך עבור ${fieldLabel(issue.field)} אינו מספר תקין. יש לבדוק מול המסמך.`
+    case 'LOW_FIELD_CONFIDENCE':
+      return `ודאות ה־OCR עבור ${fieldLabel(issue.field)} נמוכה. נדרש אימות מול המסמך.`
   }
 }

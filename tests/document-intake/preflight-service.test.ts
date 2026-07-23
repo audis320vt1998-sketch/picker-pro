@@ -61,6 +61,15 @@ describe('preflightMaayanOcrPage', () => {
         unitsPerCase: 10,
         totalUnits: 20,
       },
+      fieldConfidences: {
+        printedRowNumber: 92,
+        sku: 92,
+        barcode: 92,
+        productName: 92,
+        caseQuantity: 92,
+        unitsPerCase: 92,
+        totalUnits: 92,
+      },
     })
     expect(row.traceText).toContain('07290020531001')
     expect(row.traceText).not.toContain('999.99')
@@ -194,6 +203,15 @@ describe('preflightMaayanOcrPage', () => {
           },
           rawText: '92101 07290020531001 2 10 20',
           confidence: 82,
+          fieldConfidences: {
+            printedRowNumber: null,
+            sku: 83,
+            barcode: 84,
+            productName: null,
+            caseQuantity: 80,
+            unitsPerCase: 81,
+            totalUnits: 82,
+          },
           boundingBox: { x0: 2000, y0: 1000, x1: 2500, y1: 1040 },
           issues: [
             {
@@ -211,6 +229,15 @@ describe('preflightMaayanOcrPage', () => {
         source: expect.objectContaining({ printedRowNumber: null }),
         sku: '92101',
         barcode: '07290020531001',
+        fieldConfidences: {
+          printedRowNumber: null,
+          sku: 83,
+          barcode: 84,
+          productName: null,
+          caseQuantity: 80,
+          unitsPerCase: 81,
+          totalUnits: 82,
+        },
       }),
     ])
     expect(JSON.stringify(result)).not.toContain('private-customer')

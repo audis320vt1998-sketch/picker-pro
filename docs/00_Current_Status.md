@@ -149,6 +149,9 @@ quantity value for each reference.
   photos.
 - It returns only table-body fields: product identifiers, product name, the
   three source quantity columns, confidence, row bounds, and parser issues.
+- Every displayed table field has its own OCR confidence. A low-confidence
+  field becomes a non-persistent review issue with fixed UI guidance; it does
+  not accept, reject, convert, or automatically transfer a quantity.
 - On a high-resolution Maayan close-up, it may first use a numeric-only
   calibration pass. That pass requires at least four vertically aligned SKU
   candidates, one unambiguous barcode per accepted row, and all three source

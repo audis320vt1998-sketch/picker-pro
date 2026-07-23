@@ -5,6 +5,7 @@ import type {
   OcrPage,
   OcrWord,
 } from './types'
+import { lowConfidenceFieldIssues } from './field-confidence'
 
 export interface OcrRectangle {
   left: number
@@ -503,7 +504,16 @@ export function recoverTargetedMaayanRows(
       quantities.totalUnits.word,
       ...(printedRow ? [printedRow] : []),
     ]
-    const issues = [
+    const fieldConfidences = {
+      printedRowNumber: printedRow?.confidence ?? null,
+      sku: anchor.confidence,
+      barcode: barcode.confidence,
+      productName: null,
+      caseQuantity: quantities.caseQuantity.word.confidence,
+      unitsPerCase: quantities.unitsPerCase.word.confidence,
+      totalUnits: quantities.totalUnits.word.confidence,
+    }
+    const issues: MaayanParsedRow['issues'] = [
       {
         code: 'MISSING_PRODUCT_NAME' as const,
         field: 'productName' as const,
@@ -522,6 +532,7 @@ export function recoverTargetedMaayanRows(
         .filter(
           (issue): issue is MaayanParsedRow['issues'][number] => issue !== null
         ),
+      ...lowConfidenceFieldIssues(fieldConfidences),
     ]
 
     return [
@@ -534,6 +545,7 @@ export function recoverTargetedMaayanRows(
         rawQuantities,
         rawText: sourceWords.map(token).join(' '),
         confidence: average(sourceWords.map((word) => word.confidence)),
+        fieldConfidences,
         boundingBox: unionBounds(sourceWords),
         issues,
       },

@@ -107,4 +107,34 @@ describe('Maayan targeted numeric recovery', () => {
     expect(rows[2]?.printedRowNumber).toBeNull()
     expect(hasEnoughTargetedRows(rows)).toBe(false)
   })
+
+  it('keeps targeted confidence by field and flags a low-confidence identifier', () => {
+    const anchors = skuWords()
+    anchors[0] = word('92100', 850, rowYs[0], 61)
+    const calibration = selectTargetedSkuCalibration(page, anchors)!
+    const rows = recoverTargetedMaayanRows(calibration, {
+      barcodeWordsByAnchor: rowYs.map((y, index) => [
+        word(`0729002053100${index + 1}`, 700, y, 91),
+      ]),
+      printedRowWords: rowYs.map((y, index) => word(String(index + 1), 950, y, 93)),
+      quantityWords: {
+        caseQuantity: rowYs.map((y) => word('2.00', 275, y, 84)),
+        unitsPerCase: rowYs.map((y) => word('10.00', 205, y, 85)),
+        totalUnits: rowYs.map((y) => word('20.00', 115, y, 86)),
+      },
+    })
+
+    expect(rows[0]?.fieldConfidences).toEqual({
+      printedRowNumber: 93,
+      sku: 61,
+      barcode: 91,
+      productName: null,
+      caseQuantity: 84,
+      unitsPerCase: 85,
+      totalUnits: 86,
+    })
+    expect(rows[0]?.issues).toContainEqual(
+      expect.objectContaining({ code: 'LOW_FIELD_CONFIDENCE', field: 'sku' })
+    )
+  })
 })

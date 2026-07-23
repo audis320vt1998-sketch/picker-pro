@@ -40,6 +40,7 @@ function toPreflightRow(row: MaayanParsedRow, parserRowIndex: number) {
     sourceQuantities: row.rawQuantities,
     traceText: row.rawText,
     confidence: row.confidence,
+    fieldConfidences: row.fieldConfidences,
     boundingBox: row.boundingBox,
     issues: row.issues,
   }

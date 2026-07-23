@@ -15,9 +15,10 @@ Available now:
   imports, or verifies catalog entries and returns no uploaded product values.
 - A camera-first, browser-provided direct-camera chooser for one document image
   at `/upload`, with a local preview and an advisory browser-only size/type
-  check before OCR. The check does not upload, store, or inspect OCR text; it
-  uses the same dimensions and pixel limit as the server and still requires a
-  human check for focus and shadows. An explicit confirmation is required
+  check before OCR, including after an image replacement. The check does not
+  upload, store, or inspect OCR text; it uses the same dimensions and pixel
+  limit as the server and still requires a human check for focus and shadows.
+  An explicit confirmation is required
   before a new source choice (camera capture, image batch, or PDF) replaces
   existing browser-held work. It does not upload or process the image until
   the reviewer explicitly starts OCR.

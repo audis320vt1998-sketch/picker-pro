@@ -137,9 +137,11 @@ type PendingSourceSelection =
   | { kind: 'images'; files: readonly File[] }
   | { kind: 'pdf'; file: File }
 
-type CameraCaptureReadinessState =
+type LocalImageReadinessState =
   | { kind: 'CHECKING' }
   | LocalCameraCaptureReadiness
+
+type LocalImageReadinessSubject = 'CAMERA_CAPTURE' | 'REPLACEMENT_IMAGE'
 
 interface PreviewedSourceImage {
   pageNumber: number
@@ -299,6 +301,20 @@ function revokeLocalPreviewUrl(url: string | null): void {
   }
 }
 
+async function readLocalImageReadiness(
+  file: File
+): Promise<LocalCameraCaptureReadiness> {
+  try {
+    const buffer = await file.arrayBuffer()
+    return assessLocalCameraCaptureReadiness({
+      declaredMediaType: file.type,
+      metadata: readImageMetadata(new Uint8Array(buffer)),
+    })
+  } catch {
+    return { kind: 'UNREADABLE' }
+  }
+}
+
 function SourceImagePreview({
   hasSourceImage,
   isVisible,
@@ -351,14 +367,14 @@ function SourceImagePreview({
   )
 }
 
-function CameraCaptureReadinessNotice({
+function LocalImageReadinessMessage({
   readiness,
+  subject,
 }: {
-  readiness: CameraCaptureReadinessState | null
+  readiness: LocalImageReadinessState
+  subject: LocalImageReadinessSubject
 }) {
-  if (!readiness) {
-    return null
-  }
+  const subjectText = subject === 'CAMERA_CAPTURE' ? 'הצילום' : 'התמונה החלופית'
 
   if (readiness.kind === 'CHECKING') {
     return (
@@ -367,7 +383,7 @@ function CameraCaptureReadinessNotice({
         className="document-preflight__camera-readiness"
         role="status"
       >
-        בודק מקומית את ממדי הצילום. התמונה עדיין לא נשלחת ל־OCR.
+        בודק מקומית את ממדי {subjectText}. התמונה עדיין לא נשלחת ל־OCR.
       </p>
     )
   }
@@ -386,8 +402,8 @@ function CameraCaptureReadinessNotice({
         className="document-preflight__camera-readiness document-preflight__camera-readiness--ready"
         role="status"
       >
-        בדיקה מקומית בדפדפן: ממדי הצילום {dimensions} עומדים בסף הבסיסי ל־OCR.
-        הבדיקה אינה נשלחת לרשת ואינה בודקת חדות או צל.
+        בדיקה מקומית בדפדפן: ממדי {subjectText} {dimensions} עומדים בסף הבסיסי
+        ל־OCR. הבדיקה אינה נשלחת לרשת ואינה בודקת חדות או צל.
       </p>
     )
   }
@@ -399,9 +415,9 @@ function CameraCaptureReadinessNotice({
         className="document-preflight__camera-readiness document-preflight__camera-readiness--advisory"
         role="status"
       >
-        בדיקה מקומית בדפדפן: ממדי הצילום {dimensions} קטנים מדי ל־OCR אמין.
-        מומלץ לצלם שוב מקרוב. אפשר לשלוח לבדיקה בשרת, אך ייתכן שלא תיווצר
-        טיוטת OCR.
+        בדיקה מקומית בדפדפן: ממדי {subjectText} {dimensions} קטנים מדי ל־OCR
+        אמין. מומלץ לצלם שוב מקרוב. אפשר לשלוח לבדיקה בשרת, אך ייתכן שלא
+        תיווצר טיוטת OCR.
       </p>
     )
   }
@@ -413,9 +429,9 @@ function CameraCaptureReadinessNotice({
         className="document-preflight__camera-readiness document-preflight__camera-readiness--advisory"
         role="status"
       >
-        בדיקה מקומית בדפדפן: ממדי הצילום {dimensions} גדולים מדי לעיבוד בטוח.
-        מומלץ לצלם ברזולוציה נמוכה יותר או לבחור צילום קטן יותר. אפשר לשלוח
-        לבדיקה בשרת, אך הקובץ עשוי להידחות.
+        בדיקה מקומית בדפדפן: ממדי {subjectText} {dimensions} גדולים מדי לעיבוד
+        בטוח. מומלץ לצלם ברזולוציה נמוכה יותר או לבחור תמונה קטנה יותר. אפשר
+        לשלוח לבדיקה בשרת, אך הקובץ עשוי להידחות.
       </p>
     )
   }
@@ -427,8 +443,8 @@ function CameraCaptureReadinessNotice({
         className="document-preflight__camera-readiness document-preflight__camera-readiness--advisory"
         role="status"
       >
-        בדיקה מקומית בדפדפן: סוג הקובץ אינו תואם לתוכן הצילום. מומלץ לצלם שוב.
-        אפשר לשלוח לבדיקה בשרת, אך הקובץ עשוי להידחות.
+        בדיקה מקומית בדפדפן: סוג הקובץ אינו תואם לתוכן {subjectText}. מומלץ
+        לצלם שוב. אפשר לשלוח לבדיקה בשרת, אך הקובץ עשוי להידחות.
       </p>
     )
   }
@@ -439,10 +455,39 @@ function CameraCaptureReadinessNotice({
       className="document-preflight__camera-readiness document-preflight__camera-readiness--advisory"
       role="status"
     >
-      בדיקה מקומית בדפדפן: לא ניתן לאמת את ממדי הצילום. מומלץ לצלם שוב או
-      לבדוק את התצוגה המקדימה. אפשר לשלוח לבדיקה בשרת, אך הקובץ עשוי להידחות.
+      בדיקה מקומית בדפדפן: לא ניתן לאמת את ממדי {subjectText}. מומלץ לצלם שוב
+      או לבדוק את התצוגה המקדימה. אפשר לשלוח לבדיקה בשרת, אך הקובץ עשוי להידחות.
     </p>
   )
+}
+
+function LocalImageReadiness({
+  file,
+  subject,
+}: {
+  file: File
+  subject: LocalImageReadinessSubject
+}) {
+  const [readiness, setReadiness] = useState<LocalImageReadinessState>({
+    kind: 'CHECKING',
+  })
+
+  useEffect(() => {
+    let isCurrentFile = true
+
+    setReadiness({ kind: 'CHECKING' })
+    void readLocalImageReadiness(file).then((nextReadiness) => {
+      if (isCurrentFile) {
+        setReadiness(nextReadiness)
+      }
+    })
+
+    return () => {
+      isCurrentFile = false
+    }
+  }, [file])
+
+  return <LocalImageReadinessMessage readiness={readiness} subject={subject} />
 }
 
 function SourceImageReplacement({
@@ -509,8 +554,6 @@ export default function DocumentPreflightWorkspace() {
     readonly OcrPreflightReplacementSlot[]
   >([])
   const [error, setError] = useState<string | null>(null)
-  const [cameraCaptureReadiness, setCameraCaptureReadiness] =
-    useState<CameraCaptureReadinessState | null>(null)
   const [activity, setActivity] = useState<PreflightActivity>(null)
   const [previewedSource, setPreviewedSource] = useState<PreviewedSourceImage | null>(
     null
@@ -561,42 +604,6 @@ export default function DocumentPreflightWorkspace() {
     setActiveLocalPreview({ sourceDocumentRef: previewedSource.sourceDocumentRef, url })
     return () => revokeLocalPreviewUrl(url)
   }, [previewedFile, previewedSource])
-
-  useEffect(() => {
-    let isCurrentCapture = true
-
-    if (!selectedCameraCapture) {
-      setCameraCaptureReadiness(null)
-      return () => {
-        isCurrentCapture = false
-      }
-    }
-
-    setCameraCaptureReadiness({ kind: 'CHECKING' })
-    void (async () => {
-      try {
-        const buffer = await selectedCameraCapture.file.arrayBuffer()
-        if (!isCurrentCapture) {
-          return
-        }
-
-        setCameraCaptureReadiness(
-          assessLocalCameraCaptureReadiness({
-            declaredMediaType: selectedCameraCapture.file.type,
-            metadata: readImageMetadata(new Uint8Array(buffer)),
-          })
-        )
-      } catch {
-        if (isCurrentCapture) {
-          setCameraCaptureReadiness({ kind: 'UNREADABLE' })
-        }
-      }
-    })()
-
-    return () => {
-      isCurrentCapture = false
-    }
-  }, [selectedCameraCapture])
 
   useEffect(() => {
     if (isCompletedOcrResultReady) {
@@ -1219,8 +1226,9 @@ export default function DocumentPreflightWorkspace() {
                     בדיקת הממדים המקומית אינה בודקת חדות או צל. פתח את התצוגה
                     המקדימה ובדוק שהטבלה חדה, ישרה וממלאת את התמונה.
                   </p>
-                  <CameraCaptureReadinessNotice
-                    readiness={cameraCaptureReadiness}
+                  <LocalImageReadiness
+                    file={selectedCameraCapture.file}
+                    subject="CAMERA_CAPTURE"
                   />
                   <label className="document-preflight__camera-button document-preflight__camera-recapture">
                     <span>צלם שוב — צילום חדש יחליף רק לאחר אישור</span>
@@ -1387,9 +1395,11 @@ export default function DocumentPreflightWorkspace() {
 
           {pendingReplacementPages.map((replacementSlot) => {
             const { pageNumber, sourceDocumentRef } = replacementSlot
-            const hasSourceImage = files.some(
-              (file) => file.sourceDocumentRef === sourceDocumentRef
-            )
+            const sourceImage =
+              files.find(
+                (file) => file.sourceDocumentRef === sourceDocumentRef
+              ) ?? null
+            const hasSourceImage = sourceImage !== null
             const isPreviewVisible =
               previewedSource?.pageNumber === pageNumber &&
               previewedSource.sourceDocumentRef === sourceDocumentRef
@@ -1401,6 +1411,12 @@ export default function DocumentPreflightWorkspace() {
                   נבחרה תמונה חלופית. הטיוטה הקודמת לעמוד זה הוסרה, והתמונה החדשה
                   לא נשלחה עדיין. אפשר להפעיל OCR מחדש רק בלחיצה מפורשת.
                 </p>
+                {sourceImage && (
+                  <LocalImageReadiness
+                    file={sourceImage.file}
+                    subject="REPLACEMENT_IMAGE"
+                  />
+                )}
                 <button
                   className="manual-review__primary-button"
                   disabled={isSubmitting || !hasSourceImage}

@@ -131,3 +131,37 @@ export function correctProductName(
     message: conf.message
   }
 }
+
+/**
+ * Correct a low-confidence OCR result using the OpenAI API as a fallback.
+ * Only called server-side (requires OPENAI_API_KEY).
+ *
+ * @param raw        - Raw text from OCR
+ * @param candidates - Optional list of known product names for context
+ * @returns Corrected text string
+ */
+export async function correctWithGPT(
+  raw: string,
+  candidates?: string[]
+): Promise<string> {
+  // Import here so the rest of the module stays browser-safe
+  const { prompt } = await import('./openai')
+
+  const systemPrompt =
+    'You are an OCR correction assistant for a product picker application. ' +
+    'Fix OCR errors in the given text and return only the corrected text, nothing else.'
+
+  const context =
+    candidates && candidates.length > 0
+      ? `\n\nKnown product names for reference: ${candidates.slice(0, 20).join(', ')}`
+      : ''
+
+  const userMessage = `Correct this OCR text: "${raw}"${context}`
+
+  const corrected = await prompt(userMessage, systemPrompt, {
+    temperature: 0.1,
+    maxTokens: 128,
+  })
+
+  return corrected.trim()
+}

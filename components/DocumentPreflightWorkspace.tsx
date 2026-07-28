@@ -10,6 +10,7 @@ import {
 } from 'react'
 import {
   assessLocalCameraCaptureReadiness,
+  canAppendCameraCaptureToBatch,
   createOcrPreflightBatchPage,
   createOcrPreflightPageReviewConfirmation,
   createOcrPreflightBatchOutcome,
@@ -634,6 +635,16 @@ export default function DocumentPreflightWorkspace() {
   const isSelectionLocked = isSubmitting || pendingSourceSelection !== null
   const isSingleCameraCaptureReadyToInspect =
     sourceSelectionKind === 'camera' && files.length === 1 && outcome === null
+  const canAppendCameraPage = canAppendCameraCaptureToBatch({
+    selectedImageCount: files.length,
+    hasCameraBatch: sourceSelectionKind === 'camera',
+    hasPdfSelection: pdfFile !== null,
+    hasPreflightOutcome: outcome !== null,
+  })
+  const isCameraBatchAtCapacity =
+    sourceSelectionKind === 'camera' &&
+    outcome === null &&
+    files.length >= MAX_PREFLIGHT_BATCH_IMAGES
   const selectedCameraCapture = isSingleCameraCaptureReadyToInspect
     ? files[0] ?? null
     : null
@@ -686,7 +697,9 @@ export default function DocumentPreflightWorkspace() {
     }
   }, [lowConfidenceReviewSummary.rowCount, showOnlyLowConfidenceRows])
 
-  const resetDraftAfterSelectionChange = () => {
+  const resetDraftAfterSelectionChange = ({
+    preserveSelectionKind = false,
+  }: { preserveSelectionKind?: boolean } = {}) => {
     setError(null)
     setOutcome(null)
     setPendingReplacementPages([])
@@ -699,7 +712,9 @@ export default function DocumentPreflightWorkspace() {
     setShowOnlyLowConfidenceRows(false)
     setPdfFile(null)
     setPdfPageSourceRefs([])
-    setSourceSelectionKind(null)
+    if (!preserveSelectionKind) {
+      setSourceSelectionKind(null)
+    }
     setPendingSourceSelection(null)
   }
 
@@ -722,6 +737,29 @@ export default function DocumentPreflightWorkspace() {
     } catch {
       setFiles([])
       setPendingReplacementPages([])
+      setError('הדפדפן לא הצליח ליצור מזהה זמני ובטוח למסמך. נסה שוב.')
+    }
+  }
+
+  const appendCameraCapture = (cameraCapture: File) => {
+    if (files.length >= MAX_PREFLIGHT_BATCH_IMAGES) {
+      setError(`אפשר לצלם עד ${MAX_PREFLIGHT_BATCH_IMAGES} עמודים בכל אצווה.`)
+      return
+    }
+
+    try {
+      const nextCapture: SelectedSourceImage = {
+        file: cameraCapture,
+        sourceDocumentRef: createSourceDocumentRef(),
+      }
+      resetDraftAfterSelectionChange()
+      setFiles((current) =>
+        current.length < MAX_PREFLIGHT_BATCH_IMAGES
+          ? [...current, nextCapture]
+          : current
+      )
+      setSourceSelectionKind('camera')
+    } catch {
       setError('הדפדפן לא הצליח ליצור מזהה זמני ובטוח למסמך. נסה שוב.')
     }
   }
@@ -788,7 +826,10 @@ export default function DocumentPreflightWorkspace() {
     queueSourceSelection({ kind: 'images', files: selectedFiles })
   }
 
-  const selectCameraCapture = (event: ChangeEvent<HTMLInputElement>) => {
+  const selectCameraCapture = (
+    event: ChangeEvent<HTMLInputElement>,
+    allowAppend = true
+  ) => {
     const selectedFiles = Array.from(event.target.files ?? [])
     event.currentTarget.value = ''
 
@@ -811,6 +852,10 @@ export default function DocumentPreflightWorkspace() {
       return
     }
 
+    if (allowAppend && canAppendCameraPage) {
+      appendCameraCapture(cameraCapture)
+      return
+    }
     queueSourceSelection({ kind: 'camera', file: cameraCapture })
   }
 
@@ -859,7 +904,7 @@ export default function DocumentPreflightWorkspace() {
       return
     }
 
-    resetDraftAfterSelectionChange()
+    resetDraftAfterSelectionChange({ preserveSelectionKind: true })
     setFiles((current) =>
       moveOcrPreflightSelectionItem(current, currentIndex, destinationIndex)
     )
@@ -870,8 +915,52 @@ export default function DocumentPreflightWorkspace() {
       return
     }
 
-    resetDraftAfterSelectionChange()
+    resetDraftAfterSelectionChange({ preserveSelectionKind: true })
     setFiles((current) => removeOcrPreflightSelectionItem(current, index))
+  }
+
+  const replaceQueuedCameraPage = (
+    event: ChangeEvent<HTMLInputElement>,
+    sourceDocumentRef: string
+  ) => {
+    const selectedFiles = Array.from(event.target.files ?? [])
+    event.currentTarget.value = ''
+
+    if (
+      preflightActionLock.current ||
+      !canEditSelectedBatch ||
+      selectedFiles.length === 0
+    ) {
+      return
+    }
+    if (selectedFiles.length !== 1) {
+      setError('יש לבחור תמונה אחת להחלפת העמוד המצולם.')
+      return
+    }
+
+    const replacementFile = selectedFiles[0]
+    const selectionIssue = getPreflightFileSelectionIssue(replacementFile)
+    if (selectionIssue) {
+      setError(PREFLIGHT_FAILURE_TEXT[selectionIssue])
+      return
+    }
+    if (!files.some((file) => file.sourceDocumentRef === sourceDocumentRef)) {
+      setError('לא ניתן לגשת לעמוד המצולם. נסה לצלם אותו מחדש או להתחיל אצווה חדשה.')
+      return
+    }
+
+    setError(null)
+    setFiles((current) =>
+      current.map((selectedFile) =>
+        selectedFile.sourceDocumentRef === sourceDocumentRef
+          ? { ...selectedFile, file: replacementFile }
+          : selectedFile
+      )
+    )
+    setActiveLocalPreview(null)
+    setPreviewedSource((current) =>
+      current?.sourceDocumentRef === sourceDocumentRef ? null : current
+    )
   }
 
   const selectReplacementFile = (
@@ -1294,11 +1383,23 @@ export default function DocumentPreflightWorkspace() {
             שאין צל ושהטקסט חד.
           </p>
           <label className="document-preflight__camera-button">
-            <span>פתח מצלמה אחורית לצילום עמוד</span>
+            <span>
+              {canAppendCameraPage
+                ? `צלם ושמור עמוד נוסף (${files.length + 1} מתוך ${MAX_PREFLIGHT_BATCH_IMAGES})`
+                : isCameraBatchAtCapacity
+                  ? 'צלם אצווה חדשה — החלפת הקיימת תדרוש אישור'
+                  : 'פתח מצלמה אחורית לצילום עמוד'}
+            </span>
             <input
               accept={PREFLIGHT_FILE_INPUT_ACCEPT}
               aria-describedby={CAMERA_CAPTURE_NOTE_ID}
-              aria-label="פתח מצלמה אחורית לצילום עמוד מסמך אחד"
+              aria-label={
+                canAppendCameraPage
+                  ? `צלם ושמור עמוד ${files.length + 1} באצווה המקומית`
+                  : isCameraBatchAtCapacity
+                    ? 'צלם אצווה חדשה; החלפת האצווה הקיימת תדרוש אישור'
+                    : 'פתח מצלמה אחורית לצילום עמוד מסמך אחד'
+              }
               capture={PREFLIGHT_CAMERA_CAPTURE}
               disabled={isSelectionLocked}
               onChange={selectCameraCapture}
@@ -1310,6 +1411,12 @@ export default function DocumentPreflightWorkspace() {
             קבצים. התמונה נשארת בדפדפן עד ללחיצה המפורשת על בדיקת OCR. נתמכים
             JPEG, PNG ו־WebP.
           </p>
+          {canAppendCameraPage && (
+            <p className="document-preflight__camera-note">
+              הצילום הבא יצטרף לעמודים שכבר נבחרו, מקומית בדפדפן בלבד. הוא לא
+              יחליף צילום קיים ולא יישלח ל־OCR לפני הלחיצה על יצירת הטיוטות.
+            </p>
+          )}
         </section>
 
         {pendingSourceSelection && (
@@ -1416,7 +1523,7 @@ export default function DocumentPreflightWorkspace() {
                       aria-label="צלם שוב עמוד מסמך; הצילום החדש יחליף רק לאחר אישור"
                       capture={PREFLIGHT_CAMERA_CAPTURE}
                       disabled={isSelectionLocked}
-                      onChange={selectCameraCapture}
+                      onChange={(event) => selectCameraCapture(event, false)}
                       type="file"
                     />
                   </label>
@@ -1450,39 +1557,81 @@ export default function DocumentPreflightWorkspace() {
                   הטיוטות.
                 </p>
                 <ol className="document-preflight__selection-list">
-                  {files.map(({ sourceDocumentRef }, index) => (
-                    <li className="document-preflight__selection-item" key={sourceDocumentRef}>
-                      <span>עמוד {index + 1}</span>
-                      <div className="document-preflight__selection-actions">
-                        <button
-                          aria-label={`העבר את עמוד ${index + 1} למעלה`}
-                          className="manual-review__secondary-button"
-                          disabled={index === 0}
-                          onClick={() => moveSelectedFile(index, index - 1)}
-                          type="button"
-                        >
-                          העבר למעלה
-                        </button>
-                        <button
-                          aria-label={`העבר את עמוד ${index + 1} למטה`}
-                          className="manual-review__secondary-button"
-                          disabled={index === files.length - 1}
-                          onClick={() => moveSelectedFile(index, index + 1)}
-                          type="button"
-                        >
-                          העבר למטה
-                        </button>
-                        <button
-                          aria-label={`הסר את עמוד ${index + 1} מהאצווה`}
-                          className="manual-review__secondary-button"
-                          onClick={() => removeSelectedFile(index)}
-                          type="button"
-                        >
-                          הסר עמוד
-                        </button>
-                      </div>
-                    </li>
-                  ))}
+                  {files.map(({ file, sourceDocumentRef }, index) => {
+                    const pageNumber = index + 1
+                    const isPagePreviewVisible =
+                      previewedSource?.pageNumber === pageNumber &&
+                      previewedSource.sourceDocumentRef === sourceDocumentRef
+
+                    return (
+                      <li
+                        className="document-preflight__selection-item"
+                        key={sourceDocumentRef}
+                      >
+                        <span>עמוד {pageNumber}</span>
+                        <div className="document-preflight__selection-actions">
+                          <button
+                            aria-label={`העבר את עמוד ${pageNumber} למעלה`}
+                            className="manual-review__secondary-button"
+                            disabled={index === 0}
+                            onClick={() => moveSelectedFile(index, index - 1)}
+                            type="button"
+                          >
+                            העבר למעלה
+                          </button>
+                          <button
+                            aria-label={`העבר את עמוד ${pageNumber} למטה`}
+                            className="manual-review__secondary-button"
+                            disabled={index === files.length - 1}
+                            onClick={() => moveSelectedFile(index, index + 1)}
+                            type="button"
+                          >
+                            העבר למטה
+                          </button>
+                          <button
+                            aria-label={`הסר את עמוד ${pageNumber} מהאצווה`}
+                            className="manual-review__secondary-button"
+                            onClick={() => removeSelectedFile(index)}
+                            type="button"
+                          >
+                            הסר עמוד
+                          </button>
+                        </div>
+                        {sourceSelectionKind === 'camera' && (
+                          <details className="document-preflight__queued-camera-page">
+                            <summary>בדוק או החלף צילום לעמוד {pageNumber}</summary>
+                            <div>
+                              <LocalImageReadiness
+                                file={file}
+                                subject="CAMERA_CAPTURE"
+                              />
+                              <SourceImagePreview
+                                hasSourceImage
+                                isVisible={isPagePreviewVisible}
+                                localPreviewUrl={
+                                  activeLocalPreview?.sourceDocumentRef ===
+                                  sourceDocumentRef
+                                    ? activeLocalPreview.url
+                                    : null
+                                }
+                                onToggle={() =>
+                                  toggleSourcePreview(pageNumber, sourceDocumentRef)
+                                }
+                                pageNumber={pageNumber}
+                              />
+                              <SourceImageReplacement
+                                disabled={isSubmitting}
+                                onSelect={(event) =>
+                                  replaceQueuedCameraPage(event, sourceDocumentRef)
+                                }
+                                pageNumber={pageNumber}
+                              />
+                            </div>
+                          </details>
+                        )}
+                      </li>
+                    )
+                  })}
                 </ol>
                 </>
               )
@@ -1491,6 +1640,50 @@ export default function DocumentPreflightWorkspace() {
                 סדר האצווה כבר שימש ליצירת טיוטת OCR. כדי לשנות סדר, בחר אצווה
                 חדשה לפני יצירת הטיוטות.
               </p>
+            )}
+            {sourceSelectionKind === 'camera' && outcome === null && (
+              <section className="document-preflight__camera-queue">
+                <strong>תור צילומים מקומי</strong>
+                <p>
+                  נשמרו {files.length} מתוך {MAX_PREFLIGHT_BATCH_IMAGES} עמודים
+                  בדפדפן. אפשר להוסיף צילום, לסדר או להסיר עמודים לפני OCR; שום
+                  צילום לא נשלח לשרת לפני הלחיצה על יצירת הטיוטות.
+                </p>
+                {canAppendCameraPage && (
+                  <label className="document-preflight__camera-button">
+                    <span>שמור עמוד והמשך לצלם</span>
+                    <input
+                      accept={PREFLIGHT_FILE_INPUT_ACCEPT}
+                      aria-describedby={CAMERA_CAPTURE_NOTE_ID}
+                      aria-label={`צלם ושמור עמוד ${files.length + 1} באצווה המקומית`}
+                      capture={PREFLIGHT_CAMERA_CAPTURE}
+                      disabled={isSelectionLocked}
+                      onChange={selectCameraCapture}
+                      type="file"
+                    />
+                  </label>
+                )}
+                {isCameraBatchAtCapacity && (
+                  <>
+                    <p className="document-preflight__camera-queue-status" role="status">
+                      הגעת למספר המרבי של עמודים באצווה. אפשר להסיר עמוד, להפעיל
+                      OCR, או לצלם אצווה חדשה שתוחלף רק לאחר אישור.
+                    </p>
+                    <label className="document-preflight__camera-button">
+                      <span>צלם אצווה חדשה</span>
+                      <input
+                        accept={PREFLIGHT_FILE_INPUT_ACCEPT}
+                        aria-describedby={CAMERA_CAPTURE_NOTE_ID}
+                        aria-label="צלם אצווה חדשה; החלפת האצווה הקיימת תדרוש אישור"
+                        capture={PREFLIGHT_CAMERA_CAPTURE}
+                        disabled={isSelectionLocked}
+                        onChange={selectCameraCapture}
+                        type="file"
+                      />
+                    </label>
+                  </>
+                )}
+              </section>
             )}
           </section>
         )}
@@ -1742,8 +1935,9 @@ export default function DocumentPreflightWorkspace() {
                     />
                   </label>
                   <p>
-                    קוד חוקי הוא מספר מ־1 עד 99. הוא לא ממפה עיר, לא מקבץ שורות ולא
-                    נשלח לשירות הבדיקה או לסיכום.
+                    קוד חוקי הוא מספר מ־1 עד 99. הוא אינו ממפה עיר ואינו משנה
+                    כמויות; לאחר בדיקת השורות הוא יכול להופיע רק בסיכום ביקורת
+                    נפרד, ללא ליקוט או יצוא.
                   </p>
                   <p
                     className={
@@ -1759,6 +1953,62 @@ export default function DocumentPreflightWorkspace() {
                         : reviewState.kind === 'ROUTE_REQUIRED'
                           ? 'סטטוס עמוד: נדרש קו חלוקה תקין בין 1 ל־99 לפני אישור.'
                           : 'סטטוס עמוד: בחר שורות להעברה, ואז אשר את הקו ואת העמוד.'}
+                  </p>
+                </section>
+                <section
+                  className={
+                    reviewState.kind === 'CONFIRMED'
+                      ? 'document-preflight__page-review document-preflight__page-review--confirmed'
+                      : reviewState.kind === 'PENDING'
+                        ? 'document-preflight__page-review'
+                        : 'document-preflight__page-review document-preflight__page-review--blocked'
+                  }
+                >
+                  <strong>אישור עמוד לפני העברה</strong>
+                  <p>
+                    נבחרו {reviewState.selectedRowCount} מתוך {transferableRowCount}{' '}
+                    שורות שניתן להעביר מעמוד זה.
+                  </p>
+                  {blockedRowCount > 0 && (
+                    <p>
+                      {blockedRowCount} שורות נוספות דורשות תיקון ולכן אינן זמינות
+                      להעברה.
+                    </p>
+                  )}
+                  {reviewState.kind === 'CONFIRMED' ? (
+                    <p className="document-preflight__page-review-status">
+                      קו חלוקה <span dir="ltr">{reviewState.routeCode}</span> אושר
+                      לעמוד זה. השורות יוכלו לעבור לאחר האישור הסופי למטה.
+                    </p>
+                  ) : reviewState.kind === 'PENDING' ? (
+                    <>
+                      <p className="document-preflight__page-review-status">
+                        קו חלוקה <span dir="ltr">{reviewState.routeCode}</span> הוזן,
+                        אך העמוד עדיין ממתין לאישור מפורש.
+                      </p>
+                      <button
+                        className="manual-review__primary-button"
+                        disabled={isSubmitting}
+                        onClick={() => confirmPageReview(sourceDocumentRef)}
+                        type="button"
+                      >
+                        אשר עמוד וקו {reviewState.routeCode}
+                      </button>
+                    </>
+                  ) : reviewState.kind === 'ROUTE_REQUIRED' ? (
+                    <p className="document-preflight__page-review-status">
+                      קו החלוקה אינו קריא או אינו תקין. יש לצלם שוב או להזין מספר
+                      בין 1 ל־99 לפני אישור העמוד.
+                    </p>
+                  ) : (
+                    <p className="document-preflight__page-review-status">
+                      בחר לפחות שורה אחת שניתן להעביר, ולאחר מכן אשר את העמוד ואת
+                      קו החלוקה.
+                    </p>
+                  )}
+                  <p className="document-preflight__page-review-note">
+                    שינוי בקו החלוקה, בבחירת השורות או בתמונת המקור מבטל את אישור
+                    העמוד.
                   </p>
                 </section>
                 {page.issues.map((issue) => (
@@ -1973,62 +2223,6 @@ export default function DocumentPreflightWorkspace() {
                       </p>
                     )}
                 </div>
-                <section
-                  className={
-                    reviewState.kind === 'CONFIRMED'
-                      ? 'document-preflight__page-review document-preflight__page-review--confirmed'
-                      : reviewState.kind === 'PENDING'
-                        ? 'document-preflight__page-review'
-                        : 'document-preflight__page-review document-preflight__page-review--blocked'
-                  }
-                >
-                  <strong>אישור עמוד לפני העברה</strong>
-                  <p>
-                    נבחרו {reviewState.selectedRowCount} מתוך {transferableRowCount}{' '}
-                    שורות שניתן להעביר מעמוד זה.
-                  </p>
-                  {blockedRowCount > 0 && (
-                    <p>
-                      {blockedRowCount} שורות נוספות דורשות תיקון ולכן אינן זמינות
-                      להעברה.
-                    </p>
-                  )}
-                  {reviewState.kind === 'CONFIRMED' ? (
-                    <p className="document-preflight__page-review-status">
-                      קו חלוקה <span dir="ltr">{reviewState.routeCode}</span> אושר
-                      לעמוד זה. השורות יוכלו לעבור לאחר האישור הסופי למטה.
-                    </p>
-                  ) : reviewState.kind === 'PENDING' ? (
-                    <>
-                      <p className="document-preflight__page-review-status">
-                        קו חלוקה <span dir="ltr">{reviewState.routeCode}</span> הוזן,
-                        אך העמוד עדיין ממתין לאישור מפורש.
-                      </p>
-                      <button
-                        className="manual-review__primary-button"
-                        disabled={isSubmitting}
-                        onClick={() => confirmPageReview(sourceDocumentRef)}
-                        type="button"
-                      >
-                        אשר עמוד וקו {reviewState.routeCode}
-                      </button>
-                    </>
-                  ) : reviewState.kind === 'ROUTE_REQUIRED' ? (
-                    <p className="document-preflight__page-review-status">
-                      קו החלוקה אינו קריא או אינו תקין. יש לצלם שוב או להזין מספר
-                      בין 1 ל־99 לפני אישור העמוד.
-                    </p>
-                  ) : (
-                    <p className="document-preflight__page-review-status">
-                      בחר לפחות שורה אחת שניתן להעביר, ולאחר מכן אשר את העמוד ואת
-                      קו החלוקה.
-                    </p>
-                  )}
-                  <p className="document-preflight__page-review-note">
-                    שינוי בקו החלוקה, בבחירת השורות או בתמונת המקור מבטל את אישור
-                    העמוד.
-                  </p>
-                </section>
               </div>
             )
           })}

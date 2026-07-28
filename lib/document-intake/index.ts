@@ -60,6 +60,7 @@ export {
   removeOcrPreflightSelectionItem,
 } from './preflight-selection'
 export {
+  canAppendCameraCaptureToBatch,
   requiresCameraCaptureReplacementConfirmation,
   requiresSourceSelectionReplacementConfirmation,
 } from './camera-capture-flow'

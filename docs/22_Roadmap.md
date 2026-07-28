@@ -12,8 +12,8 @@ Picker Pro follows a milestone-based release strategy. Each milestone delivers a
 
 ### Delivered
 - Hebrew OCR with Tesseract.js
-- Camera-first capture, image upload, and PDF OCR preflight
-- Page-level confirmation for route codes 1–99 before OCR handoff
+- Camera-first capture with a local multi-page queue (up to 20 pages), image upload, and PDF OCR preflight
+- Post-OCR page-level confirmation for route codes 1–99 before manual-review handoff
 - Manual product resolution (barcode → SKU → name → alias)
 - Explicit case/unit entry, validation, and aggregation
 - Non-persistent review breakdown by a confirmed route code
@@ -35,7 +35,6 @@ Picker Pro follows a milestone-based release strategy. Each milestone delivers a
 **Target**: Q4 2026
 
 - Page removal and reordering after submission
-- Batch camera capture (multiple shots without returning to upload screen)
 - Improved Hebrew OCR accuracy via fine-tuned Tesseract model
 - Push notifications for job completion
 - Export history with re-download

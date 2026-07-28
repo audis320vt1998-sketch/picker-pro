@@ -1,7 +1,9 @@
 import {
+  canAppendCameraCaptureToBatch,
   requiresCameraCaptureReplacementConfirmation,
   requiresSourceSelectionReplacementConfirmation,
 } from '@/lib/document-intake/camera-capture-flow'
+import { MAX_PREFLIGHT_BATCH_IMAGES } from '@/lib/document-intake/preflight-upload-policy'
 
 describe('source selection replacement flow', () => {
   it('allows the first source selection without a replacement confirmation', () => {
@@ -44,5 +46,70 @@ describe('source selection replacement flow', () => {
     expect(requiresCameraCaptureReplacementConfirmation(state)).toBe(
       requiresSourceSelectionReplacementConfirmation(state)
     )
+  })
+
+  it('allows a new phone capture only in a local pre-OCR camera batch', () => {
+    expect(
+      canAppendCameraCaptureToBatch({
+        selectedImageCount: 1,
+        hasCameraBatch: true,
+        hasPdfSelection: false,
+        hasPreflightOutcome: false,
+      })
+    ).toBe(true)
+
+    expect(
+      canAppendCameraCaptureToBatch({
+        selectedImageCount: MAX_PREFLIGHT_BATCH_IMAGES,
+        hasCameraBatch: true,
+        hasPdfSelection: false,
+        hasPreflightOutcome: false,
+      })
+    ).toBe(false)
+  })
+
+  it('requires an explicit replacement decision when a full camera batch cannot append', () => {
+    const fullBatch = {
+      selectedImageCount: MAX_PREFLIGHT_BATCH_IMAGES,
+      hasPdfSelection: false,
+      hasPreflightOutcome: false,
+    }
+
+    expect(
+      canAppendCameraCaptureToBatch({
+        ...fullBatch,
+        hasCameraBatch: true,
+      })
+    ).toBe(false)
+    expect(requiresSourceSelectionReplacementConfirmation(fullBatch)).toBe(true)
+  })
+
+  it.each([
+    {
+      selectedImageCount: 0,
+      hasCameraBatch: true,
+      hasPdfSelection: false,
+      hasPreflightOutcome: false,
+    },
+    {
+      selectedImageCount: 1,
+      hasCameraBatch: false,
+      hasPdfSelection: false,
+      hasPreflightOutcome: false,
+    },
+    {
+      selectedImageCount: 1,
+      hasCameraBatch: true,
+      hasPdfSelection: true,
+      hasPreflightOutcome: false,
+    },
+    {
+      selectedImageCount: 1,
+      hasCameraBatch: true,
+      hasPdfSelection: false,
+      hasPreflightOutcome: true,
+    },
+  ])('does not append a capture when the batch is unsafe: %o', (state) => {
+    expect(canAppendCameraCaptureToBatch(state)).toBe(false)
   })
 })

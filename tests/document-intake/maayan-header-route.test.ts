@@ -45,23 +45,26 @@ describe('Maayan header route draft', () => {
     })
   })
 
-  it('preserves leading zeros and accepts a joined label token', () => {
+  it('preserves a displayed leading zero and accepts a joined label token', () => {
     expect(
       extractMaayanHeaderRouteDraft({
         width,
         height,
-        words: [word('0012', 2170, 600), word('קוחלוקה:', 2320, 600)],
+        words: [word('01', 2170, 600), word('קוחלוקה:', 2320, 600)],
       })
     ).toEqual({
       status: 'SUGGESTED',
-      routeCode: '0012',
+      routeCode: '01',
       confidence: 92,
     })
   })
 
-  it.each(['', '12345', '12A', ' 12'])('rejects an unsafe route-code shape: %p', (value) => {
-    expect(isMaayanHeaderRouteCode(value)).toBe(false)
-  })
+  it.each(['', '00', '100', '12345', '12A', ' 12'])(
+    'rejects an unsafe route-code shape: %p',
+    (value) => {
+      expect(isMaayanHeaderRouteCode(value)).toBe(false)
+    }
+  )
 
   it('does not treat a number outside the fixed header field as a route', () => {
     expect(

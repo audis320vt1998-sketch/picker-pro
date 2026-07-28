@@ -20,7 +20,7 @@ const HEADER_ROUTE_BOUNDS = {
   yMin: 0.04,
   yMax: 0.34,
 } as const
-const MAX_ROUTE_CODE_LENGTH = 4
+const MAX_ROUTE_CODE = 99
 const ROUTE_CODE_CONFIDENCE_THRESHOLD = 85
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -128,14 +128,20 @@ function needsReview(reason: MaayanHeaderRouteDraftReason): MaayanHeaderRouteDra
 }
 
 /**
- * Returns a numeric route code without coercion, preserving leading zeros.
- * The short fixed format prevents a nearby order/customer/phone number from
+ * Returns a 1–99 route code without coercion, preserving a displayed leading
+ * zero. The bounded format prevents a nearby order/customer/phone number from
  * entering the narrow page-level route draft.
  */
 export function isMaayanHeaderRouteCode(value: unknown): value is string {
+  if (typeof value !== 'string' || !/^\d{1,2}$/.test(value)) {
+    return false
+  }
+
+  const numericValue = Number(value)
   return (
-    typeof value === 'string' &&
-    new RegExp(`^\\d{1,${MAX_ROUTE_CODE_LENGTH}}$`).test(value)
+    Number.isInteger(numericValue) &&
+    numericValue >= 1 &&
+    numericValue <= MAX_ROUTE_CODE
   )
 }
 

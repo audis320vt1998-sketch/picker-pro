@@ -164,8 +164,8 @@ value for each reference.
 - It returns table-body fields (product identifiers, product name, the three
   source quantity columns, confidence, row bounds, and parser issues) and one
   tightly constrained page-level `routeDraft`. That draft can expose only a
-  1–4 digit code that is anchored to the fixed `קו חלוקה` label in the
-  upper-right header area with sufficient OCR confidence. It never returns
+  route code from `1` through `99` that is anchored to the fixed `קו חלוקה`
+  label in the upper-right header area with sufficient OCR confidence. It never returns
   raw header text, customer details, or an unanchored number.
 - Every displayed table field has its own OCR confidence. A low-confidence
   field becomes a non-persistent review issue with fixed UI guidance; it does

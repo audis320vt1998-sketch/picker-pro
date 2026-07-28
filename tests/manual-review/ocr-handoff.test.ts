@@ -80,7 +80,7 @@ describe('OCR manual-review handoff', () => {
     })
 
     const handoff = createOcrManualReviewHandoff(
-      [handoffCandidate(valid, SOURCE_DOCUMENT_REF, '0012'), handoffCandidate(noPrintedRow)],
+      [handoffCandidate(valid, SOURCE_DOCUMENT_REF, '01'), handoffCandidate(noPrintedRow)],
       1000
     )
 
@@ -96,7 +96,7 @@ describe('OCR manual-review handoff', () => {
             parserRowIndex: 3,
           },
           barcode: '0123456789012',
-          routeCode: '0012',
+          routeCode: '01',
         }),
       ],
     })

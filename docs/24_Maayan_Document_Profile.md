@@ -28,7 +28,8 @@ turn them into operational case/unit totals or split a value by pack size.
 - Header, customer, and document-barcode text sit outside the configured table
   body and are not included in extracted row text.
 - The only header exception is a page-local route draft: the extractor accepts
-  only a 1–4 digit value immediately to the left of the fixed Hebrew label
+  only a route value from 1 through 99 immediately to the left of the fixed
+  Hebrew label
   `קו חלוקה` in the upper-right header area. The label and code must satisfy
   the configured OCR confidence checks; otherwise it returns a fixed
   review reason and no number. It never returns raw header/customer text,

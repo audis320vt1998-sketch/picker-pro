@@ -321,7 +321,7 @@ function defaultRouteCode(draft: MaayanHeaderRouteDraft): string {
 }
 
 function normalizeRouteCodeInput(value: string): string {
-  return value.replace(/[^0-9]/g, '').slice(0, 4)
+  return value.replace(/[^0-9]/g, '').slice(0, 2)
 }
 
 function rowKey(pageNumber: number, row: DocumentPreflightRow): string {
@@ -1643,7 +1643,7 @@ export default function DocumentPreflightWorkspace() {
                       aria-label={`קו חלוקה לעמוד ${page.pageNumber}`}
                       disabled={isSubmitting}
                       inputMode="numeric"
-                      maxLength={4}
+                      maxLength={2}
                       onChange={(event) =>
                         updateRouteCodeForPage(sourceDocumentRef, event.target.value)
                       }

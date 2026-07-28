@@ -30,6 +30,7 @@ export {
 export type {
   ManualReviewRequest,
   ManualReviewResult,
+  ManualReviewRouteSummary,
   ManualReviewRowInput,
 } from './types'
 export type { SourceDocumentOrdinals } from './document-ordinal'

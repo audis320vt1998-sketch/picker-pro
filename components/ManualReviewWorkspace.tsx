@@ -3,8 +3,10 @@
 import Link from 'next/link'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import ResultsTable from '@/components/ResultsTable'
+import RouteReviewSummary from '@/components/RouteReviewSummary'
 import SummaryCards from '@/components/SummaryCards'
 import type { VerifiedCatalogReadiness } from '@/lib/catalog'
+import { isMaayanHeaderRouteCode } from '@/lib/document-intake'
 import { sourceReferencePresentation } from '@/lib/traceability/source-presentation'
 import type {
   ManualReviewResult,
@@ -396,7 +398,13 @@ export default function ManualReviewWorkspace({
         setError(`יש לתקן את שורת הטופס ${index + 1}: ${readiness.summary}.`)
         return
       }
-      convertedRows.push(readiness.input)
+      const confirmedRouteCode = isMaayanHeaderRouteCode(row.ocrRouteCode)
+        ? row.ocrRouteCode
+        : undefined
+      convertedRows.push({
+        ...readiness.input,
+        ...(confirmedRouteCode ? { routeCode: confirmedRouteCode } : {}),
+      })
     }
 
     const [duplicateSourceRow] = findDuplicateSourceRows(convertedRows)
@@ -548,8 +556,9 @@ export default function ManualReviewWorkspace({
                     </p>
                     {row.ocrRouteCode && (
                       <p>
-                        קו חלוקה מהעמוד: <span dir="ltr">{row.ocrRouteCode}</span>. זהו
-                        מידע להשוואה בלבד ואינו נשלח לבדיקת השורות או לסיכום.
+                        קו חלוקה שאושר בעמוד: <span dir="ltr">{row.ocrRouteCode}</span>.
+                        הוא נשלח רק לסיכום ביקורת נפרד לאחר בדיקת השורות; הוא אינו
+                        משייך עיר, אינו משנה כמויות ואינו יוצר ליקוט או יצוא.
                       </p>
                     )}
                     <p>
@@ -794,6 +803,13 @@ export default function ManualReviewWorkspace({
             warningCount={resultSummary.warningCount}
           />
           <ResultsTable totals={result.totals} />
+          <RouteReviewSummary
+            routeSummaries={result.routeSummaries}
+            unassignedRouteAcceptedRowCount={
+              result.unassignedRouteAcceptedRowCount
+            }
+            unassignedRouteRowCount={result.unassignedRouteRowCount}
+          />
 
           {result.issues.length > 0 && (
             <div className="manual-review__issues">

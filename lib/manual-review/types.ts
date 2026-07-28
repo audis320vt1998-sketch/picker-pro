@@ -14,12 +14,26 @@ export interface ManualReviewRowInput {
   productName?: string
   barcode?: string
   sku?: string
+  /**
+   * A page-level route code explicitly confirmed before OCR handoff. It is
+   * bounded to 1–99 by the API and used only for a separate review summary;
+   * it is not a city assignment or a source identifier.
+   */
+  routeCode?: string
   cases: number
   units: number
 }
 
 export interface ManualReviewRequest {
   rows: readonly ManualReviewRowInput[]
+}
+
+export interface ManualReviewRouteSummary {
+  /** Canonical numeric display, so `01` and `1` are one route. */
+  routeCode: string
+  totals: ProductTotals[]
+  acceptedRowCount: number
+  totalRowCount: number
 }
 
 export interface ManualReviewResult {
@@ -29,4 +43,12 @@ export interface ManualReviewResult {
   issues: ValidationIssue[]
   acceptedRowCount: number
   totalRowCount: number
+  routeSummaries: ManualReviewRouteSummary[]
+  /**
+   * Accepted rows without a confirmed 1–99 route stay only in the global
+   * review total. They are never guessed into a route summary.
+   */
+  unassignedRouteAcceptedRowCount: number
+  /** Submitted rows without a confirmed route code. */
+  unassignedRouteRowCount: number
 }

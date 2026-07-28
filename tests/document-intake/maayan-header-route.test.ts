@@ -1,4 +1,5 @@
 import {
+  canonicalMaayanHeaderRouteCode,
   extractMaayanHeaderRouteDraft,
   isMaayanHeaderRouteCode,
   maayanHeaderRouteRectangle,
@@ -65,6 +66,12 @@ describe('Maayan header route draft', () => {
       expect(isMaayanHeaderRouteCode(value)).toBe(false)
     }
   )
+
+  it('uses one numeric grouping identity for displayed leading zeroes', () => {
+    expect(canonicalMaayanHeaderRouteCode('01')).toBe('1')
+    expect(canonicalMaayanHeaderRouteCode('99')).toBe('99')
+    expect(canonicalMaayanHeaderRouteCode('00')).toBeNull()
+  })
 
   it('does not treat a number outside the fixed header field as a route', () => {
     expect(

@@ -8,6 +8,7 @@ export { readImageDimensions, readImageMetadata } from './image-metadata'
 export { preflightMaayanOcrPage } from './preflight-service'
 export { preflightPdfRasterPages } from './pdf-preflight-service'
 export {
+  canonicalMaayanHeaderRouteCode,
   extractMaayanHeaderRouteDraft,
   isMaayanHeaderRouteCode,
   maayanHeaderRouteRectangle,

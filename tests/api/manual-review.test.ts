@@ -102,7 +102,148 @@ describe('POST /api/manual-review', () => {
       ],
       acceptedRowCount: 1,
       totalRowCount: 1,
+      routeSummaries: [],
+      unassignedRouteAcceptedRowCount: 1,
+      unassignedRouteRowCount: 1,
       issues: [],
+    })
+  })
+
+  it('combines OCR-confirmed leading-zero and canonical route codes without changing the overall total', async () => {
+    const response = await POST(
+      requestWithJson({
+        rows: [
+          validRow({
+            sourceDocumentRef,
+            routeCode: '01',
+            cases: 2,
+          }),
+          validRow({
+            sourceDocumentRef,
+            rowNumber: 2,
+            routeCode: '1',
+            cases: 1,
+          }),
+        ],
+      })
+    )
+
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body).toMatchObject({
+      acceptedRowCount: 2,
+      totalRowCount: 2,
+      unassignedRouteAcceptedRowCount: 0,
+      unassignedRouteRowCount: 0,
+      totals: [
+        {
+          product: { productKey: 'sku-88135' },
+          cases: { value: 3 },
+          units: { value: 0 },
+        },
+      ],
+      routeSummaries: [
+        {
+          routeCode: '1',
+          acceptedRowCount: 2,
+          totalRowCount: 2,
+          totals: [
+            {
+              product: { productKey: 'sku-88135' },
+              cases: { value: 3 },
+              units: { value: 0 },
+            },
+          ],
+        },
+      ],
+    })
+    expect(JSON.stringify(body)).not.toContain(sourceDocumentRef)
+  })
+
+  it('keeps the same product separate across two confirmed routes', async () => {
+    const response = await POST(
+      requestWithJson({
+        rows: [
+          validRow({ sourceDocumentRef, routeCode: '12', cases: 2 }),
+          validRow({
+            sourceDocumentRef: secondSourceDocumentRef,
+            routeCode: '13',
+            cases: 1,
+          }),
+        ],
+      })
+    )
+
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body.totals[0]).toMatchObject({ cases: { value: 3 }, units: { value: 0 } })
+    expect(body.routeSummaries).toEqual([
+      expect.objectContaining({
+        routeCode: '12',
+        acceptedRowCount: 1,
+        totalRowCount: 1,
+        totals: [expect.objectContaining({ cases: expect.objectContaining({ value: 2 }) })],
+      }),
+      expect.objectContaining({
+        routeCode: '13',
+        acceptedRowCount: 1,
+        totalRowCount: 1,
+        totals: [expect.objectContaining({ cases: expect.objectContaining({ value: 1 }) })],
+      }),
+    ])
+    expect(body.routeSummaries[0].totals[0].cases.sources).toEqual([
+      expect.objectContaining({
+        page: expect.objectContaining({ documentOrdinal: 1, pageNumber: 1 }),
+        row: { rowNumber: 1 },
+      }),
+    ])
+    expect(body.routeSummaries[1].totals[0].cases.sources).toEqual([
+      expect.objectContaining({
+        page: expect.objectContaining({ documentOrdinal: 2, pageNumber: 1 }),
+        row: { rowNumber: 1 },
+      }),
+    ])
+  })
+
+  it('keeps rejected and route-less rows out of the verified route totals', async () => {
+    const response = await POST(
+      requestWithJson({
+        rows: [
+          validRow({ sourceDocumentRef, routeCode: '12', cases: 1 }),
+          validRow({
+            sourceDocumentRef: secondSourceDocumentRef,
+            routeCode: '13',
+            rowNumber: 2,
+            rawText: 'unknown barcode',
+            barcode: '0000000000000',
+            cases: 4,
+          }),
+          validRow({ pageNumber: 2, rowNumber: 3, cases: 2 }),
+        ],
+      })
+    )
+
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body).toMatchObject({
+      acceptedRowCount: 2,
+      totalRowCount: 3,
+      unassignedRouteAcceptedRowCount: 1,
+      unassignedRouteRowCount: 1,
+      routeSummaries: [
+        {
+          routeCode: '12',
+          acceptedRowCount: 1,
+          totalRowCount: 1,
+          totals: [expect.objectContaining({ cases: expect.objectContaining({ value: 1 }) })],
+        },
+        {
+          routeCode: '13',
+          acceptedRowCount: 0,
+          totalRowCount: 1,
+          totals: [],
+        },
+      ],
     })
   })
 
@@ -274,6 +415,7 @@ describe('POST /api/manual-review', () => {
       requestWithJson({
         rows: [
           validRow({
+            sourceDocumentRef,
             sourceFileName,
             privateMetadata,
             routeCode,
@@ -300,6 +442,37 @@ describe('POST /api/manual-review', () => {
     expect(serialized).not.toContain(privateMetadata)
     expect(serialized).not.toContain(routeCode)
     expect(serialized).not.toContain('sourceFileName')
+  })
+
+  it.each(['0', '00', '100', '12x', 12])(
+    'rejects an unsafe route code: %p',
+    async (routeCode) => {
+      const response = await POST(
+        requestWithJson({
+          rows: [validRow({ sourceDocumentRef, routeCode })],
+        })
+      )
+
+      expect(response.status).toBe(400)
+      const body = await response.json()
+      expect(body).toMatchObject({
+        code: 'INVALID_MANUAL_REVIEW_INPUT',
+        details: [expect.objectContaining({ field: 'routeCode' })],
+      })
+      expect(JSON.stringify(body)).not.toContain(String(routeCode))
+    }
+  )
+
+  it('rejects a route code on a direct manual row without an OCR source reference', async () => {
+    const response = await POST(
+      requestWithJson({ rows: [validRow({ routeCode: '12' })] })
+    )
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toMatchObject({
+      code: 'INVALID_MANUAL_REVIEW_INPUT',
+      details: [expect.objectContaining({ field: 'routeCode' })],
+    })
   })
 
   it('continues to accept rows without a source document reference', async () => {

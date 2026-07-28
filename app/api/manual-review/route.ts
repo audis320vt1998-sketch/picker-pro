@@ -6,6 +6,7 @@ import {
   type ManualReviewRequest,
   type ManualReviewRowInput,
 } from '@/lib/manual-review'
+import { canonicalMaayanHeaderRouteCode } from '@/lib/document-intake'
 
 interface RequestValidationError {
   row?: number
@@ -23,6 +24,7 @@ const ALLOWED_ROW_FIELDS = new Set([
   'productName',
   'barcode',
   'sku',
+  'routeCode',
   'cases',
   'units',
 ])
@@ -103,6 +105,35 @@ function optionalSourceDocumentRef(
   return candidate
 }
 
+/**
+ * Route metadata is accepted only as a short numeric code that was confirmed
+ * in the browser's OCR page-review step. It cannot hold a customer name,
+ * route description, or arbitrary header text, and it is canonicalized so
+ * `01` and `1` always produce one review group.
+ */
+function optionalRouteCode(
+  value: Record<string, unknown>,
+  errors: RequestValidationError[],
+  row: number
+): string | undefined {
+  const candidate = value.routeCode
+  if (candidate === undefined) {
+    return undefined
+  }
+
+  const routeCode = canonicalMaayanHeaderRouteCode(candidate)
+  if (!routeCode) {
+    errors.push({
+      row,
+      field: 'routeCode',
+      message: 'Must be a numeric route code from 1 through 99.',
+    })
+    return undefined
+  }
+
+  return routeCode
+}
+
 function positiveInteger(
   value: Record<string, unknown>,
   field: string,
@@ -164,6 +195,7 @@ function parseRow(
 
   validateAllowedRowFields(value, errors, row)
   const sourceDocumentRef = optionalSourceDocumentRef(value, errors, row)
+  const routeCode = optionalRouteCode(value, errors, row)
   const productName = optionalString(value, 'productName', errors, row)
   const barcode = optionalString(value, 'barcode', errors, row)
   const sku = optionalString(value, 'sku', errors, row)
@@ -181,6 +213,14 @@ function parseRow(
     errors.push({
       row,
       message: 'At least one of productName, barcode, or sku is required.',
+    })
+  }
+
+  if (routeCode && !sourceDocumentRef) {
+    errors.push({
+      row,
+      field: 'routeCode',
+      message: 'A route code requires an opaque OCR source document reference.',
     })
   }
 
@@ -202,6 +242,7 @@ function parseRow(
     ...(productName ? { productName } : {}),
     ...(barcode ? { barcode } : {}),
     ...(sku ? { sku } : {}),
+    ...(routeCode ? { routeCode } : {}),
     cases,
     units,
   }

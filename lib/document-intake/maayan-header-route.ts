@@ -145,6 +145,15 @@ export function isMaayanHeaderRouteCode(value: unknown): value is string {
   )
 }
 
+/**
+ * Converts an already-bounded header route to its numeric identity for review
+ * grouping. OCR display may preserve `01`, but route 01 and route 1 are the
+ * same operational line and must never produce separate review groups.
+ */
+export function canonicalMaayanHeaderRouteCode(value: unknown): string | null {
+  return isMaayanHeaderRouteCode(value) ? String(Number(value)) : null
+}
+
 export function unavailableMaayanHeaderRouteDraft(): MaayanHeaderRouteDraft {
   return needsReview('ROUTE_OCR_UNAVAILABLE')
 }

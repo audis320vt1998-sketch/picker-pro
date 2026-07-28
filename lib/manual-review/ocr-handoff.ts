@@ -29,8 +29,10 @@ export interface OcrManualReviewHandoffRow {
   barcode?: string
   sku?: string
   /**
-   * A reviewer-visible numeric draft read from this source page's fixed
-   * header field. It remains outside the manual-review request and totals.
+   * A page-confirmed numeric code read from this source page's fixed header
+   * field. It may be carried to the manual-review request only for a separate
+   * non-persistent route-review summary; it never changes quantities, product
+   * resolution, or city assignment.
    */
   routeCode?: string
   /**

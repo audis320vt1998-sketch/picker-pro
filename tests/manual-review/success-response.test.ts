@@ -46,6 +46,7 @@ function validResponse() {
             {
               page: {
                 jobId: 'server-private-review-id',
+                documentOrdinal: 2,
                 pageNumber: 2,
               },
               row: { rowNumber: 5 },
@@ -69,6 +70,9 @@ function validResponse() {
     ],
     acceptedRowCount: 1,
     totalRowCount: 1,
+    routeSummaries: [],
+    unassignedRouteAcceptedRowCount: 1,
+    unassignedRouteRowCount: 1,
     privateResponseField: 'do-not-retain',
   }
 }
@@ -111,7 +115,11 @@ describe('manualReviewResultFromResponse', () => {
             value: 3,
             sources: [
               {
-                page: { jobId: 'manual-review', pageNumber: 2 },
+                page: {
+                  jobId: 'manual-review',
+                  documentOrdinal: 2,
+                  pageNumber: 2,
+                },
                 row: { rowNumber: 5 },
               },
             ],
@@ -132,6 +140,9 @@ describe('manualReviewResultFromResponse', () => {
       ],
       acceptedRowCount: 1,
       totalRowCount: 1,
+      routeSummaries: [],
+      unassignedRouteAcceptedRowCount: 1,
+      unassignedRouteRowCount: 1,
     })
 
     const serialized = JSON.stringify(result)
@@ -164,6 +175,159 @@ describe('manualReviewResultFromResponse', () => {
     const contradictoryCatalog = validResponse()
     contradictoryCatalog.catalog.verifiedProducts = 123
     expect(manualReviewResultFromResponse(contradictoryCatalog, 1)).toBeNull()
+  })
+
+  it('whitelists a canonical route summary and enforces the row partition', () => {
+    const response = validResponse()
+    response.routeSummaries = [
+      {
+        routeCode: '12',
+        totals: response.totals,
+        acceptedRowCount: 1,
+        totalRowCount: 1,
+        privateRouteField: 'do-not-retain',
+      },
+    ]
+    response.unassignedRouteAcceptedRowCount = 0
+    response.unassignedRouteRowCount = 0
+
+    expect(manualReviewResultFromResponse(response, 1)).toMatchObject({
+      routeSummaries: [
+        {
+          routeCode: '12',
+          acceptedRowCount: 1,
+          totalRowCount: 1,
+          totals: [
+            {
+              product: { productKey: 'product-1' },
+              cases: { value: 1 },
+              units: { value: 3 },
+            },
+          ],
+        },
+      ],
+      unassignedRouteAcceptedRowCount: 0,
+      unassignedRouteRowCount: 0,
+    })
+  })
+
+  it('rejects unsafe, duplicate, and non-partitioning route summaries', () => {
+    const leadingZero = validResponse()
+    leadingZero.routeSummaries = [
+      {
+        routeCode: '01',
+        totals: leadingZero.totals,
+        acceptedRowCount: 1,
+        totalRowCount: 1,
+      },
+    ]
+    leadingZero.unassignedRouteAcceptedRowCount = 0
+    leadingZero.unassignedRouteRowCount = 0
+    expect(manualReviewResultFromResponse(leadingZero, 1)).toBeNull()
+
+    const duplicateRoute = validResponse()
+    duplicateRoute.routeSummaries = [
+      {
+        routeCode: '12',
+        totals: [],
+        acceptedRowCount: 0,
+        totalRowCount: 0,
+      },
+      {
+        routeCode: '12',
+        totals: duplicateRoute.totals,
+        acceptedRowCount: 1,
+        totalRowCount: 1,
+      },
+    ]
+    duplicateRoute.unassignedRouteAcceptedRowCount = 0
+    duplicateRoute.unassignedRouteRowCount = 0
+    expect(manualReviewResultFromResponse(duplicateRoute, 1)).toBeNull()
+
+    const wrongPartition = validResponse()
+    wrongPartition.routeSummaries = [
+      {
+        routeCode: '12',
+        totals: wrongPartition.totals,
+        acceptedRowCount: 1,
+        totalRowCount: 1,
+      },
+    ]
+    expect(manualReviewResultFromResponse(wrongPartition, 1)).toBeNull()
+  })
+
+  it('rejects route totals or source locations that do not belong to the global result', () => {
+    const inflatedRouteTotal = validResponse()
+    inflatedRouteTotal.routeSummaries = [
+      {
+        routeCode: '12',
+        totals: [
+          {
+            ...inflatedRouteTotal.totals[0],
+            cases: {
+              ...inflatedRouteTotal.totals[0].cases,
+              value: 999,
+            },
+          },
+        ],
+        acceptedRowCount: 1,
+        totalRowCount: 1,
+      },
+    ]
+    inflatedRouteTotal.unassignedRouteAcceptedRowCount = 0
+    inflatedRouteTotal.unassignedRouteRowCount = 0
+    expect(manualReviewResultFromResponse(inflatedRouteTotal, 1)).toBeNull()
+
+    const foreignRouteSource = validResponse()
+    foreignRouteSource.routeSummaries = [
+      {
+        routeCode: '12',
+        totals: [
+          {
+            ...foreignRouteSource.totals[0],
+            cases: {
+              ...foreignRouteSource.totals[0].cases,
+              sources: [
+                {
+                  page: {
+                    jobId: 'server-private-review-id',
+                    documentOrdinal: 9,
+                    pageNumber: 9,
+                  },
+                  row: { rowNumber: 9 },
+                },
+              ],
+            },
+          },
+        ],
+        acceptedRowCount: 1,
+        totalRowCount: 1,
+      },
+    ]
+    foreignRouteSource.unassignedRouteAcceptedRowCount = 0
+    foreignRouteSource.unassignedRouteRowCount = 0
+    expect(manualReviewResultFromResponse(foreignRouteSource, 1)).toBeNull()
+
+    const routeOnlyProduct = validResponse()
+    routeOnlyProduct.routeSummaries = [
+      {
+        routeCode: '12',
+        totals: [
+          {
+            ...routeOnlyProduct.totals[0],
+            product: {
+              ...routeOnlyProduct.totals[0].product,
+              productKey: 'product-not-in-global-total',
+            },
+          },
+        ],
+        acceptedRowCount: 1,
+        totalRowCount: 1,
+      },
+    ]
+    routeOnlyProduct.unassignedRouteAcceptedRowCount = 0
+    routeOnlyProduct.unassignedRouteRowCount = 0
+    expect(manualReviewResultFromResponse(routeOnlyProduct, 1)).toBeNull()
   })
 
   it('rejects unknown or semantically invalid issue data', () => {

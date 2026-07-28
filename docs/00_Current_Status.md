@@ -89,9 +89,12 @@ soon as the review screen reads it. It carries an opaque, random document
 reference, source page/row, product identifiers, the three OCR source
 quantities for visual comparison, and the page's confirmed short numeric
 route-code draft. It does not carry a filename, original image,
-customer/header text, full OCR trace, catalog result, or a manual-review API
-request. The route code remains display-only and never reaches the
-manual-review API or a total.
+customer/header text, full OCR trace, or catalog result. When the reviewer
+submits explicit manual quantities, that bounded route code can accompany the
+same row only to produce a separate, non-persistent review breakdown. The API
+canonicalizes `01` and `1` to one route. It never changes product resolution,
+cases or units, city assignment, export, or the global total; direct manual
+rows without a confirmed route remain in the global total only.
 
 Manual review remains the only workflow that can evaluate an explicit row
 against the catalog.
@@ -142,6 +145,14 @@ identifiers, source text, source IDs, and arbitrary response fields.
 The result explicitly separates rows accepted into the operational total,
 rows excluded from it, and non-blocking warnings. A warning is not counted as
 an excluded row.
+
+When an OCR-transferred row carried a page-confirmed route code, the result
+also renders a separate **review summary by route**. Each route is re-evaluated
+from the explicit manual rows, so its cases and units are never guessed from a
+global aggregate. The grouped tables include only their own accepted rows;
+accepted rows without a confirmed route are counted as unassigned and remain
+in the global total only. This is not a city mapping, delivery assignment,
+saved pick list, or export.
 
 For every verified product total, the review result can expand two separate
 source lists: one for cases and one for individual units. Each displayed entry
@@ -271,9 +282,9 @@ value for each reference.
   fixed, non-cacheable `501` response without parsing an uploaded request; it
   is not an alternative to `/api/intake/preflight`.
 - Persisted jobs, review decisions, export files, operational city/route
-  assignment or grouping, and offline recovery. The settings page currently
-  reports only city/route catalog readiness; a read `routeDraft` is not a city
-  mapping or route group.
+  assignment, operational route grouping, and offline recovery. The settings
+  page currently reports only city/route catalog readiness; the review-only
+  route breakdown is not a city mapping or a delivery group.
 - AI assistance.
 
 Those capabilities must be rebuilt against the Foundation contracts and added

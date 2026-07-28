@@ -32,8 +32,9 @@ turn them into operational case/unit totals or split a value by pack size.
   Hebrew label
   `קו חלוקה` in the upper-right header area. The label and code must satisfy
   the configured OCR confidence checks; otherwise it returns a fixed
-  review reason and no number. It never returns raw header/customer text,
-  maps the code to a city, or creates a route group.
+  review reason and no number. It never returns raw header/customer text or
+  maps the code to a city. A group can appear only later as a separate review
+  result after explicit page confirmation and manual row evaluation.
 - When the normal full-page OCR cannot establish the table, the runtime first
   scans a narrow numeric SKU area. It requires at least four vertically
   aligned SKU candidates near the expected column, then accepts only an
@@ -87,11 +88,12 @@ turn them into operational case/unit totals or split a value by pack size.
   changing its selected rows, route code, or source image cancels that
   confirmation. The draft excludes the image, filename, document/header OCR
   trace, and customer data. A confirmed short route code may appear beside its
-  source page for comparison only; it is not sent to the manual-review API.
-  The three source quantity fields are comparison-only; they are not copied
-  into the manual `cases` or `units` inputs. The opaque document reference is
-  sent only to prevent a duplicate document/page/row in the same manual-review
-  request.
+  source page for comparison and a bounded route-review breakdown; it is sent
+  only as a `1`–`99` route code with that manual-review request, never as a
+  city mapping or source identifier. The three source quantity fields are
+  comparison-only; they are not copied into the manual `cases` or `units`
+  inputs. The opaque document reference is sent only to prevent a duplicate
+  document/page/row in the same manual-review request.
 
 ## OCR runtime
 

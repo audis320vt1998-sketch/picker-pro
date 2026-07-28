@@ -8,20 +8,25 @@ Picker Pro follows a milestone-based release strategy. Each milestone delivers a
 
 ## v1.0 — Foundation (Current)
 
-**Status**: In development
+**Status**: In development — review-only, non-persistent workflow
 
 ### Delivered
 - Hebrew OCR with Tesseract.js
-- Camera capture, image upload, PDF upload
-- Product resolution (barcode → SKU → name → alias)
-- Case/unit separation and aggregation
-- City and delivery-route grouping
-- Validation engine and review queue
-- Excel (XLSX), PDF, and print export per city
-- Full source traceability (page + row)
-- Offline job recovery (PWA)
-- Versioned, configurable business rules
-- CodeQL security analysis in CI
+- Camera-first capture, image upload, and PDF OCR preflight
+- Page-level confirmation for route codes 1–99 before OCR handoff
+- Manual product resolution (barcode → SKU → name → alias)
+- Explicit case/unit entry, validation, and aggregation
+- Non-persistent review breakdown by a confirmed route code
+- Safe source traceability (document position + page + row)
+- Versioned, configurable packing-review rules
+
+### Not delivered in v1.0
+
+- City or delivery-route assignment
+- Saved jobs, review queues, or offline recovery
+- Excel, PDF, print, or export history
+- Operational pick lists or grouping by city
+- Authentication or multi-user audit logs
 
 ---
 

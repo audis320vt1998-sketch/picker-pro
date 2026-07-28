@@ -6,10 +6,10 @@ import { getPackingSuggestion } from '@/lib/manual-review/packing-suggestion'
 import type { PickingRuleConfiguration } from '@/lib/manual-review/picking-rule-config'
 
 const configuration: PickingRuleConfiguration = {
-  version: '1.0.0',
+  version: '1.1.0',
   conversionMode: 'reviewSuggestion',
   catalogOverridesSourceMarkers: true,
-  caseOnlyFractions: [8, 12, 20, 24],
+  caseOnlyFractions: [8, 10, 12, 20, 24, 30, 36],
   individualPickingParentheses: { minimum: 8, maximum: 24 },
 }
 
@@ -68,7 +68,7 @@ describe('packing suggestion', () => {
     ).toEqual({
       status: 'AVAILABLE',
       rule: 'INDIVIDUAL_PICKING_PARENTHESES',
-      rulesVersion: '1.0.0',
+      rulesVersion: '1.1.0',
       packSize: 12,
       ...expected,
     })
@@ -102,20 +102,51 @@ describe('packing suggestion', () => {
     ).toEqual({
       status: 'AVAILABLE',
       rule: 'CASE_ONLY_FRACTION',
-      rulesVersion: '1.0.0',
+      rulesVersion: '1.1.0',
       packSize: 12,
       cases: 2,
       units: 0,
     })
   })
 
-  it('leaves 1/10 for review until it is explicitly configured', () => {
+  it.each([10, 30, 36])(
+    'treats an approved 1/%i marker as whole cases only when the catalog agrees',
+    (packSize) => {
+      const product = {
+        ...caseOnlyProduct,
+        productKey: `case-${packSize}`,
+        sku: `C-${packSize}`,
+        caseSize: packSize,
+      }
+
+      expect(
+        getPackingSuggestion(
+          {
+            barcode: product.barcode,
+            productName: `מוצר מארז 1/${packSize}`,
+            sourceQuantities: sourceQuantities(2, packSize, 2 * packSize),
+          },
+          catalog(product),
+          configuration
+        )
+      ).toEqual({
+        status: 'AVAILABLE',
+        rule: 'CASE_ONLY_FRACTION',
+        rulesVersion: '1.1.0',
+        packSize,
+        cases: 2,
+        units: 0,
+      })
+    }
+  )
+
+  it('leaves an unconfigured 1/16 marker for review', () => {
     expect(
       getPackingSuggestion(
         {
           barcode: caseOnlyProduct.barcode,
-          productName: 'מוצר מארז 1/10',
-          sourceQuantities: sourceQuantities(2, 10, 20),
+          productName: 'מוצר מארז 1/16',
+          sourceQuantities: sourceQuantities(2, 16, 32),
         },
         catalog(caseOnlyProduct),
         configuration
@@ -123,7 +154,7 @@ describe('packing suggestion', () => {
     ).toMatchObject({ status: 'REVIEW_REQUIRED', code: 'SOURCE_MARKER_MISSING' })
   })
 
-  it('does not ignore an additional unsupported marker beside an approved one', () => {
+  it('does not ignore an additional source marker beside an approved one', () => {
     expect(
       getPackingSuggestion(
         {

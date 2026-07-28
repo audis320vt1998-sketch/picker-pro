@@ -7,17 +7,17 @@ describe('picking-rule configuration', () => {
   it('loads the approved review-only rule shape', () => {
     expect(
       loadPickingRuleConfiguration({
-        version: '1.0.0',
+        version: '1.1.0',
         conversionMode: 'reviewSuggestion',
         catalogOverridesSourceMarkers: true,
-        caseOnlyFractions: [8, 12, 20, 24],
+        caseOnlyFractions: [8, 10, 12, 20, 24, 30, 36],
         individualPickingParentheses: { minimum: 8, maximum: 24 },
       })
     ).toEqual({
-      version: '1.0.0',
+      version: '1.1.0',
       conversionMode: 'reviewSuggestion',
       catalogOverridesSourceMarkers: true,
-      caseOnlyFractions: [8, 12, 20, 24],
+      caseOnlyFractions: [8, 10, 12, 20, 24, 30, 36],
       individualPickingParentheses: { minimum: 8, maximum: 24 },
     })
   })

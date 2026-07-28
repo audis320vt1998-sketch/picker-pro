@@ -98,9 +98,10 @@ for code that is deliberately outside the active build.
    individual-unit field. The only exception is an explicit, non-persistent
    reviewer action that applies a displayed suggestion after the source marker
    and verified catalog agree; it never overwrites manually entered values.
-   The active rule configuration recognizes case-only `1/8`, `1/12`, `1/20`,
-   and `1/24` markers, and parenthesized pack sizes from `8` through `24` for
-   individual picking. Any other marker or conflict remains in review.
+   The active rule configuration recognizes case-only `1/8`, `1/10`, `1/12`,
+   `1/20`, `1/24`, `1/30`, and `1/36` markers, and parenthesized pack sizes
+   from `8` through `24` for individual picking. Any other marker or conflict
+   remains in review.
 3. Barcode has priority, followed by SKU, name, and alias. A product with a
    catalog barcode is not resolved by name alone.
    Name and alias comparison only normalizes presentation variants (Hebrew

@@ -234,10 +234,10 @@ value for each reference.
   fields when all are positive integers and `totalUnits = caseQuantity ×
   unitsPerCase`.
 - The active, versioned rule configuration permits a **review suggestion**,
-  never an automatic conversion: `1/8`, `1/12`, `1/20`, and `1/24` are
-  case-only markers; a number in parentheses from `8` through `24` is an
-  individual-picking marker. Other `1/N` values, other parentheses, a missing
-  marker, or more than one marker remain manual review.
+  never an automatic conversion: `1/8`, `1/10`, `1/12`, `1/20`, `1/24`,
+  `1/30`, and `1/36` are case-only markers; a number in parentheses from `8`
+  through `24` is an individual-picking marker. Other `1/N` values, other
+  parentheses, a missing marker, or more than one marker remain manual review.
 - The verified catalog always overrides a source marker. The marker's pack size
   must equal the catalog `caseSize`; `1/N` must match a case-only catalog
   product and the source `unitsPerCase` must equal `N`; `(N)` must match an

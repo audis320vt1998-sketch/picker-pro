@@ -47,7 +47,7 @@
 | FR-QTY-01 | Cases and individual units SHALL be tracked as separate totals. |
 | FR-QTY-02 | Cases and units SHALL never be combined in any aggregate or export. |
 | FR-QTY-03 | Products whose names contain `(6)`, `(8)`, `(9)`, `(12)`, `(18)`, or `(24)` MAY permit individual-unit picking as defined in the product rules. |
-| FR-QTY-04 | Products whose names contain `1/8`, `1/12`, `1/20`, or `1/24` SHALL be treated as full-case only. |
+| FR-QTY-04 | Products whose names contain `1/8`, `1/10`, `1/12`, `1/20`, `1/24`, `1/30`, or `1/36` SHALL be treated as full-case only. |
 | FR-QTY-05 | The system SHALL aggregate quantities for the same product key across all input pages. |
 
 ### 2.5 City and Delivery Route

@@ -29,12 +29,59 @@ describe('POST /api/manual-review/packing-suggestion', () => {
       kind: 'PACKING_SUGGESTION',
       status: 'AVAILABLE',
       rule: 'INDIVIDUAL_PICKING_PARENTHESES',
-      rulesVersion: '1.0.0',
+      rulesVersion: '1.1.0',
       packSize: 8,
       cases: 0,
       units: 3,
     })
   })
+
+  it.each([
+    {
+      marker: '1/10',
+      barcode: '7290020531025',
+      productName: 'טורבו גלידת חלבון וניל 1/10',
+      packSize: 10,
+    },
+    {
+      marker: '1/30',
+      barcode: '0710497380546',
+      productName: 'מעיין שלגון בצורת ענבים 70 מ״ל 1/30',
+      packSize: 30,
+    },
+    {
+      marker: '1/36',
+      barcode: '7290018764831',
+      productName: 'מעיין שלגון באבלס תות־קוקוס 1/36',
+      packSize: 36,
+    },
+  ])(
+    'returns a review-only whole-case suggestion for an approved $marker marker',
+    async ({ barcode, productName, packSize }) => {
+      const response = await POST(
+        requestWithJson({
+          barcode,
+          productName,
+          sourceQuantities: {
+            caseQuantity: 2,
+            unitsPerCase: packSize,
+            totalUnits: 2 * packSize,
+          },
+        })
+      )
+
+      expect(response.status).toBe(200)
+      await expect(response.json()).resolves.toEqual({
+        kind: 'PACKING_SUGGESTION',
+        status: 'AVAILABLE',
+        rule: 'CASE_ONLY_FRACTION',
+        rulesVersion: '1.1.0',
+        packSize,
+        cases: 2,
+        units: 0,
+      })
+    }
+  )
 
   it('does not return input strings when a source marker conflicts with the catalog', async () => {
     const privateSourceName = 'private-source-name (12)'
@@ -56,7 +103,7 @@ describe('POST /api/manual-review/packing-suggestion', () => {
       kind: 'PACKING_SUGGESTION',
       status: 'REVIEW_REQUIRED',
       code: 'CATALOG_PACK_SIZE_CONFLICT',
-      rulesVersion: '1.0.0',
+      rulesVersion: '1.1.0',
     })
     expect(JSON.stringify(body)).not.toContain(privateSourceName)
   })

@@ -19,6 +19,10 @@ export {
   packingSuggestionFromResponse,
 } from './packing-suggestion-response'
 export {
+  discardLoadingPackingSuggestion,
+  isPackingSuggestionBatchCandidate,
+} from './packing-suggestion-batch'
+export {
   consumeOcrManualReviewHandoff,
   createOcrManualReviewHandoff,
   ocrManualReviewHandoffBlockReason,
@@ -39,6 +43,7 @@ export type {
   PackingSuggestionFailureCode,
   PackingSuggestionResponse,
 } from './packing-suggestion-response'
+export type { PackingSuggestionBatchCandidateState } from './packing-suggestion-batch'
 export type {
   PackingSuggestionReviewCode,
   PackingSuggestionRule,

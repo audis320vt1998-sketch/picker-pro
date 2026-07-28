@@ -125,9 +125,14 @@ row as ready, missing values, or requiring correction. This is a client-side
 completeness check only: it never copies an OCR quantity into a manual field,
 infers a pack size, or converts cases and units. A separate optional packing
 suggestion action is available only for an OCR draft with three structured
-source quantities. It has no persistence or operational side effect and can
-fill blank manual fields only after the reviewer explicitly presses **Apply
-suggestion**.
+source quantities. The reviewer may calculate those suggestions in sequence
+for all currently eligible, blank OCR rows; that batch only displays an
+available suggestion or a review reason for each row, never fills or submits a
+quantity to manual review, and stops if a row is changed. Its three structured
+source quantities are sent only to the packing-suggestion endpoint for that
+calculation. It has no persistence or operational side effect and can fill
+blank manual fields only after the reviewer explicitly presses **Apply
+suggestion** for that row.
 
 When a row carries the opaque document reference from OCR, the client and API
 reject a duplicate combination of document reference, page, and printed row.

@@ -56,7 +56,9 @@ Available now:
   case/unit fields stay blank. A reviewer may explicitly request a compact,
   non-persistent packing suggestion only when three separate source fields, an
   approved source marker, and the verified catalog all agree; the suggestion
-  cannot change a field until the reviewer explicitly applies it.
+  cannot change a field until the reviewer explicitly applies it. Eligible
+  blank OCR rows can be calculated sequentially in one batch, but every result
+  still requires an explicit per-row application.
 - An opaque source reference per logical document page prevents the same OCR
   document/page/row from being submitted twice. A clearer replacement photo
   of that page retains the reference, while an unrelated page needs a new

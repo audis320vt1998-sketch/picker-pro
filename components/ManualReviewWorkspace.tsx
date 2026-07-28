@@ -14,9 +14,11 @@ import type {
 } from '@/lib/manual-review'
 import {
   consumeOcrManualReviewHandoff,
+  discardLoadingPackingSuggestion,
   findDuplicateSourceRows,
   getManualReviewCatalogReadinessState,
   getManualReviewRowReadiness,
+  isPackingSuggestionBatchCandidate,
   manualReviewDuplicateSourceErrorFromResponse,
   manualReviewFailureCodeFromResponse,
   manualReviewIssuePresentation,
@@ -29,6 +31,7 @@ import {
   type ManualReviewDuplicateSourceError,
   type ManualReviewFailureCode,
   type PackingSuggestionFailureCode,
+  type PackingSuggestionBatchCandidateState,
   type PackingSuggestionResponse,
   type PackingSuggestionReviewCode,
   type PackingSuggestionRule,
@@ -76,6 +79,11 @@ type PackingSuggestionState =
       suggestion: ReviewRequiredPackingSuggestionResponse
     }
   | { kind: 'FAILED'; code: PackingSuggestionFailureCode }
+
+type PackingSuggestionBatchState =
+  | { kind: 'IDLE' }
+  | { kind: 'RUNNING'; total: number; completed: number }
+  | { kind: 'DONE'; attempted: number }
 
 const MANUAL_REVIEW_FAILURE_TEXT: Record<ManualReviewFailureCode, string> = {
   INVALID_MANUAL_REVIEW_INPUT:
@@ -193,8 +201,13 @@ export default function ManualReviewWorkspace({
   const [packingSuggestionStates, setPackingSuggestionStates] = useState<
     Record<number, PackingSuggestionState>
   >({})
+  const [packingSuggestionBatchState, setPackingSuggestionBatchState] =
+    useState<PackingSuggestionBatchState>({ kind: 'IDLE' })
   const submitLock = useRef(false)
   const packingSuggestionRequestIds = useRef<Record<number, number>>({})
+  const packingSuggestionBatchRunId = useRef(0)
+  const isPackingSuggestionBatchRunning =
+    packingSuggestionBatchState.kind === 'RUNNING'
 
   useEffect(() => {
     try {
@@ -220,6 +233,23 @@ export default function ManualReviewWorkspace({
     }
   }, [])
 
+  const invalidatePackingSuggestionBatch = () => {
+    packingSuggestionBatchRunId.current += 1
+    setPackingSuggestionBatchState({ kind: 'IDLE' })
+  }
+
+  const isEligibleForPackingSuggestionBatch = (row: EditableRow): boolean => {
+    const suggestionState: PackingSuggestionBatchCandidateState = (
+      packingSuggestionStates[row.id] ?? { kind: 'IDLE' }
+    ).kind
+
+    return isPackingSuggestionBatchCandidate({
+      hasOcrSourceQuantities: row.ocrSourceQuantities !== null,
+      hasExplicitManualQuantities: hasExplicitManualQuantities(row),
+      suggestionState,
+    })
+  }
+
   const updateRow = <Field extends keyof EditableRow>(
     id: number,
     field: Field,
@@ -229,6 +259,7 @@ export default function ManualReviewWorkspace({
       return
     }
 
+    invalidatePackingSuggestionBatch()
     setResult(null)
     if (
       field === 'productName' ||
@@ -243,7 +274,14 @@ export default function ManualReviewWorkspace({
       })
     }
     if (field === 'cases' || field === 'units') {
+      packingSuggestionRequestIds.current[id] =
+        (packingSuggestionRequestIds.current[id] ?? 0) + 1
       setPackingSuggestionStates((current) => {
+        const nextState = discardLoadingPackingSuggestion(current, id)
+        if (nextState !== current) {
+          return nextState
+        }
+
         const state = current[id]
         if (state?.kind !== 'AVAILABLE' || !state.applied) {
           return current
@@ -265,6 +303,7 @@ export default function ManualReviewWorkspace({
       return
     }
 
+    invalidatePackingSuggestionBatch()
     setResult(null)
     setRows((currentRows) => [
       ...currentRows,
@@ -278,6 +317,7 @@ export default function ManualReviewWorkspace({
       return
     }
 
+    invalidatePackingSuggestionBatch()
     setResult(null)
     packingSuggestionRequestIds.current[id] =
       (packingSuggestionRequestIds.current[id] ?? 0) + 1
@@ -357,6 +397,51 @@ export default function ManualReviewWorkspace({
     }
   }
 
+  const requestPackingSuggestionsForEligibleRows = async () => {
+    if (isSubmitting || packingSuggestionBatchState.kind === 'RUNNING') {
+      return
+    }
+
+    const candidates = rows.filter(isEligibleForPackingSuggestionBatch)
+    if (candidates.length === 0) {
+      return
+    }
+
+    const runId = packingSuggestionBatchRunId.current + 1
+    packingSuggestionBatchRunId.current = runId
+    setError(null)
+    setPackingSuggestionBatchState({
+      kind: 'RUNNING',
+      total: candidates.length,
+      completed: 0,
+    })
+
+    for (const [index, row] of candidates.entries()) {
+      if (packingSuggestionBatchRunId.current !== runId) {
+        return
+      }
+
+      await requestPackingSuggestion(row)
+
+      if (packingSuggestionBatchRunId.current !== runId) {
+        return
+      }
+
+      setPackingSuggestionBatchState({
+        kind: 'RUNNING',
+        total: candidates.length,
+        completed: index + 1,
+      })
+    }
+
+    if (packingSuggestionBatchRunId.current === runId) {
+      setPackingSuggestionBatchState({
+        kind: 'DONE',
+        attempted: candidates.length,
+      })
+    }
+  }
+
   const applyPackingSuggestion = (
     row: EditableRow,
     suggestion: AvailablePackingSuggestionResponse
@@ -365,6 +450,7 @@ export default function ManualReviewWorkspace({
       return
     }
 
+    invalidatePackingSuggestionBatch()
     setResult(null)
     setRows((currentRows) =>
       currentRows.map((currentRow) =>
@@ -385,7 +471,7 @@ export default function ManualReviewWorkspace({
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (submitLock.current) {
+    if (submitLock.current || isPackingSuggestionBatchRunning) {
       return
     }
 
@@ -469,6 +555,9 @@ export default function ManualReviewWorkspace({
   const resultSummary = result ? summarizeManualReviewResult(result) : null
   const rowReadiness = rows.map((row) => getManualReviewRowReadiness(row))
   const readyRowCount = rowReadiness.filter((readiness) => readiness.isReady).length
+  const packingSuggestionBatchCandidateCount = rows.filter(
+    isEligibleForPackingSuggestionBatch
+  ).length
   const catalogReadinessState = getManualReviewCatalogReadinessState(
     catalogReadiness
   )
@@ -517,6 +606,47 @@ export default function ManualReviewWorkspace({
         <p className="manual-review__readiness-summary">
           מוכנות לבדיקה: {readyRowCount} מתוך {rows.length} שורות
         </p>
+        {importedOcrRowCount > 0 && (
+          <aside className="manual-review__packing-suggestion">
+            <strong>חישוב מרוכז של הצעות אריזה (אופציונלי)</strong>
+            <p>
+              הפעולה בודקת בטור רק טיוטות OCR שעדיין לא הוזנו בהן מארזים או
+              בודדים. היא מציגה הצעה או חריגה בכל שורה, אך אינה ממלאת ואינה
+              שולחת כמות לבדיקת השורות או לסיכום. שלוש כמויות המקור נשלחות רק
+              לשירות החישוב לצורך ההצעה; ההחלה נשארת פעולה מפורשת לכל שורה.
+            </p>
+            <div className="manual-review__packing-suggestion-actions">
+              <button
+                className="manual-review__secondary-button"
+                disabled={
+                  isSubmitting ||
+                  isPackingSuggestionBatchRunning ||
+                  packingSuggestionBatchCandidateCount === 0
+                }
+                onClick={requestPackingSuggestionsForEligibleRows}
+                type="button"
+              >
+                {packingSuggestionBatchState.kind === 'RUNNING'
+                  ? `מחשב הצעות… ${packingSuggestionBatchState.completed} מתוך ${packingSuggestionBatchState.total}`
+                  : packingSuggestionBatchCandidateCount === 0
+                    ? 'אין שורות מתאימות לחישוב'
+                    : `חשב הצעות אריזה ל־${packingSuggestionBatchCandidateCount} שורות מתאימות`}
+              </button>
+            </div>
+            {packingSuggestionBatchState.kind === 'RUNNING' && (
+              <p className="manual-review__packing-suggestion-status" role="status">
+                החישוב מתקדם בטור כדי להציג תוצאה ברורה לכל שורה. אפשר להפסיק
+                אותו באמצעות שינוי שורה.
+              </p>
+            )}
+            {packingSuggestionBatchState.kind === 'DONE' && (
+              <p className="manual-review__packing-suggestion-status" role="status">
+                החישוב הסתיים עבור {packingSuggestionBatchState.attempted} שורות.
+                בדוק בכל שורה את ההצעה או החריגה מול המסמך לפני החלה מפורשת.
+              </p>
+            )}
+          </aside>
+        )}
         {rows.map((row, index) => {
           const readiness = rowReadiness[index]
           const readinessId = `manual-review-row-${row.id}-readiness`
@@ -612,7 +742,9 @@ export default function ManualReviewWorkspace({
                         className="manual-review__secondary-button"
                         type="button"
                         disabled={
-                          isSubmitting || packingSuggestionState.kind === 'LOADING'
+                          isSubmitting ||
+                          isPackingSuggestionBatchRunning ||
+                          packingSuggestionState.kind === 'LOADING'
                         }
                         onClick={() => requestPackingSuggestion(row)}
                       >
@@ -756,7 +888,10 @@ export default function ManualReviewWorkspace({
           >
             הוסף שורה
           </button>
-          <button className="manual-review__primary-button" disabled={isSubmitting}>
+          <button
+            className="manual-review__primary-button"
+            disabled={isSubmitting || isPackingSuggestionBatchRunning}
+          >
             {isSubmitting ? 'בודק…' : 'בדוק שורות'}
           </button>
         </div>

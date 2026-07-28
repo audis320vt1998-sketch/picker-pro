@@ -8,6 +8,12 @@ export { readImageDimensions, readImageMetadata } from './image-metadata'
 export { preflightMaayanOcrPage } from './preflight-service'
 export { preflightPdfRasterPages } from './pdf-preflight-service'
 export {
+  extractMaayanHeaderRouteDraft,
+  isMaayanHeaderRouteCode,
+  maayanHeaderRouteRectangle,
+  unavailableMaayanHeaderRouteDraft,
+} from './maayan-header-route'
+export {
   getPdfPreflightFileSelectionIssue,
   hasPdfSignature,
   isSupportedPreflightPdfType,
@@ -78,6 +84,8 @@ export type {
   MaayanParsedRow,
   MaayanFieldConfidenceField,
   MaayanFieldConfidences,
+  MaayanHeaderRouteDraft,
+  MaayanHeaderRouteDraftReason,
   MaayanParseIssue,
   MaayanParseIssueCode,
   MaayanRawQuantities,

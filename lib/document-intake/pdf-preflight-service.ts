@@ -1,4 +1,5 @@
 import { readImageMetadata } from './image-metadata'
+import { unavailableMaayanHeaderRouteDraft } from './maayan-header-route'
 import { hasMinimumMaayanImageResolution } from './maayan-layout'
 import { MAX_PREFLIGHT_IMAGE_PIXELS } from './preflight-upload-policy'
 import { preflightMaayanOcrPage } from './preflight-service'
@@ -33,6 +34,7 @@ function issuePage(
 
   return {
     pageNumber,
+    routeDraft: unavailableMaayanHeaderRouteDraft(),
     rows: [],
     issues: [{ code, message }],
   }

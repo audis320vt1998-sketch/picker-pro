@@ -44,6 +44,11 @@ function row(lowConfidenceFields: DocumentPreflightRow['issues'] = []): Document
 function page(rows: readonly DocumentPreflightRow[] = []): DocumentPreflightPage {
   return {
     pageNumber: 1,
+    routeDraft: {
+      status: 'NEEDS_REVIEW',
+      routeCode: null,
+      reason: 'ROUTE_OCR_UNAVAILABLE',
+    },
     rows,
     issues: [],
   }

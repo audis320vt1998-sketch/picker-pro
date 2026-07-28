@@ -86,6 +86,26 @@ describe('preflightMaayanOcrPage', () => {
     expect(serialized).not.toContain('999.99')
   })
 
+  it('returns only a high-confidence route code from the fixed header field', () => {
+    const result = preflightMaayanOcrPage({
+      ...traceablePage(),
+      words: [
+        ...traceablePage().words,
+        word('12', 2170, 600),
+        word('חלוקה:', 2290, 600),
+        word('קו', 2450, 600),
+        word('private-header-name', 1800, 680),
+      ],
+    })
+
+    expect(result.pages[0]?.routeDraft).toEqual({
+      status: 'SUGGESTED',
+      routeCode: '12',
+      confidence: 92,
+    })
+    expect(JSON.stringify(result)).not.toContain('private-header-name')
+  })
+
   it('does not create rows for a low-resolution full-page photo', () => {
     const result = preflightMaayanOcrPage({
       width: 720,
@@ -97,6 +117,11 @@ describe('preflightMaayanOcrPage', () => {
     expect(result.pages[0]?.issues).toContainEqual(
       expect.objectContaining({ code: 'IMAGE_TOO_LOW_RESOLUTION' })
     )
+    expect(result.pages[0]?.routeDraft).toEqual({
+      status: 'NEEDS_REVIEW',
+      routeCode: null,
+      reason: 'ROUTE_OCR_UNAVAILABLE',
+    })
   })
 
   it('does not invent a row when no SKU and product barcode share a table line', () => {
@@ -189,6 +214,11 @@ describe('preflightMaayanOcrPage', () => {
       width,
       height,
       words: [word('private-customer', 1600, 220)],
+      routeDraft: {
+        status: 'SUGGESTED',
+        routeCode: '12',
+        confidence: 91,
+      },
       recoveredRows: [
         {
           printedRowNumber: null,
@@ -241,5 +271,10 @@ describe('preflightMaayanOcrPage', () => {
       }),
     ])
     expect(JSON.stringify(result)).not.toContain('private-customer')
+    expect(result.pages[0]?.routeDraft).toEqual({
+      status: 'SUGGESTED',
+      routeCode: '12',
+      confidence: 91,
+    })
   })
 })

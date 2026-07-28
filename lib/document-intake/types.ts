@@ -11,10 +11,39 @@ export interface OcrWord {
   boundingBox: BoundingBox
 }
 
+/**
+ * A deliberately narrow OCR draft for the Maayan "קו חלוקה" header field.
+ * It is not a city/route assignment and cannot create a picking result.
+ */
+export type MaayanHeaderRouteDraftReason =
+  | 'ROUTE_LABEL_NOT_FOUND'
+  | 'ROUTE_CODE_MISSING'
+  | 'ROUTE_CODE_AMBIGUOUS'
+  | 'ROUTE_CODE_LOW_CONFIDENCE'
+  | 'ROUTE_CODE_OUT_OF_POSITION'
+  | 'ROUTE_OCR_UNAVAILABLE'
+
+export type MaayanHeaderRouteDraft =
+  | {
+      status: 'SUGGESTED'
+      routeCode: string
+      confidence: number
+    }
+  | {
+      status: 'NEEDS_REVIEW'
+      routeCode: null
+      reason: MaayanHeaderRouteDraftReason
+    }
+
 export interface OcrPage {
   width: number
   height: number
   words: readonly OcrWord[]
+  /**
+   * Optional because a targeted OCR pass may produce this safe header draft
+   * while intentionally discarding its full OCR words.
+   */
+  routeDraft?: MaayanHeaderRouteDraft
   /**
    * Optional numeric-only recovery from a calibrated table pass. These rows
    * remain OCR drafts and are never an operational result.
@@ -128,6 +157,11 @@ export interface DocumentPreflightRow {
 
 export interface DocumentPreflightPage {
   pageNumber: number
+  /**
+   * A page-local, review-only code read from the "קו חלוקה" header field.
+   * It never maps a city, groups rows, or enters the manual-review API.
+   */
+  routeDraft: MaayanHeaderRouteDraft
   rows: readonly DocumentPreflightRow[]
   issues: readonly DocumentPreflightIssue[]
 }

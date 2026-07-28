@@ -12,6 +12,11 @@ const sourceDocumentRef = 'doc_01234567-89ab-4def-8123-456789abcdef'
 function preflightPage(): DocumentPreflightPage {
   return {
     pageNumber: 1,
+    routeDraft: {
+      status: 'SUGGESTED',
+      routeCode: '12',
+      confidence: 91,
+    },
     rows: [
       {
         source: {
@@ -70,6 +75,7 @@ describe('browser OCR preflight batch helpers', () => {
           source: { pageNumber: 3, printedRowNumber: 4 },
         },
       ],
+      routeDraft: { status: 'SUGGESTED', routeCode: '12' },
     })
     expect(original.rows[0].source.pageNumber).toBe(1)
   })

@@ -36,6 +36,11 @@ describe('PDF OCR preflight service', () => {
       width: 1800,
       height: 2400,
       words: [],
+      routeDraft: {
+        status: 'SUGGESTED',
+        routeCode: '12',
+        confidence: 91,
+      },
     })
 
     const result = await preflightPdfRasterPages(
@@ -45,6 +50,10 @@ describe('PDF OCR preflight service', () => {
 
     expect(recognize).toHaveBeenCalledTimes(2)
     expect(result.pages.map((page) => page.pageNumber)).toEqual([1, 2])
+    expect(result.pages.map((page) => page.routeDraft)).toEqual([
+      { status: 'SUGGESTED', routeCode: '12', confidence: 91 },
+      { status: 'SUGGESTED', routeCode: '12', confidence: 91 },
+    ])
     expect(result.pages.every((page) => page.issues[0]?.code === 'DOCUMENT_LAYOUT_UNRECOGNIZED')).toBe(true)
   })
 

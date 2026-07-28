@@ -81,10 +81,12 @@ After explicitly checking selected OCR rows against the source document, a
 user may transfer a minimal, one-time browser draft from `/upload` to
 `/review`. The transfer is held in session storage for at most 15 minutes and
 is removed as soon as the review screen reads it. It carries an opaque,
-random document reference, source page/row, and product identifiers only,
-plus the three OCR source quantities for visual comparison. It does not carry
-  a filename, original image, customer/header text, full OCR trace, catalog
-  result, or a manual-review API request.
+random document reference, source page/row, product identifiers, the three OCR
+source quantities for visual comparison, and only when the reviewer confirms
+it, a short numeric route-code draft read from that page's fixed `קו חלוקה`
+field. It does not carry a filename, original image, customer/header text,
+full OCR trace, catalog result, or a manual-review API request. The route code
+remains display-only and never reaches the manual-review API or a total.
 
 Manual review remains the only workflow that can evaluate an explicit row
 against the catalog.
@@ -159,8 +161,12 @@ value for each reference.
 - It requires a sufficiently high-resolution table image and reports
   `IMAGE_TOO_LOW_RESOLUTION` rather than parsing low-resolution full-page
   photos.
-- It returns only table-body fields: product identifiers, product name, the
-  three source quantity columns, confidence, row bounds, and parser issues.
+- It returns table-body fields (product identifiers, product name, the three
+  source quantity columns, confidence, row bounds, and parser issues) and one
+  tightly constrained page-level `routeDraft`. That draft can expose only a
+  1–4 digit code that is anchored to the fixed `קו חלוקה` label in the
+  upper-right header area with sufficient OCR confidence. It never returns
+  raw header text, customer details, or an unanchored number.
 - Every displayed table field has its own OCR confidence. A low-confidence
   field becomes a non-persistent review issue with fixed UI guidance; it does
   not accept, reject, convert, or automatically transfer a quantity.
@@ -172,7 +178,8 @@ value for each reference.
   returned name to just one nearby SKU row; no returned text, or a
   boundary-ambiguous word, remains blank with a review issue.
 - It never returns the filename, document header, customer information, full
-  OCR text, original image, catalog match, totals, or a pick list.
+  OCR text, original image, catalog match, totals, or a pick list. The sole
+  header exception is the bounded `routeDraft` code described above.
 - The upload screen can render an explicitly opened local image preview, but
   that preview is not part of the API response, session-storage handoff, or
   manual-review request. It can reveal original document/customer details to
@@ -260,7 +267,8 @@ value for each reference.
   is not an alternative to `/api/intake/preflight`.
 - Persisted jobs, review decisions, export files, operational city/route
   assignment or grouping, and offline recovery. The settings page currently
-  reports only city/route catalog readiness.
+  reports only city/route catalog readiness; a read `routeDraft` is not a city
+  mapping or route group.
 - AI assistance.
 
 Those capabilities must be rebuilt against the Foundation contracts and added

@@ -1,16 +1,22 @@
 import { detectMaayanTableLayout, hasMinimumMaayanImageResolution } from './maayan-layout'
+import {
+  extractMaayanHeaderRouteDraft,
+  unavailableMaayanHeaderRouteDraft,
+} from './maayan-header-route'
 import { parseMaayanTable } from './maayan-table-parser'
 import type {
   DocumentPreflightIssue,
   DocumentPreflightPage,
   DocumentPreflightResult,
   MaayanParsedRow,
+  MaayanHeaderRouteDraft,
   OcrPage,
 } from './types'
 
 function createPage(
   rows: DocumentPreflightPage['rows'],
-  issues: readonly DocumentPreflightIssue[]
+  issues: readonly DocumentPreflightIssue[],
+  routeDraft: MaayanHeaderRouteDraft
 ): DocumentPreflightResult {
   return {
     kind: 'DOCUMENT_PREFLIGHT',
@@ -19,6 +25,7 @@ function createPage(
     pages: [
       {
         pageNumber: 1,
+        routeDraft,
         rows,
         issues,
       },
@@ -58,8 +65,13 @@ export function preflightMaayanOcrPage(page: OcrPage): DocumentPreflightResult {
         message:
           'The photo is too low-resolution for traceable table OCR. Capture a sharper close-up or enter the rows manually.',
       },
-    ])
+    ], unavailableMaayanHeaderRouteDraft())
   }
+
+  // A targeted OCR pass can provide this whitelisted, page-local field even
+  // though it intentionally discards all header OCR words. Full-page OCR is
+  // reduced by the same extractor immediately below.
+  const routeDraft = page.routeDraft ?? extractMaayanHeaderRouteDraft(page)
 
   if (page.recoveredRows && page.recoveredRows.length > 0) {
     return createPage(
@@ -68,9 +80,10 @@ export function preflightMaayanOcrPage(page: OcrPage): DocumentPreflightResult {
         {
           code: 'OCR_DRAFT_REQUIRES_REVIEW',
           message:
-            'These targeted OCR fields are a draft only. Verify every product identifier and each source quantity before manual review.',
-        },
-      ]
+          'These targeted OCR fields are a draft only. Verify every product identifier and each source quantity before manual review.',
+      },
+      ],
+      routeDraft
     )
   }
 
@@ -82,7 +95,7 @@ export function preflightMaayanOcrPage(page: OcrPage): DocumentPreflightResult {
         message:
           'A Maayan table with a traceable row number, SKU, and product barcode was not recognized. No OCR rows were created.',
       },
-    ])
+    ], routeDraft)
   }
 
   const parsedRows = parseMaayanTable(page.words, layout)
@@ -93,7 +106,7 @@ export function preflightMaayanOcrPage(page: OcrPage): DocumentPreflightResult {
         message:
           'The table layout was found, but no row had a traceable row number, SKU, and product barcode. No OCR rows were created.',
       },
-    ])
+    ], routeDraft)
   }
 
   return createPage(
@@ -104,6 +117,7 @@ export function preflightMaayanOcrPage(page: OcrPage): DocumentPreflightResult {
         message:
           'These OCR fields are a draft only. Verify every product identifier and each source quantity before manual review.',
       },
-    ]
+    ],
+    routeDraft
   )
 }

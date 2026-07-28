@@ -269,12 +269,14 @@ describe('POST /api/manual-review', () => {
   it('rejects source filenames and unknown row metadata without echoing them', async () => {
     const sourceFileName = 'customer-alice-order-123.jpg'
     const privateMetadata = 'customer-alice-private-note'
+    const routeCode = '12'
     const response = await POST(
       requestWithJson({
         rows: [
           validRow({
             sourceFileName,
             privateMetadata,
+            routeCode,
           }),
         ],
       })
@@ -296,6 +298,7 @@ describe('POST /api/manual-review', () => {
     const serialized = JSON.stringify(body)
     expect(serialized).not.toContain(sourceFileName)
     expect(serialized).not.toContain(privateMetadata)
+    expect(serialized).not.toContain(routeCode)
     expect(serialized).not.toContain('sourceFileName')
   })
 

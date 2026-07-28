@@ -4,6 +4,11 @@ import { join } from 'node:path'
 import Tesseract from 'tesseract.js'
 import type { ImageDimensions } from './image-metadata'
 import {
+  extractMaayanHeaderRouteDraft,
+  maayanHeaderRouteRectangle,
+  unavailableMaayanHeaderRouteDraft,
+} from './maayan-header-route'
+import {
   groupTargetedProductNameWords,
   hasEnoughTargetedRows,
   recoverTargetedMaayanRows,
@@ -17,11 +22,21 @@ import {
   targetedSkuScanRectangle,
   type OcrRectangle,
 } from './maayan-targeted-recovery'
-import type { MaayanParsedRow, OcrPage, OcrWord } from './types'
+import type {
+  MaayanHeaderRouteDraft,
+  MaayanParsedRow,
+  OcrPage,
+  OcrWord,
+} from './types'
 
 const TARGETED_RECOVERY_BUDGET_MS = 35_000
 const TARGETED_PRODUCT_NAME_MINIMUM_REMAINING_MS = 8_000
 const MAX_TARGETED_ROW_ATTEMPTS = 12
+
+interface TargetedMaayanRecovery {
+  rows: readonly MaayanParsedRow[]
+  routeDraft: MaayanHeaderRouteDraft
+}
 
 export class OcrImageDecodeError extends Error {
   constructor() {
@@ -113,12 +128,33 @@ async function recognizeProductNameRectangle(
   return toOcrWords(result)
 }
 
+async function recognizeHeaderRouteRectangle(
+  worker: Tesseract.Worker,
+  image: Buffer,
+  dimensions: ImageDimensions
+): Promise<OcrWord[]> {
+  await worker.reinitialize('heb+eng')
+  await worker.setParameters({
+    tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT,
+    // Numeric calibration sets a restrictive whitelist. The fixed Hebrew
+    // header label must be readable before the pure extractor can anchor a
+    // route code to it.
+    tessedit_char_whitelist: '',
+  })
+  const result = await worker.recognize(
+    image,
+    { rectangle: maayanHeaderRouteRectangle(dimensions) },
+    { blocks: true }
+  )
+  return toOcrWords(result)
+}
+
 async function tryTargetedMaayanRecovery(
   worker: Tesseract.Worker,
   image: Buffer,
   dimensions: ImageDimensions,
   startedAt: number
-): Promise<MaayanParsedRow[] | null> {
+): Promise<TargetedMaayanRecovery | null> {
   if (!hasBudget(startedAt)) {
     return null
   }
@@ -207,6 +243,28 @@ async function tryTargetedMaayanRecovery(
     )
   }
 
+  // Read the small, fixed route field before optional product names. This
+  // result retains only a high-confidence code or a fixed review reason; the
+  // underlying header words are never returned with the targeted draft.
+  let routeDraft = unavailableMaayanHeaderRouteDraft()
+  if (hasProductNamePassBudget(startedAt)) {
+    try {
+      const headerWords = await recognizeHeaderRouteRectangle(
+        worker,
+        image,
+        dimensions
+      )
+      routeDraft = extractMaayanHeaderRouteDraft({
+        ...dimensions,
+        words: headerWords,
+      })
+    } catch (error) {
+      if (isImageDecodeFailure(error)) {
+        throw new OcrImageDecodeError()
+      }
+    }
+  }
+
   // Product names are informative OCR draft fields only. A failed or expired
   // text pass must not discard the already traceable numeric draft; missing
   // names remain explicit review issues instead of guessed values.
@@ -237,7 +295,9 @@ async function tryTargetedMaayanRecovery(
     printedRowWords,
     quantityWords,
   })
-  return hasEnoughTargetedRows(recoveredRows) ? recoveredRows : null
+  return hasEnoughTargetedRows(recoveredRows)
+    ? { rows: recoveredRows, routeDraft }
+    : null
 }
 
 async function recognizeFullPage(
@@ -272,10 +332,10 @@ export async function recognizeTesseractImage(
 
   try {
     const imageBuffer = Buffer.from(image)
-    let recoveredRows: MaayanParsedRow[] | null = null
+    let targetedRecovery: TargetedMaayanRecovery | null = null
     try {
       const startedAt = Date.now()
-      recoveredRows = await tryTargetedMaayanRecovery(
+      targetedRecovery = await tryTargetedMaayanRecovery(
         worker,
         imageBuffer,
         dimensions,
@@ -287,14 +347,15 @@ export async function recognizeTesseractImage(
       }
       // A targeted pass is an optional draft enhancement. Preserve the full
       // page OCR fallback if one narrow numeric crop cannot be read.
-      recoveredRows = null
+      targetedRecovery = null
     }
 
-    if (recoveredRows) {
+    if (targetedRecovery) {
       return {
         ...dimensions,
         words: [],
-        recoveredRows,
+        recoveredRows: targetedRecovery.rows,
+        routeDraft: targetedRecovery.routeDraft,
       }
     }
 

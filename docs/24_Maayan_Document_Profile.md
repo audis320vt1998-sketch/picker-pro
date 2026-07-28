@@ -27,6 +27,12 @@ turn them into operational case/unit totals or split a value by pack size.
   concatenated.
 - Header, customer, and document-barcode text sit outside the configured table
   body and are not included in extracted row text.
+- The only header exception is a page-local route draft: the extractor accepts
+  only a 1–4 digit value immediately to the left of the fixed Hebrew label
+  `קו חלוקה` in the upper-right header area. The label and code must satisfy
+  the configured OCR confidence checks; otherwise it returns a fixed
+  review reason and no number. It never returns raw header/customer text,
+  maps the code to a city, or creates a route group.
 - When the normal full-page OCR cannot establish the table, the runtime first
   scans a narrow numeric SKU area. It requires at least four vertically
   aligned SKU candidates near the expected column, then accepts only an
@@ -76,10 +82,12 @@ turn them into operational case/unit totals or split a value by pack size.
   user starts preflight and supplies a neutral upload filename.
 - A user may explicitly confirm selected, traceable rows and pass a minimal
   draft to `/review` through one-time session storage. The draft excludes the
-  image, filename, document/header OCR trace, and customer data. Its three
-  source quantity fields are comparison-only; they are not copied into the
-  manual `cases` or `units` inputs. The opaque document reference is sent only
-  to prevent a duplicate document/page/row in the same manual-review request.
+  image, filename, document/header OCR trace, and customer data. A confirmed
+  short route code may appear beside its source page for comparison only; it
+  is not sent to the manual-review API. The three source quantity fields are
+  comparison-only; they are not copied into the manual `cases` or `units`
+  inputs. The opaque document reference is sent only to prevent a duplicate
+  document/page/row in the same manual-review request.
 
 ## OCR runtime
 

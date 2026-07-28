@@ -66,20 +66,21 @@ function preflightRow(
 
 function handoffCandidate(
   row: DocumentPreflightRow,
-  sourceDocumentRef = SOURCE_DOCUMENT_REF
+  sourceDocumentRef = SOURCE_DOCUMENT_REF,
+  routeCode?: string
 ): OcrManualReviewHandoffCandidate {
-  return { row, sourceDocumentRef }
+  return { row, sourceDocumentRef, ...(routeCode ? { routeCode } : {}) }
 }
 
 describe('OCR manual-review handoff', () => {
-  it('keeps only traceable selected rows and excludes document OCR text and files', () => {
+  it('keeps only traceable selected rows and a safe page route code', () => {
     const valid = preflightRow()
     const noPrintedRow = preflightRow({
       source: { pageNumber: 1, printedRowNumber: null, parserRowIndex: 4 },
     })
 
     const handoff = createOcrManualReviewHandoff(
-      [handoffCandidate(valid), handoffCandidate(noPrintedRow)],
+      [handoffCandidate(valid, SOURCE_DOCUMENT_REF, '0012'), handoffCandidate(noPrintedRow)],
       1000
     )
 
@@ -95,6 +96,7 @@ describe('OCR manual-review handoff', () => {
             parserRowIndex: 3,
           },
           barcode: '0123456789012',
+          routeCode: '0012',
         }),
       ],
     })
@@ -109,7 +111,10 @@ describe('OCR manual-review handoff', () => {
 
   it('consumes the session handoff once and leaves manual quantities empty', () => {
     const storage = new MemoryStorage()
-    const handoff = createOcrManualReviewHandoff([handoffCandidate(preflightRow())], 1000)
+    const handoff = createOcrManualReviewHandoff(
+      [handoffCandidate(preflightRow(), SOURCE_DOCUMENT_REF, '12')],
+      1000
+    )
     expect(handoff).not.toBeNull()
     saveOcrManualReviewHandoff(storage, handoff!)
 
@@ -123,6 +128,7 @@ describe('OCR manual-review handoff', () => {
       pageNumber: 1,
       rowNumber: 7,
       barcode: '0123456789012',
+      routeCode: '12',
       sourceQuantities: { caseQuantity: 2, unitsPerCase: 12, totalUnits: 24 },
     })
     expect(draft).not.toHaveProperty('cases')
@@ -157,6 +163,33 @@ describe('OCR manual-review handoff', () => {
               printedRowNumber: 7,
               parserRowIndex: 3,
             },
+            sourceQuantities: { caseQuantity: 2, unitsPerCase: 12, totalUnits: 24 },
+          },
+        ],
+      })
+    )
+
+    expect(consumeOcrManualReviewHandoff(storage, 1001)).toBeNull()
+    expect(storage.getItem(OCR_MANUAL_REVIEW_HANDOFF_STORAGE_KEY)).toBeNull()
+  })
+
+  it('rejects arbitrary header text instead of carrying it through session storage', () => {
+    const storage = new MemoryStorage()
+    storage.setItem(
+      OCR_MANUAL_REVIEW_HANDOFF_STORAGE_KEY,
+      JSON.stringify({
+        kind: 'OCR_MANUAL_REVIEW_HANDOFF_V1',
+        createdAtMs: 1000,
+        rows: [
+          {
+            source: {
+              sourceDocumentRef: SOURCE_DOCUMENT_REF,
+              pageNumber: 1,
+              printedRowNumber: 7,
+              parserRowIndex: 3,
+            },
+            barcode: '0123456789012',
+            routeCode: 'private-header-name',
             sourceQuantities: { caseQuantity: 2, unitsPerCase: 12, totalUnits: 24 },
           },
         ],

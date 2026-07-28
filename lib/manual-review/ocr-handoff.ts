@@ -2,7 +2,10 @@ import type {
   DocumentPreflightRow,
   MaayanRawQuantities,
 } from '@/lib/document-intake'
-import { isOcrSourceDocumentRef } from '@/lib/document-intake'
+import {
+  isMaayanHeaderRouteCode,
+  isOcrSourceDocumentRef,
+} from '@/lib/document-intake'
 
 export const OCR_MANUAL_REVIEW_HANDOFF_STORAGE_KEY =
   'picker-pro.ocr-manual-review-handoff.v1'
@@ -26,6 +29,11 @@ export interface OcrManualReviewHandoffRow {
   barcode?: string
   sku?: string
   /**
+   * A reviewer-visible numeric draft read from this source page's fixed
+   * header field. It remains outside the manual-review request and totals.
+   */
+  routeCode?: string
+  /**
    * These are display-only OCR source fields. They are deliberately not
    * converted to ManualReviewRowInput cases or units.
    */
@@ -41,6 +49,7 @@ export interface OcrManualReviewHandoffRow {
 export interface OcrManualReviewHandoffCandidate {
   sourceDocumentRef: string
   row: DocumentPreflightRow
+  routeCode?: string
 }
 
 export type OcrManualReviewHandoffBlockReason =
@@ -61,6 +70,7 @@ export interface ManualReviewOcrDraft {
   productName: string
   barcode: string
   sku: string
+  routeCode?: string
   sourceQuantities: MaayanRawQuantities
 }
 
@@ -78,6 +88,10 @@ function isParserRowIndex(value: unknown): value is number {
 
 function isOptionalString(value: unknown): value is string | undefined {
   return value === undefined || typeof value === 'string'
+}
+
+function isOptionalRouteCode(value: unknown): value is string | undefined {
+  return value === undefined || isMaayanHeaderRouteCode(value)
 }
 
 function hasProductIdentifier(
@@ -116,6 +130,7 @@ function isHandoffRow(value: unknown): value is OcrManualReviewHandoffRow {
     isOptionalString(value.productName) &&
     isOptionalString(value.barcode) &&
     isOptionalString(value.sku) &&
+    isOptionalRouteCode(value.routeCode) &&
     hasProductIdentifier(value.productName, value.barcode, value.sku)
   )
 }
@@ -136,6 +151,11 @@ function isHandoff(value: unknown): value is OcrManualReviewHandoffV1 {
 function cleanOptionalText(value: string | null): string | undefined {
   const cleaned = value?.trim()
   return cleaned ? cleaned : undefined
+}
+
+function cleanRouteCode(value: string | undefined): string | undefined {
+  const cleaned = value?.trim()
+  return cleaned && isMaayanHeaderRouteCode(cleaned) ? cleaned : undefined
 }
 
 function copySourceQuantities(
@@ -184,7 +204,7 @@ export function ocrManualReviewHandoffBlockReason(
  * A preflight row can move to manual review only when its visible source
  * location is traceable. OCR text, image data, document headers, filenames,
  * and OCR bounding boxes are intentionally excluded from this browser-only
- * handoff.
+ * handoff, except for an already-validated short numeric route code.
  */
 export function toOcrManualReviewHandoffRow(
   candidate: OcrManualReviewHandoffCandidate
@@ -194,6 +214,7 @@ export function toOcrManualReviewHandoffRow(
   const productName = cleanOptionalText(row.productName)
   const barcode = cleanOptionalText(row.barcode)
   const sku = cleanOptionalText(row.sku)
+  const routeCode = cleanRouteCode(candidate.routeCode)
   if (ocrManualReviewHandoffBlockReason(candidate) !== null || printedRowNumber === null) {
     return null
   }
@@ -208,6 +229,7 @@ export function toOcrManualReviewHandoffRow(
     ...(productName ? { productName } : {}),
     ...(barcode ? { barcode } : {}),
     ...(sku ? { sku } : {}),
+    ...(routeCode ? { routeCode } : {}),
     sourceQuantities: copySourceQuantities(row.sourceQuantities),
   }
 }
@@ -292,6 +314,7 @@ export function toManualReviewOcrDraft(
     productName,
     barcode,
     sku,
+    ...(row.routeCode ? { routeCode: row.routeCode } : {}),
     sourceQuantities: copySourceQuantities(row.sourceQuantities),
   }
 }

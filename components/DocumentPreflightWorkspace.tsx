@@ -17,6 +17,7 @@ import {
   getPreflightFileSelectionIssue,
   getPdfPreflightFileSelectionIssue,
   hasLowConfidenceOcrPreflightRow,
+  isMaayanHeaderRouteCode,
   isRetryablePreflightFailure,
   MAX_PREFLIGHT_BATCH_IMAGES,
   moveOcrPreflightSelectionItem,
@@ -40,6 +41,8 @@ import {
   type DocumentPreflightRow,
   type LocalCameraCaptureReadiness,
   type MaayanFieldConfidenceField,
+  type MaayanHeaderRouteDraft,
+  type MaayanHeaderRouteDraftReason,
   type OcrPreflightBatchPage,
   type OcrPreflightBatchFailure,
   type OcrPreflightBatchOutcome,
@@ -80,6 +83,21 @@ const FIELD_CONFIDENCE_LABELS: Record<MaayanFieldConfidenceField, string> = {
   caseQuantity: 'כמות מארזים',
   unitsPerCase: 'כמות באריזה',
   totalUnits: 'כמות בודדים',
+}
+
+const ROUTE_DRAFT_REVIEW_TEXT: Record<MaayanHeaderRouteDraftReason, string> = {
+  ROUTE_LABEL_NOT_FOUND:
+    'לא נמצא שדה “קו חלוקה” באזור הכותרת. בדוק את הדף המקורי.',
+  ROUTE_CODE_MISSING:
+    'נמצא שדה “קו חלוקה”, אך לא נמצא לידו מספר קריא.',
+  ROUTE_CODE_AMBIGUOUS:
+    'נמצאו יותר ממספר או יותר מתווית אחת ליד שדה קו החלוקה.',
+  ROUTE_CODE_LOW_CONFIDENCE:
+    'קו החלוקה נקרא בוודאות OCR נמוכה ולכן לא הוצג.',
+  ROUTE_CODE_OUT_OF_POSITION:
+    'נמצא מספר ליד קו החלוקה, אך מיקומו אינו תואם את השדה.',
+  ROUTE_OCR_UNAVAILABLE:
+    'לא ניתן היה לקרוא את אזור קו החלוקה בצילום זה.',
 }
 
 const ISSUE_TEXT: Record<DocumentPreflightIssue['code'], string> = {
@@ -296,6 +314,14 @@ function displayFieldConfidence(value: number | null | undefined): string {
   return typeof value === 'number' && Number.isFinite(value)
     ? `${Math.round(value)}%`
     : 'לא זוהה'
+}
+
+function defaultRouteCode(draft: MaayanHeaderRouteDraft): string {
+  return draft.status === 'SUGGESTED' ? draft.routeCode : ''
+}
+
+function normalizeRouteCodeInput(value: string): string {
+  return value.replace(/[^0-9]/g, '').slice(0, 4)
 }
 
 function rowKey(pageNumber: number, row: DocumentPreflightRow): string {
@@ -590,6 +616,7 @@ export default function DocumentPreflightWorkspace() {
   const [activeLocalPreview, setActiveLocalPreview] =
     useState<ActiveLocalPreview | null>(null)
   const [selectedRowKeys, setSelectedRowKeys] = useState<Record<string, boolean>>({})
+  const [routeCodeEdits, setRouteCodeEdits] = useState<Record<string, string>>({})
   const [hasConfirmedSourceCheck, setHasConfirmedSourceCheck] = useState(false)
   const [showOnlyLowConfidenceRows, setShowOnlyLowConfidenceRows] = useState(false)
   const preflightActionLock = useRef(false)
@@ -661,6 +688,7 @@ export default function DocumentPreflightWorkspace() {
     setPreviewedSource(null)
     setActiveLocalPreview(null)
     setSelectedRowKeys({})
+    setRouteCodeEdits({})
     setHasConfirmedSourceCheck(false)
     setShowOnlyLowConfidenceRows(false)
     setPdfFile(null)
@@ -896,6 +924,11 @@ export default function DocumentPreflightWorkspace() {
     setSelectedRowKeys((current) =>
       removeOcrPreflightPageRowSelections(current, replacementSlot.pageNumber)
     )
+    setRouteCodeEdits((current) => {
+      const remaining = { ...current }
+      delete remaining[replacementSlot.sourceDocumentRef]
+      return remaining
+    })
     setHasConfirmedSourceCheck(false)
     if (previewedSource?.sourceDocumentRef === replacementSlot.sourceDocumentRef) {
       setPreviewedSource(null)
@@ -923,6 +956,7 @@ export default function DocumentPreflightWorkspace() {
     setPreviewedSource(null)
     setActiveLocalPreview(null)
     setSelectedRowKeys({})
+    setRouteCodeEdits({})
     setHasConfirmedSourceCheck(false)
     if (pdfFile) {
       setActivity({ kind: 'pdf' })
@@ -1102,6 +1136,19 @@ export default function DocumentPreflightWorkspace() {
     )
   }
 
+  const routeCodeForPage = (
+    routeDraft: MaayanHeaderRouteDraft,
+    sourceDocumentRef: string
+  ): string => routeCodeEdits[sourceDocumentRef] ?? defaultRouteCode(routeDraft)
+
+  const updateRouteCodeForPage = (sourceDocumentRef: string, value: string) => {
+    setRouteCodeEdits((current) => ({
+      ...current,
+      [sourceDocumentRef]: normalizeRouteCodeInput(value),
+    }))
+    setHasConfirmedSourceCheck(false)
+  }
+
   const selectedRows = pages.flatMap(({ page, sourceDocumentRef }) =>
     page.rows
       .filter(
@@ -1109,7 +1156,14 @@ export default function DocumentPreflightWorkspace() {
           selectedRowKeys[rowKey(page.pageNumber, row)] &&
           canTransferRow(row, sourceDocumentRef)
       )
-      .map((row) => ({ row, sourceDocumentRef }))
+      .map((row) => {
+        const routeCode = routeCodeForPage(page.routeDraft, sourceDocumentRef)
+        return {
+          row,
+          sourceDocumentRef,
+          ...(isMaayanHeaderRouteCode(routeCode) ? { routeCode } : {}),
+        }
+      })
   )
 
   const transferToManualReview = () => {
@@ -1568,10 +1622,42 @@ export default function DocumentPreflightWorkspace() {
             const visibleRows = showOnlyLowConfidenceRows
               ? page.rows.filter(hasLowConfidenceOcrPreflightRow)
               : page.rows
+            const routeCode = routeCodeForPage(page.routeDraft, sourceDocumentRef)
 
             return (
               <div className="document-preflight__page" key={sourceDocumentRef}>
                 <h3>עמוד {page.pageNumber}</h3>
+                <section className="document-preflight__route-draft">
+                  <strong>קו חלוקה מהכותרת</strong>
+                  {page.routeDraft.status === 'SUGGESTED' ? (
+                    <p>
+                      זוהתה טיוטת OCR: <span dir="ltr">{page.routeDraft.routeCode}</span>{' '}
+                      (ודאות {Math.round(page.routeDraft.confidence)}%). יש לאמת מול הדף.
+                    </p>
+                  ) : (
+                    <p>{ROUTE_DRAFT_REVIEW_TEXT[page.routeDraft.reason]}</p>
+                  )}
+                  <label>
+                    אשר או תקן קו חלוקה לעמוד זה
+                    <input
+                      aria-label={`קו חלוקה לעמוד ${page.pageNumber}`}
+                      disabled={isSubmitting}
+                      inputMode="numeric"
+                      maxLength={4}
+                      onChange={(event) =>
+                        updateRouteCodeForPage(sourceDocumentRef, event.target.value)
+                      }
+                      pattern="[0-9]*"
+                      placeholder="לדוגמה 12"
+                      type="text"
+                      value={routeCode}
+                    />
+                  </label>
+                  <p>
+                    הקוד הוא טיוטה מהעמוד בלבד. הוא לא ממפה עיר, לא מקבץ שורות ולא
+                    נשלח לשירות הבדיקה או לסיכום.
+                  </p>
+                </section>
                 {page.issues.map((issue) => (
                   <p className="document-preflight__issue" key={issue.code}>
                     {ISSUE_TEXT[issue.code]}
@@ -1791,7 +1877,8 @@ export default function DocumentPreflightWorkspace() {
                 onChange={(event) => setHasConfirmedSourceCheck(event.target.checked)}
                 type="checkbox"
               />
-              בדקתי מול המסמך את המזהים ואת שלוש כמויות המקור בכל השורות שנבחרו.
+              בדקתי מול המסמך את קו החלוקה (אם הוזן), את המזהים ואת שלוש כמויות
+              המקור בכל השורות שנבחרו.
             </label>
             <button
               className="manual-review__primary-button"

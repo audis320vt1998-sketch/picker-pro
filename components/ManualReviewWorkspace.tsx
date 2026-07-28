@@ -47,6 +47,7 @@ interface EditableRow {
   sku: string
   cases: string
   units: string
+  ocrRouteCode: ManualReviewOcrDraft['routeCode']
   ocrSourceQuantities: ManualReviewOcrDraft['sourceQuantities'] | null
 }
 
@@ -159,6 +160,7 @@ function createEditableRow(
     sku: ocrDraft?.sku ?? '',
     cases: '',
     units: '',
+    ocrRouteCode: ocrDraft?.routeCode,
     ocrSourceQuantities: ocrDraft?.sourceQuantities ?? null,
   }
 }
@@ -544,6 +546,12 @@ export default function ManualReviewWorkspace({
                       כמות כוללת במסמך:{' '}
                       {displaySourceQuantity(row.ocrSourceQuantities.totalUnits)}
                     </p>
+                    {row.ocrRouteCode && (
+                      <p>
+                        קו חלוקה מהעמוד: <span dir="ltr">{row.ocrRouteCode}</span>. זהו
+                        מידע להשוואה בלבד ואינו נשלח לבדיקת השורות או לסיכום.
+                      </p>
+                    )}
                     <p>
                       הערכים אינם נשלחים לבדיקת השורות. אפשר לבקש עבורם במפורש
                       הצעת אריזה בלבד, או לבדוק את המסמך ולהקליד מארזים ובודדים

@@ -8,9 +8,10 @@ interface RouteReviewSummaryProps {
 }
 
 /**
- * Displays a non-persistent review breakdown only after the server has
- * evaluated the explicit rows. It is intentionally not a delivery plan: no
- * city mapping, route assignment, export, or saved pick list is created.
+ * Displays a review-only breakdown after the server has evaluated the explicit
+ * rows. It can also be rendered from a narrow local result snapshot, but is
+ * never a delivery plan: no city mapping, route assignment, export, or saved
+ * pick list is created.
  */
 export default function RouteReviewSummary({
   routeSummaries,

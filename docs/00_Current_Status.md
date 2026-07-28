@@ -2,7 +2,7 @@
 
 ## Operational workflow
 
-Picker Pro has two active, non-persistent workflows:
+Picker Pro has two active, non-persistent input workflows:
 
 - **Manual review** at `/review`.
 - **Maayan OCR preflight** at `/upload`, which returns a table draft that must
@@ -173,6 +173,23 @@ opaque document references, or a quantity contribution per source; the current
 Foundation contract retains source references but not an individual quantity
 value for each reference.
 
+After a successful manual review with at least one accepted row, the reviewer
+may explicitly save a **browser-local result snapshot**. It is never created
+automatically. The snapshot is available only from `/results` in the same
+browser and device for up to 24 hours, and the reviewer can explicitly delete
+it. At most ten snapshots are retained; a full local list requires an explicit
+deletion before another result can be saved.
+
+The saved snapshot is display-only. It contains only the catalog readiness
+counts/version at the time of the review, verified product names and
+barcode/SKU identifiers, separate case/unit totals, fixed warning/count
+metadata, page/row source positions, and the already reviewed route breakdown.
+It does not retain editable form rows, raw source/OCR text, OCR quantities or
+confidence, images/PDFs, filenames, document headers/customer details, opaque
+document references, server review IDs, or arbitrary API data. A saved result
+cannot be submitted again, turned into an export, assigned to a city, or used
+as a pick list.
+
 ## OCR preflight boundary
 
 - `/api/intake/preflight` accepts one JPEG, PNG, or WebP image at a time; the
@@ -291,10 +308,12 @@ value for each reference.
 - The legacy `/api/process` endpoint is deliberately disabled. It returns a
   fixed, non-cacheable `501` response without parsing an uploaded request; it
   is not an alternative to `/api/intake/preflight`.
-- Persisted jobs, review decisions, export files, operational city/route
-  assignment, operational route grouping, and offline recovery. The settings
-  page currently reports only city/route catalog readiness; the review-only
-  route breakdown is not a city mapping or a delivery group.
+- Server-side or editable persisted jobs, a persistent review queue, export
+  files, operational city/route assignment, operational route grouping, and
+  offline recovery. The explicit 24-hour local result snapshot is not a saved
+  OCR job or a recoverable form draft. The settings page currently reports only
+  city/route catalog readiness; the review-only route breakdown is not a city
+  mapping or a delivery group.
 - AI assistance.
 
 Those capabilities must be rebuilt against the Foundation contracts and added

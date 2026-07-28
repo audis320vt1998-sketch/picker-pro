@@ -14,6 +14,7 @@ import type {
 } from '@/lib/manual-review'
 import {
   consumeOcrManualReviewHandoff,
+  createSavedReviewJob,
   discardLoadingPackingSuggestion,
   findDuplicateSourceRows,
   getManualReviewCatalogReadinessState,
@@ -25,6 +26,7 @@ import {
   manualReviewResultFromResponse,
   packingSuggestionFailureCodeFromResponse,
   packingSuggestionFromResponse,
+  saveSavedReviewJob,
   summarizeManualReviewResult,
   toManualReviewOcrDraft,
   type ManualReviewOcrDraft,
@@ -35,6 +37,7 @@ import {
   type PackingSuggestionResponse,
   type PackingSuggestionReviewCode,
   type PackingSuggestionRule,
+  type SavedReviewJobSaveResult,
 } from '@/lib/manual-review'
 
 interface ManualReviewWorkspaceProps {
@@ -136,6 +139,18 @@ const PACKING_SUGGESTION_RULE_TEXT: Record<PackingSuggestionRule, string> = {
   INDIVIDUAL_PICKING_PARENTHESES: 'מספר בסוגריים — ליקוט בודדים',
 }
 
+const SAVED_REVIEW_SAVE_FAILURE_TEXT: Record<
+  Exclude<SavedReviewJobSaveResult['status'], 'SAVED'>,
+  string
+> = {
+  INVALID_JOB: 'לא ניתן לשמור את התוצאה המוצגת. בדוק שוב את השורות לפני שמירה.',
+  LIMIT_REACHED:
+    'נשמרו כבר מספיק תוצאות במכשיר זה. מחק תוצאה שמורה שאינה דרושה ונסה שוב.',
+  TOO_LARGE: 'התוצאה גדולה מדי לשמירה מקומית במכשיר זה.',
+  STORAGE_UNAVAILABLE:
+    'אחסון מקומי אינו זמין בדפדפן זה. אפשר להמשיך בבדיקה הרגילה ללא שמירה.',
+}
+
 const CATALOG_READINESS_TEXT = {
   NO_VERIFIED_PRODUCTS: {
     title: 'אין עדיין פריטים מאומתים בקטלוג.',
@@ -175,6 +190,15 @@ function createEditableRow(
   }
 }
 
+function createSavedReviewJobId(): string {
+  const randomUuid = window.crypto?.randomUUID?.()
+  if (randomUuid) {
+    return `review-${randomUuid}`
+  }
+
+  return `review-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 18)}`
+}
+
 function duplicateSourceErrorText(
   duplicate: ManualReviewDuplicateSourceError
 ): string {
@@ -203,9 +227,17 @@ export default function ManualReviewWorkspace({
   >({})
   const [packingSuggestionBatchState, setPackingSuggestionBatchState] =
     useState<PackingSuggestionBatchState>({ kind: 'IDLE' })
+  const [isSaveResultConfirmationOpen, setIsSaveResultConfirmationOpen] =
+    useState(false)
+  const [savedReviewResultError, setSavedReviewResultError] = useState<string | null>(
+    null
+  )
+  const [isSavingReviewResult, setIsSavingReviewResult] = useState(false)
   const submitLock = useRef(false)
   const packingSuggestionRequestIds = useRef<Record<number, number>>({})
   const packingSuggestionBatchRunId = useRef(0)
+  const saveResultTriggerRef = useRef<HTMLButtonElement>(null)
+  const saveResultConfirmationRef = useRef<HTMLButtonElement>(null)
   const isPackingSuggestionBatchRunning =
     packingSuggestionBatchState.kind === 'RUNNING'
 
@@ -232,6 +264,17 @@ export default function ManualReviewWorkspace({
       // Session storage is optional. The manual workflow remains available.
     }
   }, [])
+
+  useEffect(() => {
+    setIsSaveResultConfirmationOpen(false)
+    setSavedReviewResultError(null)
+  }, [result])
+
+  useEffect(() => {
+    if (isSaveResultConfirmationOpen) {
+      saveResultConfirmationRef.current?.focus()
+    }
+  }, [isSaveResultConfirmationOpen])
 
   const invalidatePackingSuggestionBatch = () => {
     packingSuggestionBatchRunId.current += 1
@@ -546,6 +589,45 @@ export default function ManualReviewWorkspace({
     }
   }
 
+  const saveReviewResultInBrowser = () => {
+    if (!result) {
+      return
+    }
+
+    setIsSavingReviewResult(true)
+    setSavedReviewResultError(null)
+
+    try {
+      const savedJob = createSavedReviewJob(result, createSavedReviewJobId())
+      if (!savedJob) {
+        setSavedReviewResultError(SAVED_REVIEW_SAVE_FAILURE_TEXT.INVALID_JOB)
+        return
+      }
+
+      const saved = saveSavedReviewJob(window.localStorage, savedJob)
+      if (saved.status !== 'SAVED') {
+        setSavedReviewResultError(SAVED_REVIEW_SAVE_FAILURE_TEXT[saved.status])
+        return
+      }
+
+      window.location.assign(`/results/${encodeURIComponent(saved.job.id)}`)
+    } catch {
+      setSavedReviewResultError(SAVED_REVIEW_SAVE_FAILURE_TEXT.STORAGE_UNAVAILABLE)
+    } finally {
+      setIsSavingReviewResult(false)
+    }
+  }
+
+  const requestSaveReviewResult = () => {
+    setSavedReviewResultError(null)
+    setIsSaveResultConfirmationOpen(true)
+  }
+
+  const cancelSaveReviewResult = () => {
+    setIsSaveResultConfirmationOpen(false)
+    window.requestAnimationFrame(() => saveResultTriggerRef.current?.focus())
+  }
+
   const totalCases = result
     ? result.totals.reduce((sum, total) => sum + total.cases.value, 0)
     : 0
@@ -553,6 +635,9 @@ export default function ManualReviewWorkspace({
     ? result.totals.reduce((sum, total) => sum + total.units.value, 0)
     : 0
   const resultSummary = result ? summarizeManualReviewResult(result) : null
+  const canSaveReviewResult = Boolean(
+    result && result.acceptedRowCount > 0 && result.totals.length > 0
+  )
   const rowReadiness = rows.map((row) => getManualReviewRowReadiness(row))
   const readyRowCount = rowReadiness.filter((readiness) => readiness.isReady).length
   const packingSuggestionBatchCandidateCount = rows.filter(
@@ -937,6 +1022,62 @@ export default function ManualReviewWorkspace({
             excludedRowCount={resultSummary.excludedRowCount}
             warningCount={resultSummary.warningCount}
           />
+          {canSaveReviewResult && (
+            <section className="manual-review__saved-result" aria-labelledby="save-result-title">
+              <h3 id="save-result-title">שמירת תוצאה במכשיר זה</h3>
+              <p>
+                שמירה זו היא תצוגה מקומית של הסיכום המאומת בלבד, למשך עד 24 שעות.
+                היא אינה שומרת תמונה, קובץ מקור, טקסט OCR, פרטי לקוח או מזהה מסמך.
+              </p>
+              {!isSaveResultConfirmationOpen ? (
+                <button
+                  ref={saveResultTriggerRef}
+                  aria-controls="save-result-confirmation"
+                  aria-expanded={isSaveResultConfirmationOpen}
+                  className="manual-review__secondary-button"
+                  onClick={requestSaveReviewResult}
+                  type="button"
+                >
+                  שמור תוצאה מאומתת במכשיר זה
+                </button>
+              ) : (
+                <div
+                  id="save-result-confirmation"
+                  className="manual-review__saved-result-actions"
+                  role="group"
+                  aria-describedby="save-result-confirmation-description"
+                >
+                  <p id="save-result-confirmation-description">
+                    התוצאה תישמר רק בדפדפן ובמכשיר הנוכחיים. אפשר למחוק אותה
+                    במפורש ממסך התוצאות.
+                  </p>
+                  <button
+                    ref={saveResultConfirmationRef}
+                    aria-describedby="save-result-confirmation-description"
+                    className="manual-review__primary-button"
+                    disabled={isSavingReviewResult}
+                    onClick={saveReviewResultInBrowser}
+                    type="button"
+                  >
+                    {isSavingReviewResult ? 'שומר…' : 'אשר ושמור תוצאה'}
+                  </button>
+                  <button
+                    className="manual-review__secondary-button"
+                    disabled={isSavingReviewResult}
+                    onClick={cancelSaveReviewResult}
+                    type="button"
+                  >
+                    ביטול
+                  </button>
+                </div>
+              )}
+              {savedReviewResultError && (
+                <p className="manual-review__error" role="alert">
+                  {savedReviewResultError}
+                </p>
+              )}
+            </section>
+          )}
           <ResultsTable totals={result.totals} />
           <RouteReviewSummary
             routeSummaries={result.routeSummaries}

@@ -8,7 +8,7 @@ Picker Pro follows a milestone-based release strategy. Each milestone delivers a
 
 ## v1.0 — Foundation (Current)
 
-**Status**: In development — review-only, non-persistent workflow
+**Status**: In development — review-first workflow with explicit local result snapshots
 
 ### Delivered
 - Hebrew OCR with Tesseract.js
@@ -19,11 +19,15 @@ Picker Pro follows a milestone-based release strategy. Each milestone delivers a
 - Non-persistent review breakdown by a confirmed route code
 - Safe source traceability (document position + page + row)
 - Versioned, configurable packing-review rules
+- Explicit, browser-local snapshots of completed verified results (up to 24
+  hours); they are display-only and contain no source images, OCR text, or
+  editable drafts
 
 ### Not delivered in v1.0
 
 - City or delivery-route assignment
-- Saved jobs, review queues, or offline recovery
+- Server-side saved jobs, review queues, editable draft recovery, or offline
+  recovery
 - Excel, PDF, print, or export history
 - Operational pick lists or grouping by city
 - Authentication or multi-user audit logs

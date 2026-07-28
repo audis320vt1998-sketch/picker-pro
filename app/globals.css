@@ -154,8 +154,12 @@ nav a:hover {
 }
 
 .manual-review__primary-button {
-  background: #007bff;
+  background: #0056b3;
   color: #fff;
+}
+
+.manual-review__primary-button:hover {
+  background: #004a99;
 }
 
 .manual-review__primary-button:disabled,
@@ -197,6 +201,32 @@ nav a:hover {
   line-height: 1.55;
   margin-top: 1rem;
   padding: 0.9rem;
+}
+
+.summary-cards {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  margin-top: 1rem;
+}
+
+.summary-cards .card {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  padding: 0.8rem;
+}
+
+.summary-cards h4 {
+  color: #475569;
+  font-size: 0.875rem;
+}
+
+.summary-cards .value {
+  color: #1e3a5f;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-top: 0.25rem;
 }
 
 .manual-review__catalog-readiness {
@@ -1071,11 +1101,111 @@ nav a:hover {
   margin-top: 0.4rem;
 }
 
+.manual-review__saved-result,
+.saved-results__privacy-note,
+.saved-results__empty {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding: 1rem;
+}
+
+.manual-review__saved-result p,
+.saved-results__privacy-note p,
+.saved-results__empty p {
+  line-height: 1.55;
+}
+
+.manual-review__saved-result-actions,
+.saved-results__actions,
+.saved-results__delete-confirmation {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.manual-review__saved-result-actions .manual-review__primary-button,
+.manual-review__saved-result-actions .manual-review__secondary-button,
+.saved-results__actions .manual-review__primary-button,
+.saved-results__actions .manual-review__secondary-button,
+.saved-results__delete-confirmation .manual-review__primary-button,
+.saved-results__delete-confirmation .manual-review__secondary-button {
+  margin-top: 0;
+  min-height: 2.75rem;
+}
+
+.saved-results {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.saved-results > p {
+  line-height: 1.6;
+}
+
+.saved-results__back {
+  color: #1d4ed8;
+  font-weight: 700;
+  width: fit-content;
+}
+
+.saved-results__list {
+  display: grid;
+  gap: 1rem;
+}
+
+.saved-results__card {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.saved-results__card h2 {
+  color: #1e3a5f;
+  font-size: 1.15rem;
+}
+
+.saved-results__card p {
+  line-height: 1.55;
+}
+
+.saved-results__card dl {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+}
+
+.saved-results__card dl div {
+  background: #eff6ff;
+  border-radius: 0.375rem;
+  padding: 0.65rem;
+}
+
+.saved-results__card dt {
+  color: #475569;
+  font-size: 0.875rem;
+}
+
+.saved-results__card dd {
+  color: #1e3a5f;
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-top: 0.2rem;
+}
+
 .manual-review__table-wrapper {
   overflow-x: auto;
 }
 
-.manual-review table {
+.manual-review table,
+.saved-results table {
   border-collapse: collapse;
   margin-top: 0.75rem;
   min-width: 38rem;
@@ -1083,13 +1213,16 @@ nav a:hover {
 }
 
 .manual-review th,
-.manual-review td {
+.manual-review td,
+.saved-results th,
+.saved-results td {
   border: 1px solid #cbd5e1;
   padding: 0.6rem;
   text-align: right;
 }
 
-.manual-review th {
+.manual-review th,
+.saved-results th {
   background: #eff6ff;
 }
 
@@ -1106,6 +1239,10 @@ nav a:hover {
 
   nav ul {
     flex-wrap: wrap;
+  }
+
+  .summary-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .document-preflight__camera-capture,
@@ -1146,6 +1283,24 @@ nav a:hover {
   .document-preflight__camera-confirmation .manual-review__primary-button,
   .document-preflight__camera-confirmation .manual-review__secondary-button {
     min-height: 2.75rem;
+  }
+
+  .manual-review__saved-result-actions,
+  .saved-results__actions,
+  .saved-results__delete-confirmation {
+    align-items: stretch;
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .manual-review__saved-result-actions .manual-review__primary-button,
+  .manual-review__saved-result-actions .manual-review__secondary-button,
+  .saved-results__actions .manual-review__primary-button,
+  .saved-results__actions .manual-review__secondary-button,
+  .saved-results__delete-confirmation .manual-review__primary-button,
+  .saved-results__delete-confirmation .manual-review__secondary-button {
+    width: 100%;
   }
 
   .document-preflight__table-wrapper {

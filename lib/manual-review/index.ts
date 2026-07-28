@@ -11,6 +11,17 @@ export {
 export { manualReviewResultFromResponse } from './success-response'
 export { summarizeManualReviewResult } from './result-summary'
 export {
+  createSavedReviewJob,
+  readSavedReviewJobs,
+  loadSavedReviewJob,
+  loadSavedReviewJobs,
+  removeSavedReviewJob,
+  saveSavedReviewJob,
+  MAX_SAVED_REVIEW_JOBS,
+  SAVED_REVIEW_JOB_STORAGE_KEY,
+  SAVED_REVIEW_JOB_TTL_MS,
+} from './saved-review-job'
+export {
   createSourceDocumentOrdinals,
   sourceDocumentOrdinalForRow,
 } from './document-ordinal'
@@ -37,6 +48,16 @@ export type {
   ManualReviewRouteSummary,
   ManualReviewRowInput,
 } from './types'
+export type {
+  LocalStorageLike,
+  SavedReviewCatalog,
+  SavedReviewJobSaveResult,
+  SavedReviewJobLoadResult,
+  SavedReviewJobV1,
+  SavedReviewProductTotal,
+  SavedReviewRouteSummary,
+  SavedReviewSourceReference,
+} from './saved-review-job'
 export type { SourceDocumentOrdinals } from './document-ordinal'
 export type {
   PackingSuggestionApiFailureCode,

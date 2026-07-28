@@ -1,8 +1,9 @@
 # Picker Pro
 
 Picker Pro is a Hebrew-first order-picking application built with Next.js and
-TypeScript. Its current working workflow is a safe, non-persistent **manual
-review** of order rows.
+TypeScript. Its current workflow is a safe, review-first **manual review** of
+order rows, with an explicit browser-local snapshot for a completed verified
+result.
 
 ## Current status
 
@@ -73,12 +74,17 @@ Available now:
   reference, document text, or file information.
 - Validation for unresolved, conflicting, unverified, and case-only products.
 - Aggregation that never converts or merges cases and units.
+- An explicit local save of a completed verified result, available from
+  `/results` for up to 24 hours in the same browser and device. It retains only
+  verified product totals, fixed result counts, page/row references, and a
+  confirmed route-review breakdown; it never retains source images, file names,
+  OCR text, customer data, opaque document IDs, or editable form drafts.
 
 Not available yet:
 
 - Automatic pick-list creation from an image or PDF.
-- Stored jobs, a persistent review queue, exports, operational city/route
-  grouping, or AI assistance.
+- Server-side stored jobs, a persistent review queue, editable draft recovery,
+  exports, operational city/route grouping, or AI assistance.
 - Automatic catalog verification or ERP synchronization.
 
 The canonical file [`catalogs/products.json`](./catalogs/products.json) is

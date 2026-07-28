@@ -51,6 +51,10 @@ export {
   upsertOcrPreflightBatchPage,
 } from './preflight-batch'
 export {
+  createOcrPreflightPageReviewConfirmation,
+  getOcrPreflightPageReviewState,
+} from './page-review'
+export {
   moveOcrPreflightSelectionItem,
   removeOcrPreflightSelectionItem,
 } from './preflight-selection'
@@ -109,6 +113,11 @@ export type {
   OcrPreflightFailureCode,
 } from './preflight-failure'
 export type { OcrPreflightBatchPage } from './preflight-batch'
+export type {
+  OcrPreflightPageReviewConfirmation,
+  OcrPreflightPageReviewInput,
+  OcrPreflightPageReviewState,
+} from './page-review'
 export type {
   OcrPreflightBatchFailure,
   OcrPreflightBatchOutcome,

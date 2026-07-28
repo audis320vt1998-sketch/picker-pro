@@ -82,13 +82,16 @@ turn them into operational case/unit totals or split a value by pack size.
   response or handoff. The browser submits the image for OCR only when the
   user starts preflight and supplies a neutral upload filename.
 - A user may explicitly confirm selected, traceable rows and pass a minimal
-  draft to `/review` through one-time session storage. The draft excludes the
-  image, filename, document/header OCR trace, and customer data. A confirmed
-  short route code may appear beside its source page for comparison only; it
-  is not sent to the manual-review API. The three source quantity fields are
-  comparison-only; they are not copied into the manual `cases` or `units`
-  inputs. The opaque document reference is sent only to prevent a duplicate
-  document/page/row in the same manual-review request.
+  draft to `/review` through one-time session storage. Each selected page must
+  have a valid route code from 1 through 99 and an explicit page confirmation;
+  changing its selected rows, route code, or source image cancels that
+  confirmation. The draft excludes the image, filename, document/header OCR
+  trace, and customer data. A confirmed short route code may appear beside its
+  source page for comparison only; it is not sent to the manual-review API.
+  The three source quantity fields are comparison-only; they are not copied
+  into the manual `cases` or `units` inputs. The opaque document reference is
+  sent only to prevent a duplicate document/page/row in the same manual-review
+  request.
 
 ## OCR runtime
 

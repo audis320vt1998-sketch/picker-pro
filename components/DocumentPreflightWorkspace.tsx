@@ -11,13 +11,14 @@ import {
 import {
   assessLocalCameraCaptureReadiness,
   createOcrPreflightBatchPage,
+  createOcrPreflightPageReviewConfirmation,
   createOcrPreflightBatchOutcome,
   createOcrSourceDocumentRef,
   documentPreflightRowIssueText,
   getPreflightFileSelectionIssue,
   getPdfPreflightFileSelectionIssue,
+  getOcrPreflightPageReviewState,
   hasLowConfidenceOcrPreflightRow,
-  isMaayanHeaderRouteCode,
   isRetryablePreflightFailure,
   MAX_PREFLIGHT_BATCH_IMAGES,
   moveOcrPreflightSelectionItem,
@@ -47,6 +48,7 @@ import {
   type OcrPreflightBatchFailure,
   type OcrPreflightBatchOutcome,
   type OcrPreflightFailureCode,
+  type OcrPreflightPageReviewConfirmation,
   type OcrPreflightReplacementSlot,
 } from '@/lib/document-intake'
 import {
@@ -617,6 +619,9 @@ export default function DocumentPreflightWorkspace() {
     useState<ActiveLocalPreview | null>(null)
   const [selectedRowKeys, setSelectedRowKeys] = useState<Record<string, boolean>>({})
   const [routeCodeEdits, setRouteCodeEdits] = useState<Record<string, string>>({})
+  const [confirmedPageReviews, setConfirmedPageReviews] = useState<
+    Record<string, OcrPreflightPageReviewConfirmation>
+  >({})
   const [hasConfirmedSourceCheck, setHasConfirmedSourceCheck] = useState(false)
   const [showOnlyLowConfidenceRows, setShowOnlyLowConfidenceRows] = useState(false)
   const preflightActionLock = useRef(false)
@@ -689,6 +694,7 @@ export default function DocumentPreflightWorkspace() {
     setActiveLocalPreview(null)
     setSelectedRowKeys({})
     setRouteCodeEdits({})
+    setConfirmedPageReviews({})
     setHasConfirmedSourceCheck(false)
     setShowOnlyLowConfidenceRows(false)
     setPdfFile(null)
@@ -929,6 +935,11 @@ export default function DocumentPreflightWorkspace() {
       delete remaining[replacementSlot.sourceDocumentRef]
       return remaining
     })
+    setConfirmedPageReviews((current) => {
+      const remaining = { ...current }
+      delete remaining[replacementSlot.sourceDocumentRef]
+      return remaining
+    })
     setHasConfirmedSourceCheck(false)
     if (previewedSource?.sourceDocumentRef === replacementSlot.sourceDocumentRef) {
       setPreviewedSource(null)
@@ -957,6 +968,7 @@ export default function DocumentPreflightWorkspace() {
     setActiveLocalPreview(null)
     setSelectedRowKeys({})
     setRouteCodeEdits({})
+    setConfirmedPageReviews({})
     setHasConfirmedSourceCheck(false)
     if (pdfFile) {
       setActivity({ kind: 'pdf' })
@@ -1122,8 +1134,25 @@ export default function DocumentPreflightWorkspace() {
     }
   }
 
-  const toggleRowSelection = (key: string, selected: boolean) => {
+  const clearPageReviewConfirmation = (sourceDocumentRef: string) => {
+    setConfirmedPageReviews((current) => {
+      if (!current[sourceDocumentRef]) {
+        return current
+      }
+
+      const remaining = { ...current }
+      delete remaining[sourceDocumentRef]
+      return remaining
+    })
+  }
+
+  const toggleRowSelection = (
+    key: string,
+    selected: boolean,
+    sourceDocumentRef: string
+  ) => {
     setSelectedRowKeys((current) => ({ ...current, [key]: selected }))
+    clearPageReviewConfirmation(sourceDocumentRef)
     setHasConfirmedSourceCheck(false)
   }
 
@@ -1146,30 +1175,87 @@ export default function DocumentPreflightWorkspace() {
       ...current,
       [sourceDocumentRef]: normalizeRouteCodeInput(value),
     }))
+    clearPageReviewConfirmation(sourceDocumentRef)
     setHasConfirmedSourceCheck(false)
   }
 
-  const selectedRows = pages.flatMap(({ page, sourceDocumentRef }) =>
-    page.rows
-      .filter(
-        (row) =>
-          selectedRowKeys[rowKey(page.pageNumber, row)] &&
-          canTransferRow(row, sourceDocumentRef)
-      )
-      .map((row) => {
-        const routeCode = routeCodeForPage(page.routeDraft, sourceDocumentRef)
-        return {
-          row,
-          sourceDocumentRef,
-          ...(isMaayanHeaderRouteCode(routeCode) ? { routeCode } : {}),
-        }
-      })
+  const pageReviewStates = pages.map(({ page, sourceDocumentRef }) => {
+    const transferableKeys = page.rows.flatMap((row) => {
+      const key = rowKey(page.pageNumber, row)
+      return canTransferRow(row, sourceDocumentRef) ? [key] : []
+    })
+    const selectedKeys = transferableKeys.filter((key) => selectedRowKeys[key])
+    const routeCode = routeCodeForPage(page.routeDraft, sourceDocumentRef)
+
+    return {
+      page,
+      sourceDocumentRef,
+      routeCode,
+      selectedKeys,
+      transferableRowCount: transferableKeys.length,
+      blockedRowCount: page.rows.length - transferableKeys.length,
+      reviewState: getOcrPreflightPageReviewState({
+        routeCode,
+        selectedRowKeys: selectedKeys,
+        confirmation: confirmedPageReviews[sourceDocumentRef],
+      }),
+    }
+  })
+
+  const pageReviewStateBySourceRef = new Map(
+    pageReviewStates.map((entry) => [entry.sourceDocumentRef, entry])
   )
+  const approvedSelectedRows = pageReviewStates.flatMap(
+    ({ page, sourceDocumentRef, routeCode, selectedKeys, reviewState }) =>
+      reviewState.kind === 'CONFIRMED'
+        ? page.rows
+            .filter((row) => selectedKeys.includes(rowKey(page.pageNumber, row)))
+            .map((row) => ({
+              row,
+              sourceDocumentRef,
+              routeCode,
+            }))
+        : []
+  )
+  const pendingSelectedRowCount = pageReviewStates.reduce(
+    (count, { reviewState }) =>
+      reviewState.kind === 'CONFIRMED' ? count : count + reviewState.selectedRowCount,
+    0
+  )
+  const pendingSelectedPageCount = pageReviewStates.filter(
+    ({ reviewState }) =>
+      reviewState.kind !== 'CONFIRMED' && reviewState.selectedRowCount > 0
+  ).length
+
+  const confirmPageReview = (sourceDocumentRef: string) => {
+    const pageReview = pageReviewStateBySourceRef.get(sourceDocumentRef)
+    if (!pageReview) {
+      return
+    }
+
+    const confirmation = createOcrPreflightPageReviewConfirmation({
+      routeCode: pageReview.routeCode,
+      selectedRowKeys: pageReview.selectedKeys,
+    })
+    if (!confirmation) {
+      setError('יש לבחור שורות להזנה ולהזין קו חלוקה תקין בין 1 ל־99 לפני אישור העמוד.')
+      return
+    }
+
+    setError(null)
+    setConfirmedPageReviews((current) => ({
+      ...current,
+      [sourceDocumentRef]: confirmation,
+    }))
+    setHasConfirmedSourceCheck(false)
+  }
 
   const transferToManualReview = () => {
-    const handoff = createOcrManualReviewHandoff(selectedRows)
-    if (!handoff || !hasConfirmedSourceCheck) {
-      setError('יש לבחור שורות עם מזהה פריט ומספר מקור ולאשר שבוצעה בדיקה מול המסמך.')
+    const handoff = createOcrManualReviewHandoff(approvedSelectedRows)
+    if (!handoff || !hasConfirmedSourceCheck || pendingSelectedRowCount > 0) {
+      setError(
+        'יש לאשר כל עמוד שנבחר עם קו חלוקה תקין, ולאשר שבוצעה בדיקה מול המסמך.'
+      )
       return
     }
 
@@ -1623,6 +1709,8 @@ export default function DocumentPreflightWorkspace() {
               ? page.rows.filter(hasLowConfidenceOcrPreflightRow)
               : page.rows
             const routeCode = routeCodeForPage(page.routeDraft, sourceDocumentRef)
+            const pageReview = pageReviewStateBySourceRef.get(sourceDocumentRef)!
+            const { reviewState, transferableRowCount, blockedRowCount } = pageReview
 
             return (
               <div className="document-preflight__page" key={sourceDocumentRef}>
@@ -1638,7 +1726,7 @@ export default function DocumentPreflightWorkspace() {
                     <p>{ROUTE_DRAFT_REVIEW_TEXT[page.routeDraft.reason]}</p>
                   )}
                   <label>
-                    אשר או תקן קו חלוקה לעמוד זה
+                    הזן או תקן קו חלוקה לעמוד זה
                     <input
                       aria-label={`קו חלוקה לעמוד ${page.pageNumber}`}
                       disabled={isSubmitting}
@@ -1654,8 +1742,23 @@ export default function DocumentPreflightWorkspace() {
                     />
                   </label>
                   <p>
-                    הקוד הוא טיוטה מהעמוד בלבד. הוא לא ממפה עיר, לא מקבץ שורות ולא
+                    קוד חוקי הוא מספר מ־1 עד 99. הוא לא ממפה עיר, לא מקבץ שורות ולא
                     נשלח לשירות הבדיקה או לסיכום.
+                  </p>
+                  <p
+                    className={
+                      reviewState.kind === 'CONFIRMED'
+                        ? 'document-preflight__route-status document-preflight__route-status--confirmed'
+                        : 'document-preflight__route-status'
+                    }
+                  >
+                    {reviewState.kind === 'CONFIRMED'
+                      ? `סטטוס עמוד: קו ${reviewState.routeCode} אושר עבור ${reviewState.selectedRowCount} שורות שנבחרו.`
+                      : reviewState.kind === 'PENDING'
+                        ? `סטטוס עמוד: קו ${reviewState.routeCode} ממתין לאישור מפורש אחרי בדיקת השורות.`
+                        : reviewState.kind === 'ROUTE_REQUIRED'
+                          ? 'סטטוס עמוד: נדרש קו חלוקה תקין בין 1 ל־99 לפני אישור.'
+                          : 'סטטוס עמוד: בחר שורות להעברה, ואז אשר את הקו ואת העמוד.'}
                   </p>
                 </section>
                 {page.issues.map((issue) => (
@@ -1745,8 +1848,13 @@ export default function DocumentPreflightWorkspace() {
                                       <label className="document-preflight__transfer-control">
                                         <input
                                           checked={selectedRowKeys[key] ?? false}
+                                          disabled={isSubmitting}
                                           onChange={(event) =>
-                                            toggleRowSelection(key, event.target.checked)
+                                            toggleRowSelection(
+                                              key,
+                                              event.target.checked,
+                                              sourceDocumentRef
+                                            )
                                           }
                                           type="checkbox"
                                         />
@@ -1865,30 +1973,105 @@ export default function DocumentPreflightWorkspace() {
                       </p>
                     )}
                 </div>
+                <section
+                  className={
+                    reviewState.kind === 'CONFIRMED'
+                      ? 'document-preflight__page-review document-preflight__page-review--confirmed'
+                      : reviewState.kind === 'PENDING'
+                        ? 'document-preflight__page-review'
+                        : 'document-preflight__page-review document-preflight__page-review--blocked'
+                  }
+                >
+                  <strong>אישור עמוד לפני העברה</strong>
+                  <p>
+                    נבחרו {reviewState.selectedRowCount} מתוך {transferableRowCount}{' '}
+                    שורות שניתן להעביר מעמוד זה.
+                  </p>
+                  {blockedRowCount > 0 && (
+                    <p>
+                      {blockedRowCount} שורות נוספות דורשות תיקון ולכן אינן זמינות
+                      להעברה.
+                    </p>
+                  )}
+                  {reviewState.kind === 'CONFIRMED' ? (
+                    <p className="document-preflight__page-review-status">
+                      קו חלוקה <span dir="ltr">{reviewState.routeCode}</span> אושר
+                      לעמוד זה. השורות יוכלו לעבור לאחר האישור הסופי למטה.
+                    </p>
+                  ) : reviewState.kind === 'PENDING' ? (
+                    <>
+                      <p className="document-preflight__page-review-status">
+                        קו חלוקה <span dir="ltr">{reviewState.routeCode}</span> הוזן,
+                        אך העמוד עדיין ממתין לאישור מפורש.
+                      </p>
+                      <button
+                        className="manual-review__primary-button"
+                        disabled={isSubmitting}
+                        onClick={() => confirmPageReview(sourceDocumentRef)}
+                        type="button"
+                      >
+                        אשר עמוד וקו {reviewState.routeCode}
+                      </button>
+                    </>
+                  ) : reviewState.kind === 'ROUTE_REQUIRED' ? (
+                    <p className="document-preflight__page-review-status">
+                      קו החלוקה אינו קריא או אינו תקין. יש לצלם שוב או להזין מספר
+                      בין 1 ל־99 לפני אישור העמוד.
+                    </p>
+                  ) : (
+                    <p className="document-preflight__page-review-status">
+                      בחר לפחות שורה אחת שניתן להעביר, ולאחר מכן אשר את העמוד ואת
+                      קו החלוקה.
+                    </p>
+                  )}
+                  <p className="document-preflight__page-review-note">
+                    שינוי בקו החלוקה, בבחירת השורות או בתמונת המקור מבטל את אישור
+                    העמוד.
+                  </p>
+                </section>
               </div>
             )
           })}
 
           <div className="document-preflight__handoff">
+            {pendingSelectedRowCount > 0 && (
+              <p className="document-preflight__handoff-pending" role="status">
+                {pendingSelectedRowCount} שורות ב־{pendingSelectedPageCount} עמודים
+                עדיין ממתינות לאישור עמוד וקו חלוקה. הן לא יועברו לפני אישורן.
+              </p>
+            )}
+            {approvedSelectedRows.length > 0 && (
+              <p className="document-preflight__handoff-ready" role="status">
+                {approvedSelectedRows.length} שורות בעמודים שאושרו מוכנות לאישור
+                הסופי.
+              </p>
+            )}
             <label>
               <input
                 checked={hasConfirmedSourceCheck}
-                disabled={selectedRows.length === 0 || isSubmitting}
+                disabled={
+                  approvedSelectedRows.length === 0 ||
+                  pendingSelectedRowCount > 0 ||
+                  isSubmitting
+                }
                 onChange={(event) => setHasConfirmedSourceCheck(event.target.checked)}
                 type="checkbox"
               />
-              בדקתי מול המסמך את קו החלוקה (אם הוזן), את המזהים ואת שלוש כמויות
-              המקור בכל השורות שנבחרו.
+              בדקתי מול המסמך את קו החלוקה שאושר, את המזהים ואת שלוש כמויות המקור
+              בכל השורות שנבחרו.
             </label>
             <button
               className="manual-review__primary-button"
               disabled={
-                isSubmitting || selectedRows.length === 0 || !hasConfirmedSourceCheck
+                isSubmitting ||
+                approvedSelectedRows.length === 0 ||
+                pendingSelectedRowCount > 0 ||
+                !hasConfirmedSourceCheck
               }
               onClick={transferToManualReview}
               type="button"
             >
-              העבר {selectedRows.length} שורות לטיוטת בדיקה ידנית
+              העבר {approvedSelectedRows.length} שורות לטיוטת בדיקה ידנית
             </button>
             <p>
               ההעברה זמנית בדפדפן בלבד. המארזים והבודדים יישארו ריקים במסך

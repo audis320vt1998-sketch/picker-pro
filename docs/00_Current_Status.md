@@ -79,14 +79,19 @@ preflight action; the browser form uses a neutral upload filename.
 
 After explicitly checking selected OCR rows against the source document, a
 user may transfer a minimal, one-time browser draft from `/upload` to
-`/review`. The transfer is held in session storage for at most 15 minutes and
-is removed as soon as the review screen reads it. It carries an opaque,
-random document reference, source page/row, product identifiers, the three OCR
-source quantities for visual comparison, and only when the reviewer confirms
-it, a short numeric route-code draft read from that page's fixed `קו חלוקה`
-field. It does not carry a filename, original image, customer/header text,
-full OCR trace, catalog result, or a manual-review API request. The route code
-remains display-only and never reaches the manual-review API or a total.
+`/review`. Each selected page first needs its own explicit confirmation: a
+short route code from `1` through `99` and the currently selected traceable
+rows. An OCR suggestion is never itself an approval. Changing that page's
+route, selected rows, or source image cancels the page confirmation; any
+selected page still waiting for confirmation blocks the final transfer. The
+transfer is held in session storage for at most 15 minutes and is removed as
+soon as the review screen reads it. It carries an opaque, random document
+reference, source page/row, product identifiers, the three OCR source
+quantities for visual comparison, and the page's confirmed short numeric
+route-code draft. It does not carry a filename, original image,
+customer/header text, full OCR trace, catalog result, or a manual-review API
+request. The route code remains display-only and never reaches the
+manual-review API or a total.
 
 Manual review remains the only workflow that can evaluate an explicit row
 against the catalog.

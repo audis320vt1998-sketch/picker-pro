@@ -685,6 +685,63 @@ nav a:hover {
   max-width: 10rem;
 }
 
+.document-preflight__route-status {
+  background: #fff;
+  border: 1px solid #bfdbfe;
+  border-radius: 0.375rem;
+  font-weight: 700;
+  padding: 0.55rem 0.65rem;
+}
+
+.document-preflight__route-status--confirmed {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.document-preflight__page-review {
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  border-radius: 0.5rem;
+  color: #1e3a5f;
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 1rem;
+  max-width: 42rem;
+  padding: 0.9rem;
+}
+
+.document-preflight__page-review p {
+  line-height: 1.5;
+  margin: 0;
+}
+
+.document-preflight__page-review--confirmed {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.document-preflight__page-review--blocked {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #78350f;
+}
+
+.document-preflight__page-review-status {
+  font-weight: 700;
+}
+
+.document-preflight__page-review-note {
+  font-size: 0.9rem;
+}
+
+.document-preflight__page-review .manual-review__primary-button {
+  margin-top: 0;
+  min-height: 2.75rem;
+  width: fit-content;
+}
+
 .document-preflight__page {
   margin-top: 1rem;
 }
@@ -864,6 +921,25 @@ nav a:hover {
   line-height: 1.55;
 }
 
+.document-preflight__handoff-pending,
+.document-preflight__handoff-ready {
+  border-radius: 0.375rem;
+  font-weight: 700;
+  padding: 0.65rem 0.75rem;
+}
+
+.document-preflight__handoff-pending {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  color: #78350f;
+}
+
+.document-preflight__handoff-ready {
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  color: #166534;
+}
+
 .manual-review__ocr-draft {
   margin: 0 0 1rem;
 }
@@ -953,7 +1029,8 @@ nav a:hover {
 
   .document-preflight__camera-button,
   .document-preflight__submit-button,
-  .document-preflight__source-actions > * {
+  .document-preflight__source-actions > *,
+  .document-preflight__page-review .manual-review__primary-button {
     width: 100%;
   }
 

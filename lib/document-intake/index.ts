@@ -56,6 +56,12 @@ export {
   getOcrPreflightPageReviewState,
 } from './page-review'
 export {
+  createOcrPreflightPageNavigation,
+  getAdjacentOcrPreflightPageNavigationEntry,
+  pageNavigationRequiresAttention,
+  resolveOcrPreflightPageNavigationEntry,
+} from './page-review-navigation'
+export {
   canReturnToOcrImageSelectionForEditing,
   isOcrPreflightReviewInteractionLocked,
   moveOcrPreflightSelectionItem,
@@ -123,6 +129,15 @@ export type {
   OcrPreflightPageReviewInput,
   OcrPreflightPageReviewState,
 } from './page-review'
+export type {
+  OcrPreflightPageNavigationDirection,
+  OcrPreflightPageNavigationEntry,
+  OcrPreflightPageNavigationFailure,
+  OcrPreflightPageNavigationInput,
+  OcrPreflightPageNavigationReplacement,
+  OcrPreflightPageNavigationReview,
+  OcrPreflightPageNavigationStatus,
+} from './page-review-navigation'
 export type {
   OcrPreflightBatchFailure,
   OcrPreflightBatchOutcome,

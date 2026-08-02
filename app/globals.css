@@ -744,6 +744,107 @@ nav a:hover {
   padding: 0.9rem;
 }
 
+.document-preflight__page-navigation {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 0.9rem;
+}
+
+.document-preflight__page-navigation-summary h3 {
+  color: #1e3a5f;
+  font-size: 1rem;
+  margin: 0;
+}
+
+.document-preflight__page-navigation-summary p,
+.document-preflight__page-navigation-note {
+  line-height: 1.5;
+  margin: 0.4rem 0 0;
+}
+
+.document-preflight__page-navigation-note {
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.document-preflight__page-navigation-controls {
+  align-items: stretch;
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.document-preflight__page-navigation-controls > .manual-review__secondary-button {
+  margin-top: 0;
+  min-height: 2.75rem;
+}
+
+.document-preflight__page-navigation-list {
+  display: flex;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  overflow-x: auto;
+  padding: 0.2rem;
+  scrollbar-color: #94a3b8 transparent;
+}
+
+.document-preflight__page-navigation-list li {
+  flex: 0 0 auto;
+}
+
+.document-preflight__page-navigation-button {
+  background: #fff;
+  border: 1px solid #94a3b8;
+  border-radius: 0.5rem;
+  color: #1e3a5f;
+  display: grid;
+  font: inherit;
+  font-weight: 700;
+  gap: 0.15rem;
+  min-height: 2.75rem;
+  min-width: 6.4rem;
+  padding: 0.4rem 0.55rem;
+  text-align: center;
+}
+
+.document-preflight__page-navigation-button small {
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.document-preflight__page-navigation-button--attention {
+  background: #fffbeb;
+  border-color: #f59e0b;
+}
+
+.document-preflight__page-navigation-button--active {
+  background: #dbeafe;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px #93c5fd;
+}
+
+.document-preflight__page-navigation-button:focus-visible {
+  outline: 3px solid #f59e0b;
+  outline-offset: 3px;
+}
+
+.document-preflight__review-page--active {
+  outline: 3px solid #2563eb;
+  outline-offset: 5px;
+  scroll-margin-block-start: 1rem;
+}
+
+.document-preflight__review-page--active > h3:focus {
+  outline: 3px solid #f59e0b;
+  outline-offset: 4px;
+}
+
 .document-preflight__low-confidence-review h3 {
   color: #78350f;
   font-size: 1rem;
@@ -1357,6 +1458,14 @@ nav a:hover {
   .document-preflight__batch-edit .manual-review__primary-button,
   .document-preflight__batch-edit .manual-review__secondary-button {
     min-height: 2.75rem;
+    width: 100%;
+  }
+
+  .document-preflight__page-navigation-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .document-preflight__page-navigation-controls > .manual-review__secondary-button {
     width: 100%;
   }
 

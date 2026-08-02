@@ -27,6 +27,8 @@ Picker Pro follows a milestone-based release strategy. Each milestone delivers a
 - Confirmed return from an image-OCR outcome to its local photo batch for
   reordering or removal before a fresh OCR run; it clears drafts and remains
   unavailable for individual PDF pages
+- Browser-local page navigator for multi-page OCR review, including failed
+  pages and replacement-photo states, without a saved review queue
 
 ### Not delivered in v1.0
 

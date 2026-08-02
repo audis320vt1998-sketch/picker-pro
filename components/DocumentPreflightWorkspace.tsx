@@ -14,18 +14,21 @@ import {
   canReturnToOcrImageSelectionForEditing,
   cameraCaptureInspectionScrollBehavior,
   createOcrPreflightBatchPage,
+  createOcrPreflightPageNavigation,
   createOcrPreflightPageReviewConfirmation,
   createOcrPreflightBatchOutcome,
   createOcrSourceDocumentRef,
   documentPreflightRowIssueText,
   getPreflightFileSelectionIssue,
   getPdfPreflightFileSelectionIssue,
+  getAdjacentOcrPreflightPageNavigationEntry,
   getOcrPreflightPageReviewState,
   hasLowConfidenceOcrPreflightRow,
   isOcrPreflightReviewInteractionLocked,
   isRetryablePreflightFailure,
   MAX_PREFLIGHT_BATCH_IMAGES,
   moveOcrPreflightSelectionItem,
+  pageNavigationRequiresAttention,
   PREFLIGHT_CAMERA_CAPTURE,
   PREFLIGHT_FILE_INPUT_ACCEPT,
   PDF_PREFLIGHT_FILE_INPUT_ACCEPT,
@@ -37,6 +40,7 @@ import {
   readImageMetadata,
   recordOcrPreflightBatchFailure,
   recordOcrPreflightBatchSuccess,
+  resolveOcrPreflightPageNavigationEntry,
   requiresSourceSelectionReplacementConfirmation,
   shouldFocusCompletedOcrPreflightResult,
   summarizeLowConfidenceOcrPreflightReview,
@@ -53,6 +57,9 @@ import {
   type OcrPreflightBatchOutcome,
   type OcrPreflightFailureCode,
   type OcrPreflightPageReviewConfirmation,
+  type OcrPreflightPageNavigationDirection,
+  type OcrPreflightPageNavigationEntry,
+  type OcrPreflightPageNavigationStatus,
   type OcrPreflightReplacementSlot,
 } from '@/lib/document-intake'
 import {
@@ -148,6 +155,32 @@ const PREFLIGHT_FAILURE_TEXT: Record<OcrPreflightFailureCode, string> = {
     'בדיקת ה־OCR אינה זמינה כרגע. אפשר לנסות שוב ידנית בעמוד זה מאוחר יותר, או להזין ידנית.',
   UNKNOWN:
     'לא התקבלה תוצאת בדיקה תקינה. יש לבחור את התמונות מחדש או להזין את השורות ידנית.',
+}
+
+const PAGE_NAVIGATION_STATUS_TEXT: Record<
+  OcrPreflightPageNavigationStatus,
+  string
+> = {
+  REPLACEMENT_PENDING: 'ממתין ל‑OCR של צילום חלופי',
+  OCR_FAILED: 'קריאת OCR נכשלה',
+  ROWS_REQUIRED: 'נדרש לבחור שורות',
+  ROUTE_REQUIRED: 'נדרש קו חלוקה',
+  PENDING_CONFIRMATION: 'ממתין לאישור עמוד',
+  CONFIRMED: 'עמוד אושר',
+}
+
+function pageNavigationStatusDescription(
+  entry: Pick<
+    OcrPreflightPageNavigationEntry,
+    'status' | 'lowConfidenceRowCount'
+  >
+): string {
+  const lowConfidenceSuffix =
+    entry.lowConfidenceRowCount > 0
+      ? `, ${entry.lowConfidenceRowCount} שורות עם ודאות OCR נמוכה`
+      : ''
+
+  return `${PAGE_NAVIGATION_STATUS_TEXT[entry.status]}${lowConfidenceSuffix}`
 }
 
 const PDF_SELECTION_FAILURE_TEXT = {
@@ -632,6 +665,9 @@ export default function DocumentPreflightWorkspace() {
   const [showOnlyLowConfidenceRows, setShowOnlyLowConfidenceRows] = useState(false)
   const [cameraCaptureInspectionSourceRef, setCameraCaptureInspectionSourceRef] =
     useState<string | null>(null)
+  const [activeOutcomeSourceRef, setActiveOutcomeSourceRef] = useState<string | null>(
+    null
+  )
   const preflightActionLock = useRef(false)
   const sourceSelectionConfirmationRef = useRef<HTMLElement>(null)
   const batchEditTriggerRef = useRef<HTMLButtonElement>(null)
@@ -639,6 +675,9 @@ export default function DocumentPreflightWorkspace() {
   const selectionHeadingRef = useRef<HTMLHeadingElement>(null)
   const cameraCaptureInspectionRef = useRef<HTMLDetailsElement>(null)
   const cameraCaptureInspectionSummaryRef = useRef<HTMLElement>(null)
+  const outcomePageHeadingRefs = useRef<Record<string, HTMLHeadingElement | null>>(
+    {}
+  )
   const focusSelectedBatchAfterEdit = useRef(false)
   const resultHeadingRef = useRef<HTMLHeadingElement>(null)
 
@@ -797,6 +836,7 @@ export default function DocumentPreflightWorkspace() {
     setHasConfirmedSourceCheck(false)
     setShowOnlyLowConfidenceRows(false)
     setCameraCaptureInspectionSourceRef(null)
+    setActiveOutcomeSourceRef(null)
     setPdfFile(null)
     setPdfPageSourceRefs([])
     if (!preserveSelectionKind) {
@@ -1182,6 +1222,7 @@ export default function DocumentPreflightWorkspace() {
     setError(null)
     setOutcome(createOcrPreflightBatchOutcome())
     setPendingReplacementPages([])
+    setActiveOutcomeSourceRef(null)
     setPreviewedSource(null)
     setActiveLocalPreview(null)
     setSelectedRowKeys({})
@@ -1433,6 +1474,45 @@ export default function DocumentPreflightWorkspace() {
   const pageReviewStateBySourceRef = new Map(
     pageReviewStates.map((entry) => [entry.sourceDocumentRef, entry])
   )
+  const pageNavigationEntries = createOcrPreflightPageNavigation({
+    reviewedPages: pageReviewStates.map(
+      ({ page, sourceDocumentRef, reviewState }) => ({
+        pageNumber: page.pageNumber,
+        sourceDocumentRef,
+        reviewState,
+        lowConfidenceRowCount: page.rows.filter(
+          hasLowConfidenceOcrPreflightRow
+        ).length,
+      })
+    ),
+    failedPages,
+    replacementPages: pendingReplacementPages,
+  })
+  const activeOutcomePageNavigationEntry =
+    resolveOcrPreflightPageNavigationEntry(
+      pageNavigationEntries,
+      activeOutcomeSourceRef
+    )
+  const activeOutcomePageNavigationIndex = activeOutcomePageNavigationEntry
+    ? pageNavigationEntries.findIndex(
+        ({ sourceDocumentRef }) =>
+          sourceDocumentRef === activeOutcomePageNavigationEntry.sourceDocumentRef
+      )
+    : -1
+  const previousOutcomePageNavigationEntry = activeOutcomePageNavigationEntry
+    ? getAdjacentOcrPreflightPageNavigationEntry(
+        pageNavigationEntries,
+        activeOutcomePageNavigationEntry.sourceDocumentRef,
+        'previous'
+      )
+    : null
+  const nextOutcomePageNavigationEntry = activeOutcomePageNavigationEntry
+    ? getAdjacentOcrPreflightPageNavigationEntry(
+        pageNavigationEntries,
+        activeOutcomePageNavigationEntry.sourceDocumentRef,
+        'next'
+      )
+    : null
   const approvedSelectedRows = pageReviewStates.flatMap(
     ({ page, sourceDocumentRef, routeCode, selectedKeys, reviewState }) =>
       reviewState.kind === 'CONFIRMED'
@@ -1500,6 +1580,58 @@ export default function DocumentPreflightWorkspace() {
       window.location.assign('/review')
     } catch {
       setError('לא ניתן לשמור את טיוטת הבדיקה בדפדפן. עבור להזנה ידנית.')
+    }
+  }
+
+  const setOutcomePageHeadingRef = (
+    sourceDocumentRef: string,
+    element: HTMLHeadingElement | null
+  ) => {
+    if (element) {
+      outcomePageHeadingRefs.current[sourceDocumentRef] = element
+      return
+    }
+
+    delete outcomePageHeadingRefs.current[sourceDocumentRef]
+  }
+
+  const focusOutcomePage = (entry: OcrPreflightPageNavigationEntry) => {
+    if (isReviewInteractionLocked) {
+      return
+    }
+
+    setActiveOutcomeSourceRef(entry.sourceDocumentRef)
+    window.requestAnimationFrame(() => {
+      const heading = outcomePageHeadingRefs.current[entry.sourceDocumentRef]
+      if (!heading) {
+        return
+      }
+
+      const prefersReducedMotion =
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      heading.focus({ preventScroll: true })
+      heading.scrollIntoView({
+        behavior: cameraCaptureInspectionScrollBehavior(prefersReducedMotion),
+        block: 'start',
+      })
+    })
+  }
+
+  const moveActiveOutcomePage = (
+    direction: OcrPreflightPageNavigationDirection
+  ) => {
+    if (!activeOutcomePageNavigationEntry) {
+      return
+    }
+
+    const nextEntry = getAdjacentOcrPreflightPageNavigationEntry(
+      pageNavigationEntries,
+      activeOutcomePageNavigationEntry.sourceDocumentRef,
+      direction
+    )
+    if (nextEntry) {
+      focusOutcomePage(nextEntry)
     }
   }
 
@@ -1947,6 +2079,98 @@ export default function DocumentPreflightWorkspace() {
             הידנית. ודאות ה־OCR היא סימן טכני בלבד ואינה מאשרת נכונות של שדה כלשהו.
           </p>
 
+          {activeOutcomePageNavigationEntry && (
+            <section
+              aria-labelledby="document-preflight-page-navigation-title"
+              className="document-preflight__page-navigation"
+            >
+              <div className="document-preflight__page-navigation-summary">
+                <h3 id="document-preflight-page-navigation-title">
+                  מעבר בין עמודי הבדיקה
+                </h3>
+                <p>
+                  עמוד {activeOutcomePageNavigationIndex + 1} מתוך{' '}
+                  {pageNavigationEntries.length}: עמוד{' '}
+                  {activeOutcomePageNavigationEntry.pageNumber} —{' '}
+                  {pageNavigationStatusDescription(
+                    activeOutcomePageNavigationEntry
+                  )}
+                  .
+                </p>
+              </div>
+              <div className="document-preflight__page-navigation-controls">
+                <button
+                  aria-label={
+                    previousOutcomePageNavigationEntry
+                      ? `עבור לעמוד ${previousOutcomePageNavigationEntry.pageNumber}: ${pageNavigationStatusDescription(previousOutcomePageNavigationEntry)}`
+                      : 'אין עמוד בדיקה קודם'
+                  }
+                  className="manual-review__secondary-button"
+                  disabled={
+                    isReviewInteractionLocked ||
+                    activeOutcomePageNavigationIndex <= 0
+                  }
+                  onClick={() => moveActiveOutcomePage('previous')}
+                  type="button"
+                >
+                  העמוד הקודם
+                </button>
+                <ol aria-label="עמודי הבדיקה" className="document-preflight__page-navigation-list">
+                  {pageNavigationEntries.map((entry) => {
+                    const isActive =
+                      entry.sourceDocumentRef ===
+                      activeOutcomePageNavigationEntry.sourceDocumentRef
+                    const requiresAttention = pageNavigationRequiresAttention(entry)
+
+                    return (
+                      <li key={entry.sourceDocumentRef}>
+                        <button
+                          aria-controls={`document-preflight-page-${entry.pageNumber}`}
+                          aria-current={isActive ? 'page' : undefined}
+                          aria-label={`עמוד ${entry.pageNumber}: ${pageNavigationStatusDescription(entry)}`}
+                          className={
+                            isActive
+                              ? 'document-preflight__page-navigation-button document-preflight__page-navigation-button--active'
+                              : requiresAttention
+                                ? 'document-preflight__page-navigation-button document-preflight__page-navigation-button--attention'
+                                : 'document-preflight__page-navigation-button'
+                          }
+                          disabled={isReviewInteractionLocked}
+                          onClick={() => focusOutcomePage(entry)}
+                          type="button"
+                        >
+                          <span>עמוד {entry.pageNumber}</span>
+                          <small>{PAGE_NAVIGATION_STATUS_TEXT[entry.status]}</small>
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ol>
+                <button
+                  aria-label={
+                    nextOutcomePageNavigationEntry
+                      ? `עבור לעמוד ${nextOutcomePageNavigationEntry.pageNumber}: ${pageNavigationStatusDescription(nextOutcomePageNavigationEntry)}`
+                      : 'אין עמוד בדיקה הבא'
+                  }
+                  className="manual-review__secondary-button"
+                  disabled={
+                    isReviewInteractionLocked ||
+                    activeOutcomePageNavigationIndex >=
+                      pageNavigationEntries.length - 1
+                  }
+                  onClick={() => moveActiveOutcomePage('next')}
+                  type="button"
+                >
+                  העמוד הבא
+                </button>
+              </div>
+              <p className="document-preflight__page-navigation-note">
+                מעבר בין העמודים אינו מאשר שורות, קווי חלוקה או כמויות; כל בדיקה
+                נשארת מקומית בדפדפן עד להעברה המפורשת למסך הבדיקה הידנית.
+              </p>
+            </section>
+          )}
+
           {canReturnToImageBatchEditing && (
             <section
               aria-labelledby="document-preflight-batch-edit-title"
@@ -2047,10 +2271,31 @@ export default function DocumentPreflightWorkspace() {
             const isPreviewVisible =
               previewedSource?.pageNumber === pageNumber &&
               previewedSource.sourceDocumentRef === sourceDocumentRef
+            const isActiveOutcomePage =
+              activeOutcomePageNavigationEntry?.sourceDocumentRef ===
+              sourceDocumentRef
 
             return (
-              <div className="document-preflight__failed-page" key={sourceDocumentRef}>
-                <h3>עמוד {pageNumber}</h3>
+              <div
+                className={
+                  isActiveOutcomePage
+                    ? 'document-preflight__failed-page document-preflight__review-page--active'
+                    : 'document-preflight__failed-page'
+                }
+                key={sourceDocumentRef}
+              >
+                <h3
+                  id={`document-preflight-page-${pageNumber}`}
+                  ref={(element) =>
+                    setOutcomePageHeadingRef(sourceDocumentRef, element)
+                  }
+                  tabIndex={-1}
+                >
+                  עמוד {pageNumber}
+                  <span className="document-preflight__sr-only">
+                    {' '}— {PAGE_NAVIGATION_STATUS_TEXT.REPLACEMENT_PENDING}
+                  </span>
+                </h3>
                 <p className="document-preflight__issue" role="status">
                   נבחרה תמונה חלופית. הטיוטה הקודמת לעמוד זה הוסרה, והתמונה החדשה
                   לא נשלחה עדיין. אפשר להפעיל OCR מחדש רק בלחיצה מפורשת.
@@ -2096,9 +2341,31 @@ export default function DocumentPreflightWorkspace() {
             const isPreviewVisible =
               previewedSource?.pageNumber === pageNumber &&
               previewedSource.sourceDocumentRef === sourceDocumentRef
+            const isActiveOutcomePage =
+              activeOutcomePageNavigationEntry?.sourceDocumentRef ===
+              sourceDocumentRef
 
             return (
-              <div className="document-preflight__failed-page" key={sourceDocumentRef}>
+              <div
+                className={
+                  isActiveOutcomePage
+                    ? 'document-preflight__failed-page document-preflight__review-page--active'
+                    : 'document-preflight__failed-page'
+                }
+                key={sourceDocumentRef}
+              >
+                <h3
+                  id={`document-preflight-page-${pageNumber}`}
+                  ref={(element) =>
+                    setOutcomePageHeadingRef(sourceDocumentRef, element)
+                  }
+                  tabIndex={-1}
+                >
+                  עמוד {pageNumber}
+                  <span className="document-preflight__sr-only">
+                    {' '}— {PAGE_NAVIGATION_STATUS_TEXT.OCR_FAILED}
+                  </span>
+                </h3>
                 <p className="document-preflight__issue" role="alert">
                   לא נוצרה טיוטת OCR לעמוד {pageNumber}. {PREFLIGHT_FAILURE_TEXT[code]}
                 </p>
@@ -2150,10 +2417,37 @@ export default function DocumentPreflightWorkspace() {
             const routeCode = routeCodeForPage(page.routeDraft, sourceDocumentRef)
             const pageReview = pageReviewStateBySourceRef.get(sourceDocumentRef)!
             const { reviewState, transferableRowCount, blockedRowCount } = pageReview
+            const isActiveOutcomePage =
+              activeOutcomePageNavigationEntry?.sourceDocumentRef ===
+              sourceDocumentRef
+            const navigationEntry = pageNavigationEntries.find(
+              (entry) => entry.sourceDocumentRef === sourceDocumentRef
+            )
 
             return (
-              <div className="document-preflight__page" key={sourceDocumentRef}>
-                <h3>עמוד {page.pageNumber}</h3>
+              <div
+                className={
+                  isActiveOutcomePage
+                    ? 'document-preflight__page document-preflight__review-page--active'
+                    : 'document-preflight__page'
+                }
+                key={sourceDocumentRef}
+              >
+                <h3
+                  id={`document-preflight-page-${page.pageNumber}`}
+                  ref={(element) =>
+                    setOutcomePageHeadingRef(sourceDocumentRef, element)
+                  }
+                  tabIndex={-1}
+                >
+                  עמוד {page.pageNumber}
+                  <span className="document-preflight__sr-only">
+                    {' '}—{' '}
+                    {navigationEntry
+                      ? pageNavigationStatusDescription(navigationEntry)
+                      : 'דורש בדיקה ידנית'}
+                  </span>
+                </h3>
                 <section className="document-preflight__route-draft">
                   <strong>קו חלוקה מהכותרת</strong>
                   {page.routeDraft.status === 'SUGGESTED' ? (

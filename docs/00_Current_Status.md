@@ -22,7 +22,11 @@ On a narrow phone screen, the OCR result keeps one semantic table but reflows
 each source row into a labeled card for readable product identifiers,
 quantities, OCR checks, and transfer selection. When OCR completes, focus
 moves to the result heading and a short status announces the outcome; the full
-OCR table is not placed in a live region.
+OCR table is not placed in a live region. A browser-only page navigator marks
+one current OCR page and can jump to another page draft, OCR failure, or
+replacement-photo state. It prioritizes unresolved work when no active page is
+available, preserves an explicitly selected page while it remains visible, and
+does not approve rows, route codes, quantities, or create a stored queue.
 
 When one or more fields have low OCR confidence, the upload result also shows
 a temporary browser-only review list and can filter the visible rows to those

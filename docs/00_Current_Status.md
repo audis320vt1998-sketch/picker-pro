@@ -187,8 +187,11 @@ metadata, page/row source positions, and the already reviewed route breakdown.
 It does not retain editable form rows, raw source/OCR text, OCR quantities or
 confidence, images/PDFs, filenames, document headers/customer details, opaque
 document references, server review IDs, or arbitrary API data. A saved result
-cannot be submitted again, turned into an export, assigned to a city, or used
-as a pick list.
+can be downloaded locally as a UTF-8 CSV summary of verified product totals
+only. The CSV contains SKU, barcode, product name, separate case totals, and
+separate unit totals. It excludes source positions, routes, cities, customer
+data, OCR text, images, and internal identifiers; it is not a pick list and
+cannot be submitted again.
 
 ## OCR preflight boundary
 
@@ -308,12 +311,13 @@ as a pick list.
 - The legacy `/api/process` endpoint is deliberately disabled. It returns a
   fixed, non-cacheable `501` response without parsing an uploaded request; it
   is not an alternative to `/api/intake/preflight`.
-- Server-side or editable persisted jobs, a persistent review queue, export
-  files, operational city/route assignment, operational route grouping, and
-  offline recovery. The explicit 24-hour local result snapshot is not a saved
-  OCR job or a recoverable form draft. The settings page currently reports only
-  city/route catalog readiness; the review-only route breakdown is not a city
-  mapping or a delivery group.
+- Server-side or editable persisted jobs, a persistent review queue, XLSX/PDF/
+  print files, export history, operational city/route exports, operational
+  route grouping, and offline recovery. The only available export is the local
+  CSV summary of a saved verified result. The explicit 24-hour local result
+  snapshot is not a saved OCR job or a recoverable form draft. The settings page
+  currently reports only city/route catalog readiness; the review-only route
+  breakdown is not a city mapping or a delivery group.
 - AI assistance.
 
 Those capabilities must be rebuilt against the Foundation contracts and added

@@ -29,11 +29,15 @@ The Picker Pro UI is a **Progressive Web App (PWA)** built with Next.js 14 App R
 
 ### 3.3 Results (`/results/[id]`)
 
-- **Progress bar**: real-time job progress via polling.
-- **Summary cards**: total products, total cases, total units, flagged items.
-- **Results table**: grouped by city → route → product.
-- **Review queue badge**: count of pending items; links to review modal.
-- **Export buttons**: per-city XLSX, PDF, and print actions.
+- **Saved verified-result summary**: browser-local result only, available after
+  explicit saving from manual review.
+- **Summary cards and results table**: verified products, separate case totals,
+  and separate unit totals.
+- **Route-review breakdown**: review context only; it does not assign a city or
+  create a delivery plan.
+- **CSV download**: a local UTF-8 CSV of SKU, barcode, product name, verified
+  cases, and verified units only. It is not a pick list and omits sources,
+  routes, cities, customer data, OCR text, and images.
 
 ### 3.4 Review Modal
 
@@ -58,7 +62,7 @@ The Picker Pro UI is a **Progressive Web App (PWA)** built with Next.js 14 App R
 | `ResultsTable` | `components/ResultsTable` | Grouped results display |
 | `SummaryCards` | `components/SummaryCards` | Key metric cards |
 | `ReviewModal` | `components/ReviewModal` | Review queue UI |
-| `ExportButtons` | `components/ExportButtons` | Per-city export actions |
+| `SavedReviewResultsWorkspace` | `components/SavedReviewResultsWorkspace` | Saved verified results and local CSV summary download |
 | `OfflineBanner` | `components/OfflineBanner` | Connectivity status indicator |
 
 ## 5. Responsive Design

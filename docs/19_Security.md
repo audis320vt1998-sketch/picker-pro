@@ -6,7 +6,9 @@
 2. **Input validation** — all API payloads are validated before processing.
 3. **Least privilege** — database user has only the permissions needed.
 4. **Auditability** — all reviewer actions are logged with identity and timestamp.
-5. **Traceability** — every exported value is linked to its source row (prevents undetected tampering).
+5. **Traceability** — the review UI links accepted quantities to source rows.
+   The deliberately narrow local verified-result CSV omits source rows, routes,
+   customer data, OCR text, and images, and protects spreadsheet-formula text.
 
 ## 2. Secret Management
 

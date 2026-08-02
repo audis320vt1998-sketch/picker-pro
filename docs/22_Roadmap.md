@@ -22,13 +22,15 @@ Picker Pro follows a milestone-based release strategy. Each milestone delivers a
 - Explicit, browser-local snapshots of completed verified results (up to 24
   hours); they are display-only and contain no source images, OCR text, or
   editable drafts
+- Local UTF-8 CSV download of a saved verified-result summary only; no
+  route/city/source data and no server-side export history
 
 ### Not delivered in v1.0
 
 - City or delivery-route assignment
 - Server-side saved jobs, review queues, editable draft recovery, or offline
   recovery
-- Excel, PDF, print, or export history
+- Excel, PDF, print, or export history beyond the local verified-summary CSV
 - Operational pick lists or grouping by city
 - Authentication or multi-user audit logs
 

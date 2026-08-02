@@ -7,6 +7,8 @@ import RouteReviewSummary from '@/components/RouteReviewSummary'
 import SummaryCards from '@/components/SummaryCards'
 import type { ProductTotals } from '@/lib/domain/types'
 import {
+  createVerifiedResultCsv,
+  createVerifiedResultCsvFilename,
   readSavedReviewJobs,
   removeSavedReviewJob,
   SAVED_REVIEW_JOB_TTL_MS,
@@ -171,6 +173,9 @@ export default function SavedReviewResultsWorkspace({
   const [error, setError] = useState<string | null>(null)
   const [storageUnavailable, setStorageUnavailable] = useState(false)
   const [deletionStatus, setDeletionStatus] = useState<string | null>(null)
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+  const [exportStatus, setExportStatus] = useState<string | null>(null)
   const resultsHeadingRef = useRef<HTMLHeadingElement>(null)
   const focusResultsHeadingAfterDelete = useRef(false)
 
@@ -249,6 +254,68 @@ export default function SavedReviewResultsWorkspace({
     setPendingDeleteId(null)
   }
 
+  const exportSavedResult = (id: string) => {
+    setIsExporting(true)
+    setExportError(null)
+    setExportStatus(null)
+
+    try {
+      const loaded = readSavedReviewJobs(window.localStorage)
+      if (loaded.status !== 'LOADED') {
+        setExportError('לא ניתן לקרוא את התוצאה השמורה לצורך הורדה.')
+        return
+      }
+
+      const currentJob = loaded.jobs.find((job) => job.id === id)
+      if (!currentJob) {
+        setExportError('התוצאה השמורה אינה זמינה עוד לצורך הורדה.')
+        return
+      }
+
+      const csv = createVerifiedResultCsv(currentJob)
+      if (!csv) {
+        setExportError('לא ניתן להכין קובץ תקין מהתוצאה השמורה.')
+        return
+      }
+
+      const urlApi = typeof URL === 'undefined' ? null : URL
+      if (
+        typeof Blob === 'undefined' ||
+        !urlApi ||
+        typeof urlApi.createObjectURL !== 'function' ||
+        typeof urlApi.revokeObjectURL !== 'function'
+      ) {
+        setExportError('הדפדפן הזה אינו תומך בהורדת קובץ מקומי.')
+        return
+      }
+
+      let url: string | null = null
+      let link: HTMLAnchorElement | null = null
+      try {
+        url = urlApi.createObjectURL(
+          new Blob([csv], { type: 'text/csv;charset=utf-8' })
+        )
+        link = document.createElement('a')
+        link.href = url
+        link.download = createVerifiedResultCsvFilename(currentJob.savedAtMs)
+        link.style.display = 'none'
+        document.body.appendChild(link)
+        link.click()
+        setExportStatus('הקובץ מוכן. אשר את הורדת הדפדפן אם התבקשת.')
+      } finally {
+        link?.remove()
+        if (url) {
+          const objectUrl = url
+          window.setTimeout(() => urlApi.revokeObjectURL(objectUrl), 1_000)
+        }
+      }
+    } catch {
+      setExportError('לא ניתן להכין את קובץ הסיכום. נסה שוב.')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   if (jobs === null) {
     return (
       <main className="saved-results">
@@ -289,7 +356,7 @@ export default function SavedReviewResultsWorkspace({
         <Link className="saved-results__back" href="/results">
           חזרה לכל התוצאות השמורות
         </Link>
-        <h1>תוצאת ליקוט שמורה</h1>
+        <h1>סיכום מאומת שמור</h1>
         <p>
           נשמרה ב־{savedAtText(selectedJob.savedAtMs)} בדפדפן זה בלבד. זו תצוגת
           סיכום מאומתת, לא רשימת ליקוט תפעולית ולא מקור להגשה חוזרת.
@@ -318,6 +385,33 @@ export default function SavedReviewResultsWorkspace({
           excludedRowCount={selectedJob.totalRowCount - selectedJob.acceptedRowCount}
           warningCount={selectedJob.warningCount}
         />
+        <section
+          className="saved-results__export"
+          aria-busy={isExporting}
+          aria-labelledby="verified-result-export-title"
+        >
+          <h2 id="verified-result-export-title">הורדת CSV של סיכום מאומת</h2>
+          <p id="verified-result-export-description">
+            הקובץ יורד במכשיר זה בלבד ומכיל מק״ט, ברקוד, שם פריט, מארזים מאומתים
+            ובודדים מאומתים. הוא אינו רשימת ליקוט ואינו כולל קווי חלוקה, שיוך
+            לעיר, מקורות או פרטי לקוח.
+          </p>
+          <button
+            aria-describedby="verified-result-export-description"
+            className="manual-review__primary-button"
+            disabled={isExporting}
+            onClick={() => exportSavedResult(selectedJob.id)}
+            type="button"
+          >
+            {isExporting ? 'מכין קובץ…' : 'הורד CSV של סיכום מאומת'}
+          </button>
+          {exportStatus && <p role="status">{exportStatus}</p>}
+          {exportError && (
+            <p className="manual-review__error" role="alert">
+              {exportError}
+            </p>
+          )}
+        </section>
         <section className="saved-results__privacy-note">
           <h2>מה נשמר</h2>
           <p>

@@ -79,12 +79,17 @@ Available now:
   verified product totals, fixed result counts, page/row references, and a
   confirmed route-review breakdown; it never retains source images, file names,
   OCR text, customer data, opaque document IDs, or editable form drafts.
+- A browser-local UTF-8 CSV download from an explicitly saved verified result.
+  It contains only SKU, barcode, product name, verified cases, and verified
+  units; it contains no source references, route/city data, customer data, OCR
+  text, or images, and is not a pick list.
 
 Not available yet:
 
 - Automatic pick-list creation from an image or PDF.
 - Server-side stored jobs, a persistent review queue, editable draft recovery,
-  exports, operational city/route grouping, or AI assistance.
+  XLSX/PDF/print exports, export history, operational city/route grouping, or
+  AI assistance.
 - Automatic catalog verification or ERP synchronization.
 
 The canonical file [`catalogs/products.json`](./catalogs/products.json) is

@@ -10,8 +10,8 @@ interface RouteReviewSummaryProps {
 /**
  * Displays a review-only breakdown after the server has evaluated the explicit
  * rows. It can also be rendered from a narrow local result snapshot, but is
- * never a delivery plan: no city mapping, route assignment, export, or saved
- * pick list is created.
+ * never a delivery plan: no city mapping, route assignment, route export, or
+ * saved pick list is created.
  */
 export default function RouteReviewSummary({
   routeSummaries,
@@ -23,7 +23,7 @@ export default function RouteReviewSummary({
       <h3>סיכום ביקורת לפי קווי חלוקה מאומתים</h3>
       <p>
         כל קבוצה מבוססת רק על קו שאושר בעמוד ה־OCR ועל שורות שעברו את הבדיקה
-        הידנית. אין כאן שיוך לעיר, יצוא או יצירת רשימת ליקוט שמורה.
+        הידנית. אין כאן שיוך לעיר, יצוא של קווי החלוקה או יצירת רשימת ליקוט שמורה.
       </p>
 
       {unassignedRouteRowCount > 0 && (

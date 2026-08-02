@@ -1102,6 +1102,7 @@ nav a:hover {
 }
 
 .manual-review__saved-result,
+.saved-results__export,
 .saved-results__privacy-note,
 .saved-results__empty {
   background: #f8fafc;
@@ -1114,9 +1115,21 @@ nav a:hover {
 }
 
 .manual-review__saved-result p,
+.saved-results__export p,
 .saved-results__privacy-note p,
 .saved-results__empty p {
   line-height: 1.55;
+}
+
+.saved-results__export h2 {
+  color: #1e3a5f;
+  font-size: 1.1rem;
+}
+
+.saved-results__export .manual-review__primary-button {
+  margin-top: 0;
+  min-height: 2.75rem;
+  width: fit-content;
 }
 
 .manual-review__saved-result-actions,
@@ -1296,6 +1309,7 @@ nav a:hover {
 
   .manual-review__saved-result-actions .manual-review__primary-button,
   .manual-review__saved-result-actions .manual-review__secondary-button,
+  .saved-results__export .manual-review__primary-button,
   .saved-results__actions .manual-review__primary-button,
   .saved-results__actions .manual-review__secondary-button,
   .saved-results__delete-confirmation .manual-review__primary-button,

@@ -24,6 +24,9 @@ Picker Pro follows a milestone-based release strategy. Each milestone delivers a
   editable drafts
 - Local UTF-8 CSV download of a saved verified-result summary only; no
   route/city/source data and no server-side export history
+- Confirmed return from an image-OCR outcome to its local photo batch for
+  reordering or removal before a fresh OCR run; it clears drafts and remains
+  unavailable for individual PDF pages
 
 ### Not delivered in v1.0
 
@@ -40,7 +43,6 @@ Picker Pro follows a milestone-based release strategy. Each milestone delivers a
 
 **Target**: Q4 2026
 
-- Page removal and reordering after submission
 - Improved Hebrew OCR accuracy via fine-tuned Tesseract model
 - Push notifications for job completion
 - Export history with re-download

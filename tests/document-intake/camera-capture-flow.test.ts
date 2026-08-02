@@ -1,5 +1,6 @@
 import {
   canAppendCameraCaptureToBatch,
+  cameraCaptureInspectionScrollBehavior,
   requiresCameraCaptureReplacementConfirmation,
   requiresSourceSelectionReplacementConfirmation,
 } from '@/lib/document-intake/camera-capture-flow'
@@ -111,5 +112,12 @@ describe('source selection replacement flow', () => {
     },
   ])('does not append a capture when the batch is unsafe: %o', (state) => {
     expect(canAppendCameraCaptureToBatch(state)).toBe(false)
+  })
+})
+
+describe('camera capture inspection flow', () => {
+  it('avoids animated scrolling when reduced motion is requested', () => {
+    expect(cameraCaptureInspectionScrollBehavior(false)).toBe('smooth')
+    expect(cameraCaptureInspectionScrollBehavior(true)).toBe('auto')
   })
 })

@@ -56,11 +56,14 @@ export {
   getOcrPreflightPageReviewState,
 } from './page-review'
 export {
+  canReturnToOcrImageSelectionForEditing,
+  isOcrPreflightReviewInteractionLocked,
   moveOcrPreflightSelectionItem,
   removeOcrPreflightSelectionItem,
 } from './preflight-selection'
 export {
   canAppendCameraCaptureToBatch,
+  cameraCaptureInspectionScrollBehavior,
   requiresCameraCaptureReplacementConfirmation,
   requiresSourceSelectionReplacementConfirmation,
 } from './camera-capture-flow'

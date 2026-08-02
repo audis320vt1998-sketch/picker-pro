@@ -66,6 +66,10 @@ Available now:
   batch. No file name or document header is retained in that reference; the
   manual-review API rejects source filenames and other unrecognized row
   metadata.
+- An explicit, confirmed return from a completed image-OCR outcome to the
+  browser-held image batch. It lets a reviewer reorder or remove photos before
+  rerunning OCR, but clears all OCR drafts, row selections, route codes, and
+  page confirmations; PDF pages remain outside this flow.
 - Product resolution in the order barcode → SKU → canonical name → alias.
 - Source traceability for every accepted quantity (page and row), with an
   expandable results view that separates case sources from individual-unit

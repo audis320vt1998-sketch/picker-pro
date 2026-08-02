@@ -275,7 +275,8 @@ nav a:hover {
 }
 
 .document-preflight__camera-capture,
-.document-preflight__camera-confirmation {
+.document-preflight__camera-confirmation,
+.document-preflight__batch-edit {
   border-radius: 0.75rem;
   display: grid;
   gap: 0.75rem;
@@ -290,12 +291,16 @@ nav a:hover {
 }
 
 .document-preflight__camera-capture h2,
-.document-preflight__camera-confirmation strong {
+.document-preflight__camera-confirmation strong,
+.document-preflight__batch-edit h3,
+.document-preflight__batch-edit-confirmation h4 {
   color: #1e3a5f;
 }
 
 .document-preflight__camera-capture p,
-.document-preflight__camera-confirmation p {
+.document-preflight__camera-confirmation p,
+.document-preflight__batch-edit p,
+.document-preflight__batch-edit-confirmation p {
   line-height: 1.55;
 }
 
@@ -358,6 +363,43 @@ nav a:hover {
 
 .document-preflight__camera-confirmation .manual-review__secondary-button,
 .document-preflight__camera-confirmation .manual-review__primary-button {
+  margin-top: 0;
+}
+
+.document-preflight__batch-edit {
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  color: #1e3a5f;
+  margin-top: 1rem;
+}
+
+.document-preflight__batch-edit h3 {
+  font-size: 1rem;
+}
+
+.document-preflight__batch-edit-confirmation h4 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.document-preflight__batch-edit-confirmation {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 0.5rem;
+  color: #78350f;
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.9rem;
+}
+
+.document-preflight__batch-edit-confirmation:focus {
+  outline: 3px solid #f59e0b;
+  outline-offset: 4px;
+  scroll-margin-block-start: 1rem;
+}
+
+.document-preflight__batch-edit-confirmation .manual-review__secondary-button,
+.document-preflight__batch-edit-confirmation .manual-review__primary-button {
   margin-top: 0;
 }
 
@@ -653,6 +695,19 @@ nav a:hover {
   flex-basis: 100%;
   font-weight: 400;
   padding: 0.65rem;
+}
+
+.document-preflight__queued-camera-page--new {
+  border: 2px solid #2563eb;
+  box-shadow: 0 0 0 3px #dbeafe;
+  scroll-margin-block-start: 1rem;
+}
+
+.document-preflight__selection h2:focus,
+.document-preflight__queued-camera-page--new > summary:focus {
+  outline: 3px solid #f59e0b;
+  outline-offset: 4px;
+  scroll-margin-block-start: 1rem;
 }
 
 .document-preflight__queued-camera-page[open] > div {
@@ -1259,7 +1314,8 @@ nav a:hover {
   }
 
   .document-preflight__camera-capture,
-  .document-preflight__camera-confirmation {
+  .document-preflight__camera-confirmation,
+  .document-preflight__batch-edit {
     padding: 1rem;
   }
 
@@ -1296,6 +1352,12 @@ nav a:hover {
   .document-preflight__camera-confirmation .manual-review__primary-button,
   .document-preflight__camera-confirmation .manual-review__secondary-button {
     min-height: 2.75rem;
+  }
+
+  .document-preflight__batch-edit .manual-review__primary-button,
+  .document-preflight__batch-edit .manual-review__secondary-button {
+    min-height: 2.75rem;
+    width: 100%;
   }
 
   .manual-review__saved-result-actions,

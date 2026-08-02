@@ -34,16 +34,22 @@ Before OCR begins, the reviewer can see generic page positions only, move a
 selected image up or down, or remove it from the batch. This changes only the
 browser-held selection: the opaque source reference remains with its selected
 image and the final order becomes the OCR page numbering. File names are never
-displayed. Once OCR starts, that batch order is locked; selecting a new batch
-is required to make a different order. An additional camera shot may append to
-an existing local camera batch before OCR (up to 20 pages), but a new existing-
-image/PDF choice, a camera shot outside that local batch, or any new source
-after OCR waits for explicit confirmation before replacing browser-held work.
+displayed. After OCR finishes for an image batch, the reviewer may explicitly
+return to its browser-held photos to reorder or remove pages. This requires a
+clear confirmation and deletes all OCR drafts, selected rows, route-code edits,
+and page confirmations before OCR is run again; the photos remain local. PDF
+pages remain in their original order and require a corrected PDF. An additional
+camera shot may append to an existing local camera batch before OCR (up to 20
+pages), but a new existing-image/PDF choice, a camera shot outside that local
+batch, or any new source after OCR waits for explicit confirmation before
+replacing browser-held work.
 
 On a supported mobile browser, the same screen offers a camera-first,
-direct-camera chooser. After checking a sharp, straight, shadow-free table
-photo locally, the reviewer may press **Save page and continue capturing** to
-append another photo to the browser-only camera queue, up to 20 pages. Each
+direct-camera chooser. After a camera capture, the screen moves to the local
+inspection step; an appended page opens its own inspection card. After checking
+a sharp, straight, shadow-free table photo locally, the reviewer may press
+**Save page and continue capturing** to append another photo to the browser-only
+camera queue, up to 20 pages. Each
 appended page receives a fresh opaque source reference; it does not replace a
 prior page and none of the queued photos is uploaded until the reviewer
 explicitly starts OCR. Each queued camera page can be opened for local metadata

@@ -63,3 +63,13 @@ export function canAppendCameraCaptureToBatch({
     !hasPreflightOutcome
   )
 }
+
+/**
+ * Chooses the least surprising scroll behavior when a newly captured page is
+ * brought into view for inspection.
+ */
+export function cameraCaptureInspectionScrollBehavior(
+  prefersReducedMotion: boolean
+): ScrollBehavior {
+  return prefersReducedMotion ? 'auto' : 'smooth'
+}

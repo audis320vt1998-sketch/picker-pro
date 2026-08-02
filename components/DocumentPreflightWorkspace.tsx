@@ -11,6 +11,8 @@ import {
 import {
   assessLocalCameraCaptureReadiness,
   canAppendCameraCaptureToBatch,
+  canReturnToOcrImageSelectionForEditing,
+  cameraCaptureInspectionScrollBehavior,
   createOcrPreflightBatchPage,
   createOcrPreflightPageReviewConfirmation,
   createOcrPreflightBatchOutcome,
@@ -20,6 +22,7 @@ import {
   getPdfPreflightFileSelectionIssue,
   getOcrPreflightPageReviewState,
   hasLowConfidenceOcrPreflightRow,
+  isOcrPreflightReviewInteractionLocked,
   isRetryablePreflightFailure,
   MAX_PREFLIGHT_BATCH_IMAGES,
   moveOcrPreflightSelectionItem,
@@ -606,6 +609,8 @@ export default function DocumentPreflightWorkspace() {
     useState<SourceSelectionKind>(null)
   const [pendingSourceSelection, setPendingSourceSelection] =
     useState<PendingSourceSelection | null>(null)
+  const [pendingBatchEditConfirmation, setPendingBatchEditConfirmation] =
+    useState(false)
   const [pdfPageSourceRefs, setPdfPageSourceRefs] = useState<readonly string[]>([])
   const [outcome, setOutcome] = useState<OcrPreflightBatchOutcome | null>(null)
   const [pendingReplacementPages, setPendingReplacementPages] = useState<
@@ -625,14 +630,28 @@ export default function DocumentPreflightWorkspace() {
   >({})
   const [hasConfirmedSourceCheck, setHasConfirmedSourceCheck] = useState(false)
   const [showOnlyLowConfidenceRows, setShowOnlyLowConfidenceRows] = useState(false)
+  const [cameraCaptureInspectionSourceRef, setCameraCaptureInspectionSourceRef] =
+    useState<string | null>(null)
   const preflightActionLock = useRef(false)
   const sourceSelectionConfirmationRef = useRef<HTMLElement>(null)
+  const batchEditTriggerRef = useRef<HTMLButtonElement>(null)
+  const batchEditConfirmationRef = useRef<HTMLDivElement>(null)
+  const selectionHeadingRef = useRef<HTMLHeadingElement>(null)
+  const cameraCaptureInspectionRef = useRef<HTMLDetailsElement>(null)
+  const cameraCaptureInspectionSummaryRef = useRef<HTMLElement>(null)
+  const focusSelectedBatchAfterEdit = useRef(false)
   const resultHeadingRef = useRef<HTMLHeadingElement>(null)
 
   const isSubmitting = activity !== null
   const pages = outcome?.pages ?? []
   const failedPages = outcome?.failures ?? []
-  const isSelectionLocked = isSubmitting || pendingSourceSelection !== null
+  const isReviewInteractionLocked = isOcrPreflightReviewInteractionLocked({
+    isSubmitting,
+    isBatchEditConfirmationPending: pendingBatchEditConfirmation,
+  })
+  const isSelectionLocked =
+    isReviewInteractionLocked ||
+    pendingSourceSelection !== null
   const isSingleCameraCaptureReadyToInspect =
     sourceSelectionKind === 'camera' && files.length === 1 && outcome === null
   const canAppendCameraPage = canAppendCameraCaptureToBatch({
@@ -656,6 +675,13 @@ export default function DocumentPreflightWorkspace() {
     outcome,
     isSubmitting
   )
+  const canReturnToImageBatchEditing = canReturnToOcrImageSelectionForEditing({
+    selectedImageCount: files.length,
+    hasPdfSelection: pdfFile !== null,
+    hasPreflightOutcome: outcome !== null,
+    isSubmitting,
+    hasPendingSourceSelection: pendingSourceSelection !== null,
+  })
   const lowConfidenceReviewSummary = summarizeLowConfidenceOcrPreflightReview(pages)
 
   const previewedFile = previewedSource
@@ -692,6 +718,66 @@ export default function DocumentPreflightWorkspace() {
   }, [pendingSourceSelection])
 
   useEffect(() => {
+    if (pendingBatchEditConfirmation) {
+      batchEditConfirmationRef.current?.focus()
+    }
+  }, [pendingBatchEditConfirmation])
+
+  useEffect(() => {
+    if (
+      focusSelectedBatchAfterEdit.current &&
+      !isSelectionLocked &&
+      outcome === null &&
+      files.length > 0
+    ) {
+      focusSelectedBatchAfterEdit.current = false
+      selectionHeadingRef.current?.focus()
+    }
+  }, [files.length, isSelectionLocked, outcome])
+
+  useEffect(() => {
+    if (
+      !cameraCaptureInspectionSourceRef ||
+      outcome !== null ||
+      sourceSelectionKind !== 'camera'
+    ) {
+      return
+    }
+
+    const selectedPageIndex = files.findIndex(
+      ({ sourceDocumentRef }) =>
+        sourceDocumentRef === cameraCaptureInspectionSourceRef
+    )
+    if (selectedPageIndex < 0) {
+      return
+    }
+
+    const target =
+      files.length === 1
+        ? selectionHeadingRef.current
+        : cameraCaptureInspectionSummaryRef.current
+    if (!target) {
+      return
+    }
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      if (files.length > 1 && cameraCaptureInspectionRef.current) {
+        cameraCaptureInspectionRef.current.open = true
+      }
+      const prefersReducedMotion =
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      target.focus({ preventScroll: true })
+      target.scrollIntoView({
+        behavior: cameraCaptureInspectionScrollBehavior(prefersReducedMotion),
+        block: 'start',
+      })
+    })
+
+    return () => window.cancelAnimationFrame(animationFrame)
+  }, [cameraCaptureInspectionSourceRef, files, outcome, sourceSelectionKind])
+
+  useEffect(() => {
     if (showOnlyLowConfidenceRows && lowConfidenceReviewSummary.rowCount === 0) {
       setShowOnlyLowConfidenceRows(false)
     }
@@ -710,12 +796,14 @@ export default function DocumentPreflightWorkspace() {
     setConfirmedPageReviews({})
     setHasConfirmedSourceCheck(false)
     setShowOnlyLowConfidenceRows(false)
+    setCameraCaptureInspectionSourceRef(null)
     setPdfFile(null)
     setPdfPageSourceRefs([])
     if (!preserveSelectionKind) {
       setSourceSelectionKind(null)
     }
     setPendingSourceSelection(null)
+    setPendingBatchEditConfirmation(false)
   }
 
   const canEditSelectedBatch = !isSelectionLocked && outcome === null
@@ -727,13 +815,17 @@ export default function DocumentPreflightWorkspace() {
     resetDraftAfterSelectionChange()
 
     try {
-      setFiles(
-        selectedFiles.map((file) => ({
+      const nextFiles = selectedFiles.map((file) => ({
           file,
           sourceDocumentRef: createSourceDocumentRef(),
         }))
-      )
+      setFiles(nextFiles)
       setSourceSelectionKind(selectionKind)
+      setCameraCaptureInspectionSourceRef(
+        selectionKind === 'camera'
+          ? nextFiles[0]?.sourceDocumentRef ?? null
+          : null
+      )
     } catch {
       setFiles([])
       setPendingReplacementPages([])
@@ -759,6 +851,7 @@ export default function DocumentPreflightWorkspace() {
           : current
       )
       setSourceSelectionKind('camera')
+      setCameraCaptureInspectionSourceRef(nextCapture.sourceDocumentRef)
     } catch {
       setError('הדפדפן לא הצליח ליצור מזהה זמני ובטוח למסמך. נסה שוב.')
     }
@@ -805,7 +898,7 @@ export default function DocumentPreflightWorkspace() {
 
     if (
       preflightActionLock.current ||
-      pendingSourceSelection ||
+      isSelectionLocked ||
       selectedFiles.length === 0
     ) {
       return
@@ -835,7 +928,7 @@ export default function DocumentPreflightWorkspace() {
 
     if (
       preflightActionLock.current ||
-      pendingSourceSelection ||
+      isSelectionLocked ||
       selectedFiles.length === 0
     ) {
       return
@@ -860,7 +953,11 @@ export default function DocumentPreflightWorkspace() {
   }
 
   const confirmSourceSelectionReplacement = () => {
-    if (!pendingSourceSelection || preflightActionLock.current) {
+    if (
+      !pendingSourceSelection ||
+      preflightActionLock.current ||
+      isReviewInteractionLocked
+    ) {
       return
     }
 
@@ -873,7 +970,7 @@ export default function DocumentPreflightWorkspace() {
 
     if (
       preflightActionLock.current ||
-      pendingSourceSelection ||
+      isSelectionLocked ||
       selectedFiles.length === 0
     ) {
       return
@@ -915,8 +1012,36 @@ export default function DocumentPreflightWorkspace() {
       return
     }
 
+    if (files[index]?.sourceDocumentRef === cameraCaptureInspectionSourceRef) {
+      setCameraCaptureInspectionSourceRef(null)
+    }
     resetDraftAfterSelectionChange({ preserveSelectionKind: true })
     setFiles((current) => removeOcrPreflightSelectionItem(current, index))
+  }
+
+  const requestBatchEdit = () => {
+    if (!canReturnToImageBatchEditing) {
+      return
+    }
+
+    setError(null)
+    setPendingBatchEditConfirmation(true)
+  }
+
+  const cancelBatchEdit = () => {
+    setPendingBatchEditConfirmation(false)
+    window.requestAnimationFrame(() => batchEditTriggerRef.current?.focus())
+  }
+
+  const confirmBatchEdit = () => {
+    if (!canReturnToImageBatchEditing) {
+      setPendingBatchEditConfirmation(false)
+      setError('לא ניתן לחזור לעריכת האצווה בזמן זה. נסה שוב.')
+      return
+    }
+
+    focusSelectedBatchAfterEdit.current = true
+    resetDraftAfterSelectionChange({ preserveSelectionKind: true })
   }
 
   const replaceQueuedCameraPage = (
@@ -970,7 +1095,11 @@ export default function DocumentPreflightWorkspace() {
     const selectedFiles = Array.from(event.target.files ?? [])
     event.currentTarget.value = ''
 
-    if (preflightActionLock.current || selectedFiles.length === 0) {
+    if (
+      preflightActionLock.current ||
+      isReviewInteractionLocked ||
+      selectedFiles.length === 0
+    ) {
       return
     }
     if (selectedFiles.length !== 1) {
@@ -1037,7 +1166,7 @@ export default function DocumentPreflightWorkspace() {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (preflightActionLock.current) {
+    if (preflightActionLock.current || isReviewInteractionLocked) {
       return
     }
     if (pendingSourceSelection) {
@@ -1127,6 +1256,7 @@ export default function DocumentPreflightWorkspace() {
   const retryFailedPage = async (failedPage: OcrPreflightBatchFailure) => {
     if (
       preflightActionLock.current ||
+      isReviewInteractionLocked ||
       !isRetryablePreflightFailure(failedPage.code)
     ) {
       return
@@ -1169,6 +1299,7 @@ export default function DocumentPreflightWorkspace() {
   ) => {
     if (
       preflightActionLock.current ||
+      isReviewInteractionLocked ||
       !pendingReplacementPages.some(
         ({ sourceDocumentRef }) =>
           sourceDocumentRef === replacementSlot.sourceDocumentRef
@@ -1240,6 +1371,10 @@ export default function DocumentPreflightWorkspace() {
     selected: boolean,
     sourceDocumentRef: string
   ) => {
+    if (isReviewInteractionLocked) {
+      return
+    }
+
     setSelectedRowKeys((current) => ({ ...current, [key]: selected }))
     clearPageReviewConfirmation(sourceDocumentRef)
     setHasConfirmedSourceCheck(false)
@@ -1260,6 +1395,10 @@ export default function DocumentPreflightWorkspace() {
   ): string => routeCodeEdits[sourceDocumentRef] ?? defaultRouteCode(routeDraft)
 
   const updateRouteCodeForPage = (sourceDocumentRef: string, value: string) => {
+    if (isReviewInteractionLocked) {
+      return
+    }
+
     setRouteCodeEdits((current) => ({
       ...current,
       [sourceDocumentRef]: normalizeRouteCodeInput(value),
@@ -1317,6 +1456,10 @@ export default function DocumentPreflightWorkspace() {
   ).length
 
   const confirmPageReview = (sourceDocumentRef: string) => {
+    if (isReviewInteractionLocked) {
+      return
+    }
+
     const pageReview = pageReviewStateBySourceRef.get(sourceDocumentRef)
     if (!pageReview) {
       return
@@ -1340,6 +1483,10 @@ export default function DocumentPreflightWorkspace() {
   }
 
   const transferToManualReview = () => {
+    if (isReviewInteractionLocked) {
+      return
+    }
+
     const handoff = createOcrManualReviewHandoff(approvedSelectedRows)
     if (!handoff || !hasConfirmedSourceCheck || pendingSelectedRowCount > 0) {
       setError(
@@ -1494,7 +1641,11 @@ export default function DocumentPreflightWorkspace() {
             aria-labelledby="document-preflight-selection-title"
             className="document-preflight__selection"
           >
-            <h2 id="document-preflight-selection-title">
+            <h2
+              id="document-preflight-selection-title"
+              ref={selectionHeadingRef}
+              tabIndex={-1}
+            >
               {isSingleCameraCaptureReadyToInspect
                 ? 'שלב 2 מתוך 3 — בדוק את הצילום'
                 : 'סדר עמודים לפני OCR'}
@@ -1598,9 +1749,42 @@ export default function DocumentPreflightWorkspace() {
                           </button>
                         </div>
                         {sourceSelectionKind === 'camera' && (
-                          <details className="document-preflight__queued-camera-page">
-                            <summary>בדוק או החלף צילום לעמוד {pageNumber}</summary>
+                          <details
+                            className={
+                              sourceDocumentRef === cameraCaptureInspectionSourceRef
+                                ? 'document-preflight__queued-camera-page document-preflight__queued-camera-page--new'
+                                : 'document-preflight__queued-camera-page'
+                            }
+                            onToggle={(event) => {
+                              if (
+                                !event.currentTarget.open &&
+                                sourceDocumentRef === cameraCaptureInspectionSourceRef
+                              ) {
+                                setCameraCaptureInspectionSourceRef(null)
+                              }
+                            }}
+                            ref={
+                              sourceDocumentRef === cameraCaptureInspectionSourceRef
+                                ? cameraCaptureInspectionRef
+                                : undefined
+                            }
+                          >
+                            <summary
+                              ref={
+                                sourceDocumentRef === cameraCaptureInspectionSourceRef
+                                  ? cameraCaptureInspectionSummaryRef
+                                  : undefined
+                              }
+                            >
+                              בדוק או החלף צילום לעמוד {pageNumber}
+                            </summary>
                             <div>
+                              {sourceDocumentRef === cameraCaptureInspectionSourceRef && (
+                                <p role="status">
+                                  עמוד {pageNumber} נוסף לתור. בדוק את הממדים ואת
+                                  התצוגה המקדימה לפני המשך הצילום או הפעלת OCR.
+                                </p>
+                              )}
                               <LocalImageReadiness
                                 file={file}
                                 subject="CAMERA_CAPTURE"
@@ -1620,7 +1804,7 @@ export default function DocumentPreflightWorkspace() {
                                 pageNumber={pageNumber}
                               />
                               <SourceImageReplacement
-                                disabled={isSubmitting}
+                                disabled={isReviewInteractionLocked}
                                 onSelect={(event) =>
                                   replaceQueuedCameraPage(event, sourceDocumentRef)
                                 }
@@ -1717,8 +1901,7 @@ export default function DocumentPreflightWorkspace() {
           type="submit"
           disabled={
             (files.length === 0 && !pdfFile) ||
-            isSubmitting ||
-            pendingSourceSelection !== null
+            isSelectionLocked
           }
         >
           {isSubmitting
@@ -1764,6 +1947,67 @@ export default function DocumentPreflightWorkspace() {
             הידנית. ודאות ה־OCR היא סימן טכני בלבד ואינה מאשרת נכונות של שדה כלשהו.
           </p>
 
+          {canReturnToImageBatchEditing && (
+            <section
+              aria-labelledby="document-preflight-batch-edit-title"
+              className="document-preflight__batch-edit"
+            >
+              <h3 id="document-preflight-batch-edit-title">
+                צריך לסדר או להסיר עמודים?
+              </h3>
+              {!pendingBatchEditConfirmation ? (
+                <>
+                  <p>
+                    אפשר לחזור לצילומים שנשמרו במכשיר, לשנות את סדרם או להסיר
+                    עמודים, ואז להפעיל OCR מחדש.
+                  </p>
+                  <button
+                    aria-controls="document-preflight-selection-title"
+                    className="manual-review__secondary-button"
+                    onClick={requestBatchEdit}
+                    ref={batchEditTriggerRef}
+                    type="button"
+                  >
+                    ערוך שוב את סדר העמודים
+                  </button>
+                </>
+              ) : (
+                <div
+                  aria-describedby="document-preflight-batch-edit-description"
+                  aria-labelledby="document-preflight-batch-edit-confirmation-title"
+                  className="document-preflight__batch-edit-confirmation"
+                  ref={batchEditConfirmationRef}
+                  role="alertdialog"
+                  tabIndex={-1}
+                >
+                  <h4 id="document-preflight-batch-edit-confirmation-title">
+                    אישור חזרה לעריכת הצילומים
+                  </h4>
+                  <p id="document-preflight-batch-edit-description">
+                    טיוטות ה־OCR, בחירת השורות, קווי החלוקה ואישורי העמודים
+                    יימחקו. הצילומים יישארו רק במכשיר הזה, ותוכל לסדר או להסיר
+                    אותם לפני הפעלת OCR חדשה.
+                  </p>
+                  <button
+                    aria-describedby="document-preflight-batch-edit-description"
+                    className="manual-review__primary-button"
+                    onClick={confirmBatchEdit}
+                    type="button"
+                  >
+                    אשר וחזור לעריכת הצילומים
+                  </button>
+                  <button
+                    className="manual-review__secondary-button"
+                    onClick={cancelBatchEdit}
+                    type="button"
+                  >
+                    ביטול
+                  </button>
+                </div>
+              )}
+            </section>
+          )}
+
           {lowConfidenceReviewSummary.rowCount > 0 && (
             <section
               aria-labelledby="document-preflight-low-confidence-title"
@@ -1781,7 +2025,9 @@ export default function DocumentPreflightWorkspace() {
               <label className="document-preflight__low-confidence-filter">
                 <input
                   checked={showOnlyLowConfidenceRows}
+                  disabled={isReviewInteractionLocked}
                   onChange={(event) =>
+                    !isReviewInteractionLocked &&
                     setShowOnlyLowConfidenceRows(event.target.checked)
                   }
                   type="checkbox"
@@ -1817,14 +2063,14 @@ export default function DocumentPreflightWorkspace() {
                 )}
                 <button
                   className="manual-review__primary-button"
-                  disabled={isSubmitting || !hasSourceImage}
+                  disabled={isReviewInteractionLocked || !hasSourceImage}
                   onClick={() => reprocessReplacementPage(replacementSlot)}
                   type="button"
                 >
                   צור טיוטת OCR חדשה לעמוד {pageNumber}
                 </button>
                 <SourceImageReplacement
-                  disabled={isSubmitting}
+                  disabled={isReviewInteractionLocked}
                   onSelect={(event) => selectReplacementFile(event, replacementSlot)}
                   pageNumber={pageNumber}
                 />
@@ -1859,7 +2105,7 @@ export default function DocumentPreflightWorkspace() {
                 {isRetryablePreflightFailure(code) && (
                   <button
                     className="manual-review__secondary-button"
-                    disabled={isSubmitting}
+                    disabled={isReviewInteractionLocked}
                     onClick={() =>
                       retryFailedPage({ pageNumber, sourceDocumentRef, code })
                     }
@@ -1869,7 +2115,7 @@ export default function DocumentPreflightWorkspace() {
                   </button>
                 )}
                 <SourceImageReplacement
-                  disabled={isSubmitting}
+                  disabled={isReviewInteractionLocked}
                   onSelect={(event) =>
                     selectReplacementFile(event, { pageNumber, sourceDocumentRef })
                   }
@@ -1922,7 +2168,7 @@ export default function DocumentPreflightWorkspace() {
                     הזן או תקן קו חלוקה לעמוד זה
                     <input
                       aria-label={`קו חלוקה לעמוד ${page.pageNumber}`}
-                      disabled={isSubmitting}
+                      disabled={isReviewInteractionLocked}
                       inputMode="numeric"
                       maxLength={2}
                       onChange={(event) =>
@@ -1988,7 +2234,7 @@ export default function DocumentPreflightWorkspace() {
                       </p>
                       <button
                         className="manual-review__primary-button"
-                        disabled={isSubmitting}
+                        disabled={isReviewInteractionLocked}
                         onClick={() => confirmPageReview(sourceDocumentRef)}
                         type="button"
                       >
@@ -2023,7 +2269,7 @@ export default function DocumentPreflightWorkspace() {
                   </p>
                 ) : (
                   <SourceImageReplacement
-                    disabled={isSubmitting}
+                    disabled={isReviewInteractionLocked}
                     onSelect={(event) =>
                       selectReplacementFile(event, {
                         pageNumber: page.pageNumber,
@@ -2098,7 +2344,7 @@ export default function DocumentPreflightWorkspace() {
                                       <label className="document-preflight__transfer-control">
                                         <input
                                           checked={selectedRowKeys[key] ?? false}
-                                          disabled={isSubmitting}
+                                          disabled={isReviewInteractionLocked}
                                           onChange={(event) =>
                                             toggleRowSelection(
                                               key,
@@ -2246,9 +2492,13 @@ export default function DocumentPreflightWorkspace() {
                 disabled={
                   approvedSelectedRows.length === 0 ||
                   pendingSelectedRowCount > 0 ||
-                  isSubmitting
+                  isReviewInteractionLocked
                 }
-                onChange={(event) => setHasConfirmedSourceCheck(event.target.checked)}
+                onChange={(event) => {
+                  if (!isReviewInteractionLocked) {
+                    setHasConfirmedSourceCheck(event.target.checked)
+                  }
+                }}
                 type="checkbox"
               />
               בדקתי מול המסמך את קו החלוקה שאושר, את המזהים ואת שלוש כמויות המקור
@@ -2257,7 +2507,7 @@ export default function DocumentPreflightWorkspace() {
             <button
               className="manual-review__primary-button"
               disabled={
-                isSubmitting ||
+                isReviewInteractionLocked ||
                 approvedSelectedRows.length === 0 ||
                 pendingSelectedRowCount > 0 ||
                 !hasConfirmedSourceCheck
@@ -2273,7 +2523,17 @@ export default function DocumentPreflightWorkspace() {
             </p>
           </div>
 
-          <Link className="manual-review__primary-button" href="/review">
+          <Link
+            aria-disabled={isReviewInteractionLocked || undefined}
+            className="manual-review__primary-button"
+            href="/review"
+            onClick={(event) => {
+              if (isReviewInteractionLocked) {
+                event.preventDefault()
+              }
+            }}
+            tabIndex={isReviewInteractionLocked ? -1 : undefined}
+          >
             עבור להזנה ידנית ללא העברת טיוטה
           </Link>
         </section>

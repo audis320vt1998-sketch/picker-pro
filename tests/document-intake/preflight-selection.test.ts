@@ -1,9 +1,84 @@
 import {
+  canReturnToOcrImageSelectionForEditing,
+  isOcrPreflightReviewInteractionLocked,
   moveOcrPreflightSelectionItem,
   removeOcrPreflightSelectionItem,
 } from '@/lib/document-intake/preflight-selection'
 
 describe('browser OCR preflight selection helpers', () => {
+  it('allows a completed local image batch to return to ordering only after OCR is idle', () => {
+    expect(
+      canReturnToOcrImageSelectionForEditing({
+        selectedImageCount: 2,
+        hasPdfSelection: false,
+        hasPreflightOutcome: true,
+        isSubmitting: false,
+        hasPendingSourceSelection: false,
+      })
+    ).toBe(true)
+
+    for (const blockedCheck of [
+      {
+        selectedImageCount: 0,
+        hasPdfSelection: false,
+        hasPreflightOutcome: true,
+        isSubmitting: false,
+        hasPendingSourceSelection: false,
+      },
+      {
+        selectedImageCount: 2,
+        hasPdfSelection: true,
+        hasPreflightOutcome: true,
+        isSubmitting: false,
+        hasPendingSourceSelection: false,
+      },
+      {
+        selectedImageCount: 2,
+        hasPdfSelection: false,
+        hasPreflightOutcome: false,
+        isSubmitting: false,
+        hasPendingSourceSelection: false,
+      },
+      {
+        selectedImageCount: 2,
+        hasPdfSelection: false,
+        hasPreflightOutcome: true,
+        isSubmitting: true,
+        hasPendingSourceSelection: false,
+      },
+      {
+        selectedImageCount: 2,
+        hasPdfSelection: false,
+        hasPreflightOutcome: true,
+        isSubmitting: false,
+        hasPendingSourceSelection: true,
+      },
+    ]) {
+      expect(canReturnToOcrImageSelectionForEditing(blockedCheck)).toBe(false)
+    }
+  })
+
+  it('locks OCR-result interaction while submitting or confirming a return to the batch', () => {
+    expect(
+      isOcrPreflightReviewInteractionLocked({
+        isSubmitting: false,
+        isBatchEditConfirmationPending: false,
+      })
+    ).toBe(false)
+    expect(
+      isOcrPreflightReviewInteractionLocked({
+        isSubmitting: true,
+        isBatchEditConfirmationPending: false,
+      })
+    ).toBe(true)
+    expect(
+      isOcrPreflightReviewInteractionLocked({
+        isSubmitting: false,
+        isBatchEditConfirmationPending: true,
+      })
+    ).toBe(true)
+  })
+
   it('moves one selected item without mutating the original order', () => {
     const original = ['first', 'second', 'third']
 

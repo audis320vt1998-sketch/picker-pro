@@ -1,3 +1,5 @@
+import { loadConfig } from '../../lib/config'
+
 describe('foundation domain contracts', () => {
   it('keeps case and unit totals as separate numeric fields in fixtures', () => {
     const fixture = {
@@ -24,7 +26,11 @@ describe('foundation domain contracts', () => {
     expect(sourceRef.row.rowNumber).toBe(8)
   })
 
-  it('keeps unusually high quantity threshold disabled by default', () => {
+  it('keeps unusually high quantity threshold disabled by default in app config', () => {
+    expect(loadConfig().validation.unusuallyHighQuantityThreshold).toBeNull()
+  })
+
+  it('keeps unusually high quantity threshold disabled in the catalog JSON', () => {
     const rulesCatalog = require('../../catalogs/rules.json')
 
     expect(rulesCatalog.validationSettings.unusuallyHighQuantityThreshold).toBeNull()

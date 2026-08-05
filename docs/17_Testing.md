@@ -1,117 +1,91 @@
 # 17 — Testing
 
-## 1. Testing Strategy
+## Current quality gates
 
-Picker Pro uses a multi-layer testing approach:
+Picker Pro uses the following executable checks:
 
-| Layer | Tool | Scope |
+| Gate | Tool | Current scope |
 |---|---|---|
-| Unit | Jest | Individual functions in `lib/` |
-| Integration | Jest | Module interactions (e.g. OCR → Parser → Product) |
-| API | Jest + supertest | API route handlers |
-| E2E | Playwright (planned) | Full user workflows in browser |
-| Lint | ESLint (`next lint`) | Code style and correctness |
-| Type check | TypeScript (`tsc --noEmit`) | Static type safety |
+| Tests | Jest | Unit, integration, request-handler, catalog, OCR-preflight, and manual-review behavior under `tests/` |
+| Lint | ESLint via `next lint` | Active Next.js, React, and TypeScript source |
+| Type check | TypeScript | The active build selected by `tsconfig.json` |
+| Production build | Next.js | Route compilation, static generation, and production bundling |
 
-## 2. Running Tests
+Browser E2E and rendered-component tests are not configured yet. The Jest
+environment is `node`; the suite does not currently claim browser coverage.
+
+## Run locally
+
+Use Node.js 24, as declared in `.nvmrc`, and install the committed lockfile:
 
 ```bash
-# Run full Jest test suite
-npm test
-
-# Run with coverage report
-npm test -- --coverage
-
-# Run lint
-npm run lint
-
-# Type check
-npx tsc --noEmit
+npm ci
 ```
 
-## 3. Coverage Targets
+Run the same blocking checks used by CI:
 
-| Module | Target |
-|---|---|
-| `lib/ocr/` | ≥ 80 % |
-| `lib/parser/` | ≥ 85 % |
-| `lib/rules/` | ≥ 90 % |
-| `lib/calculator/` | ≥ 90 % |
-| `lib/aggregator/` | ≥ 85 % |
-| `lib/export/` | ≥ 75 % |
-| `lib/catalog/` | ≥ 80 % |
+```bash
+npm test -- --runInBand
+npm run lint
+npm run typecheck
+npm run build
+```
 
-## 4. Key Test Cases
+Useful focused commands:
 
-### 4.1 OCR Engine
+```bash
+# Run one test file
+npm test -- --runTestsByPath tests/document-intake/page-review-navigation.test.ts
 
-- Returns correct `OcrResult` structure for a sample Hebrew image.
-- Applies dictionary corrections to known misreads.
-- Flags lines below confidence threshold.
+# Produce a local coverage report; no repository-wide threshold is enforced yet
+npm test -- --coverage
+```
 
-### 4.2 Parser Engine
+## Test layout
 
-- Correctly extracts barcode, SKU, quantity, and unit from a row.
-- Handles RTL Hebrew text.
-- Emits `ParseWarning` for incomplete rows.
-- Correctly classifies `(6)`, `(12)` products as unit-pickable.
-- Correctly classifies `1/12` products as case-only.
+```text
+tests/
+  ai/                 Legacy-isolation and disabled-AI behavior
+  api/                Route-handler contracts and failure boundaries
+  catalog/            Catalog loading, normalization, policy, and onboarding
+  document-intake/    Upload policy, OCR preflight, PDF, camera, and page review
+  foundation/         Explicit-row processing contracts
+  manual-review/      Resolution, validation, aggregation, saving, and CSV
+  traceability/       Safe source-reference presentation
+```
 
-### 4.3 Product Engine
+The repository does not contain committed customer images or PDF fixtures.
+Document-intake tests use controlled in-memory inputs and mocks so that CI does
+not retain source documents or require Poppler.
 
-- Resolves by barcode first; does not fall through to name if barcode exists in catalog.
-- Returns `UNRESOLVED_PRODUCT` for unknown barcodes.
-- Normalises Hebrew product names before name lookup.
+## GitHub Actions
 
-### 4.4 Rules Engine
+The `Quality / Verify` job in `.github/workflows/quality.yml` runs on:
 
-- `UNIT_TYPE_ENFORCEMENT` fails for case-only product with `unit = 'unit'`.
-- `QUANTITY_RANGE` fails for quantity > 9999.
-- `DUPLICATE_DETECTION` warns for same product appearing twice on the same page.
+- pull requests targeting `main`;
+- pushes to `main`;
+- an explicit manual dispatch.
 
-### 4.5 Calculator Engine
+The job uses Node.js 24 on Ubuntu 24.04, installs with `npm ci`, and runs all
+four blocking gates listed above. It has read-only repository permissions, a
+20-minute timeout, and no persisted checkout credentials.
 
-- Sums cases and units separately.
-- Appends all `SourceRef` entries.
-- Does not combine case and unit totals.
+The final dependency-audit step is advisory. It reports production
+vulnerabilities without masking the blocking quality results, but it does not
+currently fail the job because the locked Next.js 14 line has known high
+severity findings whose automated fix is a breaking framework upgrade.
 
-### 4.6 Aggregator Engine
+A workflow does not enforce repository merge policy by itself. Configure the
+GitHub branch ruleset for `main` to require the stable `Quality / Verify`
+check before merge.
 
-- Correctly merges `ProductTotals` from 3 pages.
-- Preserves all source references across pages.
-- Emits empty array for a job with no pages.
+## Configuration
 
-### 4.7 Validation Engine
+- `jest.config.js` uses `next/jest` and the `node` test environment.
+- `tsconfig.json` defines the active source boundary and path aliases.
+- `.eslintrc.json` extends `next/core-web-vitals`.
+- `package-lock.json` is required; CI never replaces it with a floating
+  dependency install.
 
-- Items failing row-level validation do not reach the Calculator.
-- Post-aggregation `ZERO_TOTAL` check produces a `warn`.
-- Reviewer `approved` action removes item from `pending` count.
-
-### 4.8 Export Engine
-
-- XLSX output contains correct city/route grouping.
-- Source references appear in the "Sources" column.
-- PDF export rejects missing font gracefully.
-
-## 5. Test Data
-
-Sample test fixtures are located in `__tests__/fixtures/`:
-
-| Fixture | Description |
-|---|---|
-| `sample-order-he.png` | Hebrew order sheet scan |
-| `sample-order-mixed.png` | Hebrew + Latin mixed order sheet |
-| `sample-products.json` | Minimal product catalog for tests |
-| `sample-rules.json` | Minimal rule set for tests |
-
-## 6. CI Integration
-
-Tests and lint run automatically on every pull request via the GitHub Actions workflow in `.github/workflows/`. A pull request cannot be merged if any test or lint check fails.
-
-## 7. Test Configuration
-
-`jest.config.js` (or `jest.config.ts`):
-
-- `testEnvironment`: `node` for `lib/` modules; `jsdom` for component tests.
-- `moduleNameMapper`: resolves `@/` path alias.
-- `collectCoverageFrom`: all files in `lib/` and `components/`.
+When adding behavior, place the test beside the matching area under `tests/`
+and cover both the accepted path and the fixed failure/review boundary.

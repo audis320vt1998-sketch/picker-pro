@@ -136,8 +136,10 @@ for code that is deliberately outside the active build.
 
 ## Run locally
 
+Use Node.js 24 LTS (see `.nvmrc`) and npm 11 or newer.
+
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
@@ -153,9 +155,14 @@ PDF preflight additionally requires local Poppler commands `pdfinfo` and
 ```bash
 npm test
 npm run lint
-npx tsc --noEmit
+npm run typecheck
 npm run build
 ```
+
+The `Quality / Verify` GitHub Actions job runs these checks with locked
+dependencies for pull requests to `main`, pushes to `main`, and manual
+dispatches. Its dependency audit is advisory until the planned breaking
+framework upgrade resolves the known Next.js 14 findings.
 
 ## Active structure
 

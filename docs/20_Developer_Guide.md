@@ -1,145 +1,125 @@
 # 20 — Developer Guide
 
-## 1. Prerequisites
+## Prerequisites
 
 | Tool | Version |
 |---|---|
-| Node.js | 18 LTS |
-| npm | 9+ |
+| Node.js | 24 LTS (see `.nvmrc`) |
+| npm | 11+ |
 | Git | 2.40+ |
-| PostgreSQL | 14+ (local or Docker) |
+| Poppler | Optional; required only for local PDF preflight |
 
-## 2. Initial Setup
+The active review-first workflow has no database, object-storage, or AI-key
+requirement. Consult `docs/00_Current_Status.md` before implementing a target
+architecture capability described by another numbered design document.
+
+## Initial setup
 
 ```bash
-# Clone the repository
 git clone https://github.com/audis320vt1998-sketch/picker-pro.git
 cd picker-pro
-
-# Install dependencies
-npm install
-
-# Copy environment template
-cp .env.example .env.local
-# Edit .env.local — fill in DATABASE_URL, OPENAI_API_KEY, and storage settings
-
-# Run database migrations
-npm run migrate
-
-# Start the development server
+npm ci
 npm run dev
 ```
 
-The application starts at `http://localhost:3000`.
+Open `http://localhost:3000/upload` for OCR preflight or
+`http://localhost:3000/review` for explicit manual review.
 
-## 3. Project Layout
+PDF preflight also needs `pdfinfo` and `pdftoppm` on the server PATH. When
+they are installed elsewhere, set `PICKER_PRO_PDFINFO_PATH` and
+`PICKER_PRO_PDFTOPPM_PATH`.
 
-```
-picker-pro/
-├── app/                    # Next.js App Router (pages + API routes)
-├── components/             # React components
-├── lib/                    # Domain service modules (pure TypeScript)
-│   ├── ai/                 # OpenAI integration + fuzzy matching
-│   ├── aggregator/         # Cross-page aggregation
-│   ├── calculator/         # Case/unit totals
-│   ├── catalog/            # City and route catalog access
-│   ├── database/           # DB abstraction + migrations
-│   ├── engine/             # Orchestration / pipeline
-│   ├── export/             # XLSX / PDF / print generation
-│   ├── ocr/                # Tesseract.js OCR extraction
-│   ├── parser/             # OCR line → ParsedRow
-│   └── rules/              # Business rules engine + validation
-├── catalogs/               # JSON reference catalogs (versioned)
-├── docs/                   # Documentation
-├── data/                   # Static seed data
-└── __tests__/              # Jest test suites and fixtures
+## Active project layout
+
+```text
+.github/workflows/       Quality and CodeQL workflows
+app/                     Next.js routes and request handlers
+components/              Hebrew RTL client workspaces
+catalogs/                Versioned product and review-rule inputs
+lib/catalog/             Verified catalog loader and resolution
+lib/document-intake/     Image/PDF policy, OCR preflight, and page review
+lib/foundation/          Explicit-row validation and aggregation
+lib/manual-review/       Review, packing suggestion, saving, and CSV
+lib/traceability/        Safe source-reference presentation
+tests/                   Jest suites mirroring the active areas
 ```
 
-## 4. Development Workflow
+Modules named as legacy in `docs/23_Legacy_Module_Isolation.md` are excluded
+from the active TypeScript build and must not be imported into production paths.
 
-### 4.1 Branching
+## Development workflow
 
-- `main` — production-ready code.
-- `feature/<name>` — new features.
-- `fix/<name>` — bug fixes.
-- `docs/<name>` — documentation changes.
-- `chore/<name>` — tooling / dependency updates.
+- Branch from `main` using `feature/<name>`, `fix/<name>`, or
+  `chore/<name>`.
+- Use Conventional Commit messages such as
+  `feat: add mobile page review progress`.
+- Open pull requests against `main`.
+- Run all quality gates before requesting review.
 
-### 4.2 Commit Messages
-
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
-
-```
-feat: add Hebrew OCR dictionary correction
-fix: case/unit totals merged incorrectly across pages
-docs: add Aggregator Engine specification
-chore: update Tesseract.js to v5.1
+```bash
+npm test -- --runInBand
+npm run lint
+npm run typecheck
+npm run build
 ```
 
-### 4.3 Pull Requests
+GitHub runs the same commands in the stable `Quality / Verify` job. Requiring
+that job before merge is a separate branch-ruleset setting.
 
-- Open PRs against `main`.
-- All CI checks (lint, type check, tests) must pass before merge.
-- At least one approving review is required.
+## Available scripts
 
-## 5. Available Scripts
+| Script | Purpose |
+|---|---|
+| `npm run dev` | Start the development server |
+| `npm run build` | Create an optimized production build |
+| `npm start` | Start the compiled application |
+| `npm run lint` | Run Next.js ESLint checks |
+| `npm test` | Run the Jest suite |
+| `npm run typecheck` | Run TypeScript without emitting files |
 
-| Script | Command | Description |
-|---|---|---|
-| Development server | `npm run dev` | Hot-reload dev server |
-| Production build | `npm run build` | Compile and optimise |
-| Production start | `npm start` | Start compiled server |
-| Lint | `npm run lint` | ESLint via Next.js |
-| Tests | `npm test` | Jest test suite |
-| Coverage | `npm test -- --coverage` | Coverage report |
-| Type check | `npx tsc --noEmit` | TypeScript type check |
-| Migrate | `npm run migrate` | Run pending DB migrations |
+## Updating review rules
 
-## 6. Adding a New Business Rule
+The active packing-suggestion policy is `catalogs/picking-rules.json`.
 
-1. Add a new entry to `catalogs/rules.json` with a unique `id` and `ruleType`.
-2. If the `ruleType` is new, implement the evaluator in `lib/rules/`:
+1. Change only rules backed by an approved warehouse policy.
+2. Increment the configuration version.
+3. Update `lib/manual-review/picking-rule-config.ts` when the schema changes.
+4. Add or update tests under `tests/manual-review/`.
+5. Update the current-status and user-manual documentation when behavior
+   changes.
 
-```typescript
-// lib/rules/myNewRule.ts
-import type { ParsedRow, ResolvedProduct, RuleResult } from './types';
+Suggestions remain non-persistent and never overwrite a reviewer-entered value.
 
-export function evaluateMyNewRule(
-  row: ParsedRow,
-  product: ResolvedProduct,
-  params: Record<string, unknown>
-): RuleResult {
-  // ... implementation
-  return { ruleId: 'R999', status: 'pass', rowRef: { page: row.page, row: row.row } };
-}
-```
+## Updating the product catalog
 
-3. Register the evaluator in `lib/rules/index.ts`.
-4. Add unit tests in `__tests__/rules/myNewRule.test.ts`.
-5. Increment the `version` in `catalogs/rules.json`.
+`catalogs/products.json` is the active canonical catalog. A CSV checked on the
+settings screen is only a structural handoff; it does not import or verify
+products automatically.
 
-## 7. Updating a Catalog
+1. Verify the source against the authoritative warehouse catalog.
+2. Preserve stable SKU and barcode identities.
+3. Increment the catalog version.
+4. Run catalog, manual-review, and full quality checks.
+5. Record the change in `CHANGELOG.md`.
 
-1. Edit the relevant JSON file in `catalogs/`.
-2. Increment the `version` field.
-3. Add a change entry to `CHANGELOG.md`.
-4. Open a pull request; catalog changes follow the same review process as code changes.
+## Runtime configuration
 
-## 8. Environment Variables
+No environment file is required for the active image/manual-review flow.
+Optional runtime overrides are:
 
-See `docs/18_Deployment.md` for the full variable reference and `.env.example` for a template.
+- `PICKER_PRO_PDFINFO_PATH` and `PICKER_PRO_PDFTOPPM_PATH` for Poppler;
+- `PICKER_PRO_OCR_CACHE` for the server-side Tesseract cache directory;
+- `LOG_LEVEL` for supported server logging levels.
 
-## 9. Debugging
+Do not add secrets to `.env.example`, source control, browser storage, OCR
+results, or exported CSV files.
 
-- Set `NODE_ENV=development` to enable verbose logging.
-- OCR logs are written to `stdout` with structured JSON including `jobId` and `page`.
-- Use the `/api/health` endpoint to verify DB connectivity.
-
-## 10. Common Issues
+## Common issues
 
 | Issue | Resolution |
 |---|---|
-| `CATALOG_LOAD_ERROR` at startup | Check that all files in `catalogs/` are valid JSON. |
-| Hebrew text reversed in output | Verify RTL normalisation in `lib/parser/`. |
-| OCR confidence always low | Check image quality; consider raising `OCR_CONFIDENCE_THRESHOLD`. |
-| `OPENAI_API_KEY` not set | Set the variable in `.env.local` and restart the dev server. |
+| PDF renderer unavailable | Install Poppler or set both Poppler path overrides |
+| OCR page rejected as too small | Capture a closer, sharper table image |
+| Catalog readiness error | Validate the versioned JSON and fixed catalog fields |
+| TypeScript imports a legacy module | Move the behavior behind an active Foundation contract |
+| CI differs from local output | Use Node 24 and reinstall exactly with `npm ci` |

@@ -10,6 +10,8 @@ Picker Pro uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- A read-only GitHub Actions quality gate for tests, lint, type checking, and
+  the production build on Node.js 24.
 - Browser-local OCR page-review progress and next-attention navigation.
 - Complete documentation suite under `docs/` (22 documents).
 - Reference catalogs under `catalogs/` (products, cities, delivery routes, rules, OCR dictionary).

@@ -161,8 +161,8 @@ npm run build
 
 The `Quality / Verify` GitHub Actions job runs these checks with locked
 dependencies for pull requests to `main`, pushes to `main`, and manual
-dispatches. Its dependency audit is advisory until the planned breaking
-framework upgrade resolves the known Next.js 14 findings.
+dispatches. Its production dependency audit is a blocking gate for high and
+critical findings.
 
 ## Active structure
 

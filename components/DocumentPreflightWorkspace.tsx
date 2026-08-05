@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   type ChangeEvent,
   type FormEvent,
@@ -564,17 +565,21 @@ function LocalImageReadiness({
   file: File
   subject: LocalImageReadinessSubject
 }) {
-  const [readiness, setReadiness] = useState<LocalImageReadinessState>({
-    kind: 'CHECKING',
-  })
+  const [readinessResult, setReadinessResult] = useState<{
+    file: File
+    readiness: LocalCameraCaptureReadiness
+  } | null>(null)
+  const readiness: LocalImageReadinessState =
+    readinessResult?.file === file
+      ? readinessResult.readiness
+      : { kind: 'CHECKING' }
 
   useEffect(() => {
     let isCurrentFile = true
 
-    setReadiness({ kind: 'CHECKING' })
     void readLocalImageReadiness(file).then((nextReadiness) => {
       if (isCurrentFile) {
-        setReadiness(nextReadiness)
+        setReadinessResult({ file, readiness: nextReadiness })
       }
     })
 
@@ -638,6 +643,7 @@ function canTransferRow(
 }
 
 export default function DocumentPreflightWorkspace() {
+  const router = useRouter()
   const [files, setFiles] = useState<readonly SelectedSourceImage[]>([])
   const [pdfFile, setPdfFile] = useState<File | null>(null)
   const [sourceSelectionKind, setSourceSelectionKind] =
@@ -725,26 +731,10 @@ export default function DocumentPreflightWorkspace() {
   })
   const lowConfidenceReviewSummary = summarizeLowConfidenceOcrPreflightReview(pages)
 
-  const previewedFile = previewedSource
-    ? files.find(
-        ({ sourceDocumentRef }) => sourceDocumentRef === previewedSource.sourceDocumentRef
-      )?.file ?? null
-    : null
-
   useEffect(() => {
-    setActiveLocalPreview(null)
-    if (!previewedSource || !previewedFile) {
-      return
-    }
-
-    const url = createLocalPreviewUrl(previewedFile)
-    if (!url) {
-      return
-    }
-
-    setActiveLocalPreview({ sourceDocumentRef: previewedSource.sourceDocumentRef, url })
+    const url = activeLocalPreview?.url ?? null
     return () => revokeLocalPreviewUrl(url)
-  }, [previewedFile, previewedSource])
+  }, [activeLocalPreview])
 
   useEffect(() => {
     if (isCompletedOcrResultReady) {
@@ -817,12 +807,6 @@ export default function DocumentPreflightWorkspace() {
 
     return () => window.cancelAnimationFrame(animationFrame)
   }, [cameraCaptureInspectionSourceRef, files, outcome, sourceSelectionKind])
-
-  useEffect(() => {
-    if (showOnlyLowConfidenceRows && lowConfidenceReviewSummary.rowCount === 0) {
-      setShowOnlyLowConfidenceRows(false)
-    }
-  }, [lowConfidenceReviewSummary.rowCount, showOnlyLowConfidenceRows])
 
   const resetDraftAfterSelectionChange = ({
     preserveSelectionKind = false,
@@ -1124,10 +1108,10 @@ export default function DocumentPreflightWorkspace() {
           : selectedFile
       )
     )
-    setActiveLocalPreview(null)
-    setPreviewedSource((current) =>
-      current?.sourceDocumentRef === sourceDocumentRef ? null : current
-    )
+    if (previewedSource?.sourceDocumentRef === sourceDocumentRef) {
+      setPreviewedSource(null)
+      setActiveLocalPreview(null)
+    }
   }
 
   const selectReplacementFile = (
@@ -1201,8 +1185,17 @@ export default function DocumentPreflightWorkspace() {
       return remaining
     })
     setHasConfirmedSourceCheck(false)
+    const hasRemainingLowConfidenceRows = pages.some(
+      ({ page, sourceDocumentRef }) =>
+        sourceDocumentRef !== replacementSlot.sourceDocumentRef &&
+        page.rows.some(hasLowConfidenceOcrPreflightRow)
+    )
+    if (!hasRemainingLowConfidenceRows) {
+      setShowOnlyLowConfidenceRows(false)
+    }
     if (previewedSource?.sourceDocumentRef === replacementSlot.sourceDocumentRef) {
       setPreviewedSource(null)
+      setActiveLocalPreview(null)
     }
   }
 
@@ -1231,6 +1224,7 @@ export default function DocumentPreflightWorkspace() {
     setRouteCodeEdits({})
     setConfirmedPageReviews({})
     setHasConfirmedSourceCheck(false)
+    setShowOnlyLowConfidenceRows(false)
     if (pdfFile) {
       setActivity({ kind: 'pdf' })
       try {
@@ -1424,12 +1418,18 @@ export default function DocumentPreflightWorkspace() {
   }
 
   const toggleSourcePreview = (pageNumber: number, sourceDocumentRef: string) => {
-    setActiveLocalPreview(null)
-    setPreviewedSource((current) =>
-      current?.sourceDocumentRef === sourceDocumentRef
-        ? null
-        : { pageNumber, sourceDocumentRef }
-    )
+    if (previewedSource?.sourceDocumentRef === sourceDocumentRef) {
+      setPreviewedSource(null)
+      setActiveLocalPreview(null)
+      return
+    }
+
+    const file = files.find(
+      (selectedFile) => selectedFile.sourceDocumentRef === sourceDocumentRef
+    )?.file
+    const url = file ? createLocalPreviewUrl(file) : null
+    setPreviewedSource({ pageNumber, sourceDocumentRef })
+    setActiveLocalPreview(url ? { sourceDocumentRef, url } : null)
   }
 
   const routeCodeForPage = (
@@ -1588,7 +1588,7 @@ export default function DocumentPreflightWorkspace() {
 
     try {
       saveOcrManualReviewHandoff(window.sessionStorage, handoff)
-      window.location.assign('/review')
+      router.push('/review')
     } catch {
       setError('לא ניתן לשמור את טיוטת הבדיקה בדפדפן. עבור להזנה ידנית.')
     }

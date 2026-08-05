@@ -7,8 +7,8 @@ Picker Pro uses the following executable checks:
 | Gate | Tool | Current scope |
 |---|---|---|
 | Tests | Jest | Unit, integration, request-handler, catalog, OCR-preflight, and manual-review behavior under `tests/` |
-| Lint | ESLint via `next lint` | Active Next.js, React, and TypeScript source |
-| Type check | TypeScript | The active build selected by `tsconfig.json` |
+| Lint | ESLint CLI with the Next.js flat configuration | Active Next.js, React, and TypeScript source |
+| Type check | Next.js type generation + TypeScript | Generated route contracts and the active build selected by `tsconfig.json` |
 | Production build | Next.js | Route compilation, static generation, and production bundling |
 
 Browser E2E and rendered-component tests are not configured yet. The Jest
@@ -70,10 +70,10 @@ The job uses Node.js 24 on Ubuntu 24.04, installs with `npm ci`, and runs all
 four blocking gates listed above. It has read-only repository permissions, a
 20-minute timeout, and no persisted checkout credentials.
 
-The final dependency-audit step is advisory. It reports production
-vulnerabilities without masking the blocking quality results, but it does not
-currently fail the job because the locked Next.js 14 line has known high
-severity findings whose automated fix is a breaking framework upgrade.
+The final dependency-audit step is blocking for high and critical production
+dependency findings. The lockfile is expected to pass
+`npm audit --omit=dev --audit-level=high` with zero vulnerabilities before a
+change can merge.
 
 A workflow does not enforce repository merge policy by itself. Configure the
 GitHub branch ruleset for `main` to require the stable `Quality / Verify`
@@ -83,7 +83,9 @@ check before merge.
 
 - `jest.config.js` uses `next/jest` and the `node` test environment.
 - `tsconfig.json` defines the active source boundary and path aliases.
-- `.eslintrc.json` extends `next/core-web-vitals`.
+- `npm run typecheck` generates Next.js route types before running TypeScript,
+  so it also works on a clean checkout before the first build.
+- `eslint.config.mjs` applies the Next.js Core Web Vitals flat configuration.
 - `package-lock.json` is required; CI never replaces it with a floating
   dependency install.
 

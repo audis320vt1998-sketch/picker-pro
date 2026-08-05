@@ -17,6 +17,15 @@ Picker Pro uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Reference catalogs under `catalogs/` (products, cities, delivery routes, rules, OCR dictionary).
 - Updated `README.md` with full project overview, core business rules, and documentation index.
 
+### Changed
+- Upgraded the active application to Next.js 16.3, React 19.2, and the ESLint
+  flat configuration, including asynchronous route parameters and Turbopack
+  production builds.
+
+### Security
+- Replaced the vulnerable Next.js 14/PostCSS dependency line and made the
+  production `npm audit` check block high and critical findings in CI.
+
 ---
 
 ## [0.1.0] — 2026-07-15

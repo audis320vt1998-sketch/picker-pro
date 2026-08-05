@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ResultsTable from '@/components/ResultsTable'
 import RouteReviewSummary from '@/components/RouteReviewSummary'
@@ -21,7 +22,10 @@ import type { SourceReference } from '@/lib/traceability/types'
 
 interface SavedReviewResultsWorkspaceProps {
   jobId?: string
+  initialDeleted?: boolean
 }
+
+const DELETION_STATUS_MESSAGE = 'התוצאה השמורה נמחקה מהמכשיר הזה.'
 
 function sourceReferenceFromSaved(
   source: SavedReviewSourceReference
@@ -167,17 +171,21 @@ function SavedReviewDeleteAction({
 
 export default function SavedReviewResultsWorkspace({
   jobId,
+  initialDeleted = false,
 }: SavedReviewResultsWorkspaceProps) {
+  const router = useRouter()
   const [jobs, setJobs] = useState<readonly SavedReviewJobV1[] | null>(null)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [storageUnavailable, setStorageUnavailable] = useState(false)
-  const [deletionStatus, setDeletionStatus] = useState<string | null>(null)
+  const [deletionStatus, setDeletionStatus] = useState<string | null>(
+    initialDeleted ? DELETION_STATUS_MESSAGE : null
+  )
   const [isExporting, setIsExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
   const [exportStatus, setExportStatus] = useState<string | null>(null)
   const resultsHeadingRef = useRef<HTMLHeadingElement>(null)
-  const focusResultsHeadingAfterDelete = useRef(false)
+  const focusResultsHeadingAfterDelete = useRef(initialDeleted)
 
   const reloadJobs = useCallback(() => {
     try {
@@ -197,18 +205,18 @@ export default function SavedReviewResultsWorkspace({
   }, [])
 
   useEffect(() => {
-    if (!jobId) {
+    if (!jobId && initialDeleted) {
+      focusResultsHeadingAfterDelete.current = true
       const url = new URL(window.location.href)
       if (url.searchParams.get('deleted') === '1') {
-        setDeletionStatus('התוצאה השמורה נמחקה מהמכשיר הזה.')
-        focusResultsHeadingAfterDelete.current = true
         url.searchParams.delete('deleted')
         window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
       }
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Saved jobs are client-only localStorage state and cannot be read during SSR.
     reloadJobs()
-  }, [jobId, reloadJobs])
+  }, [initialDeleted, jobId, reloadJobs])
 
   useEffect(() => {
     if (focusResultsHeadingAfterDelete.current && jobs !== null) {
@@ -232,11 +240,11 @@ export default function SavedReviewResultsWorkspace({
       setPendingDeleteId(null)
       setError(null)
       if (jobId === id) {
-        window.location.assign('/results?deleted=1')
+        router.replace('/results?deleted=1')
         return
       }
 
-      setDeletionStatus('התוצאה השמורה נמחקה מהמכשיר הזה.')
+      setDeletionStatus(DELETION_STATUS_MESSAGE)
       focusResultsHeadingAfterDelete.current = true
       reloadJobs()
     } catch {

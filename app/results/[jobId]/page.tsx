@@ -1,9 +1,11 @@
 import SavedReviewResultsWorkspace from '@/components/SavedReviewResultsWorkspace'
 
 interface SavedResultPageProps {
-  params: { jobId: string }
+  params: Promise<{ jobId: string }>
 }
 
-export default function SavedResultPage({ params }: SavedResultPageProps) {
-  return <SavedReviewResultsWorkspace jobId={params.jobId} />
+export default async function SavedResultPage({ params }: SavedResultPageProps) {
+  const { jobId } = await params
+
+  return <SavedReviewResultsWorkspace jobId={jobId} />
 }

@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-The Picker Pro UI is a **Progressive Web App (PWA)** built with Next.js 14 App Router and React 18. It is designed for mobile-first use (warehouse pickers with smartphones) while remaining fully usable on desktop (warehouse managers reviewing and exporting results).
+The Picker Pro UI is a **Progressive Web App (PWA)** built with Next.js 16 App Router and React 19. It is designed for mobile-first use (warehouse pickers with smartphones) while remaining fully usable on desktop (warehouse managers reviewing and exporting results).
 
 ## 2. PWA Strategy
 

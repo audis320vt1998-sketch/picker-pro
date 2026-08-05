@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import ResultsTable from '@/components/ResultsTable'
 import RouteReviewSummary from '@/components/RouteReviewSummary'
@@ -216,6 +217,7 @@ function hasExplicitManualQuantities(row: EditableRow): boolean {
 export default function ManualReviewWorkspace({
   catalogReadiness,
 }: ManualReviewWorkspaceProps) {
+  const router = useRouter()
   const [rows, setRows] = useState<EditableRow[]>([createEditableRow(1)])
   const [nextRowId, setNextRowId] = useState(2)
   const [result, setResult] = useState<ManualReviewResult | null>(null)
@@ -234,6 +236,7 @@ export default function ManualReviewWorkspace({
   )
   const [isSavingReviewResult, setIsSavingReviewResult] = useState(false)
   const submitLock = useRef(false)
+  const saveResultLock = useRef(false)
   const packingSuggestionRequestIds = useRef<Record<number, number>>({})
   const packingSuggestionBatchRunId = useRef(0)
   const saveResultTriggerRef = useRef<HTMLButtonElement>(null)
@@ -253,6 +256,7 @@ export default function ManualReviewWorkspace({
         return
       }
 
+      /* eslint-disable react-hooks/set-state-in-effect -- This one-time client-only hydration consumes the OCR handoff from sessionStorage after mount. */
       setRows(
         drafts.map((draft, index) =>
           createEditableRow(index + 1, String(draft.rowNumber), draft)
@@ -260,21 +264,23 @@ export default function ManualReviewWorkspace({
       )
       setNextRowId(drafts.length + 1)
       setImportedOcrRowCount(drafts.length)
+      /* eslint-enable react-hooks/set-state-in-effect */
     } catch {
       // Session storage is optional. The manual workflow remains available.
     }
   }, [])
 
   useEffect(() => {
-    setIsSaveResultConfirmationOpen(false)
-    setSavedReviewResultError(null)
-  }, [result])
-
-  useEffect(() => {
     if (isSaveResultConfirmationOpen) {
       saveResultConfirmationRef.current?.focus()
     }
   }, [isSaveResultConfirmationOpen])
+
+  const replaceReviewResult = (nextResult: ManualReviewResult | null) => {
+    setResult(nextResult)
+    setIsSaveResultConfirmationOpen(false)
+    setSavedReviewResultError(null)
+  }
 
   const invalidatePackingSuggestionBatch = () => {
     packingSuggestionBatchRunId.current += 1
@@ -303,7 +309,7 @@ export default function ManualReviewWorkspace({
     }
 
     invalidatePackingSuggestionBatch()
-    setResult(null)
+    replaceReviewResult(null)
     if (
       field === 'productName' ||
       field === 'barcode' ||
@@ -347,7 +353,7 @@ export default function ManualReviewWorkspace({
     }
 
     invalidatePackingSuggestionBatch()
-    setResult(null)
+    replaceReviewResult(null)
     setRows((currentRows) => [
       ...currentRows,
       createEditableRow(nextRowId, String(currentRows.length + 1)),
@@ -361,7 +367,7 @@ export default function ManualReviewWorkspace({
     }
 
     invalidatePackingSuggestionBatch()
-    setResult(null)
+    replaceReviewResult(null)
     packingSuggestionRequestIds.current[id] =
       (packingSuggestionRequestIds.current[id] ?? 0) + 1
     setPackingSuggestionStates((current) => {
@@ -494,7 +500,7 @@ export default function ManualReviewWorkspace({
     }
 
     invalidatePackingSuggestionBatch()
-    setResult(null)
+    replaceReviewResult(null)
     setRows((currentRows) =>
       currentRows.map((currentRow) =>
         currentRow.id === row.id
@@ -546,7 +552,7 @@ export default function ManualReviewWorkspace({
 
     submitLock.current = true
     setIsSubmitting(true)
-    setResult(null)
+    replaceReviewResult(null)
     try {
       const response = await fetch('/api/manual-review', {
         method: 'POST',
@@ -580,7 +586,7 @@ export default function ManualReviewWorkspace({
         return
       }
 
-      setResult(parsedResult)
+      replaceReviewResult(parsedResult)
     } catch {
       setError(MANUAL_REVIEW_FAILURE_TEXT.UNKNOWN)
     } finally {
@@ -590,12 +596,14 @@ export default function ManualReviewWorkspace({
   }
 
   const saveReviewResultInBrowser = () => {
-    if (!result) {
+    if (!result || saveResultLock.current) {
       return
     }
 
+    saveResultLock.current = true
     setIsSavingReviewResult(true)
     setSavedReviewResultError(null)
+    let navigationStarted = false
 
     try {
       const savedJob = createSavedReviewJob(result, createSavedReviewJobId())
@@ -610,11 +618,15 @@ export default function ManualReviewWorkspace({
         return
       }
 
-      window.location.assign(`/results/${encodeURIComponent(saved.job.id)}`)
+      router.push(`/results/${encodeURIComponent(saved.job.id)}`)
+      navigationStarted = true
     } catch {
       setSavedReviewResultError(SAVED_REVIEW_SAVE_FAILURE_TEXT.STORAGE_UNAVAILABLE)
     } finally {
-      setIsSavingReviewResult(false)
+      if (!navigationStarted) {
+        saveResultLock.current = false
+        setIsSavingReviewResult(false)
+      }
     }
   }
 

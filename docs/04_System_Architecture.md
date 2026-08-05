@@ -104,7 +104,7 @@ Browser
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| Framework | Next.js 14 App Router | SSR + API routes in one deployment; existing codebase |
+| Framework | Next.js 16 App Router | SSR + API routes in one deployment; existing codebase |
 | Language | TypeScript (strict) | Type safety across domain models |
 | OCR | Tesseract.js | Open-source, Hebrew support, runs in Node.js |
 | AI correction | OpenAI API | Flexible correction prompts; tool-calling for structured output |

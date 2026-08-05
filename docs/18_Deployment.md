@@ -2,7 +2,7 @@
 
 ## Active deployment boundary
 
-Picker Pro is currently a review-first Next.js 14 application. It does not use
+Picker Pro is currently a review-first Next.js 16 application. It does not use
 a database, object storage, authentication, an AI service, or a background job
 queue. OCR results are transient; the only retained result is an explicit,
 limited browser-local snapshot described in `docs/00_Current_Status.md`.
@@ -125,4 +125,4 @@ product.
 - Terminate TLS at the hosting platform or reverse proxy.
 - Preserve the server-side upload limits; do not rely only on browser checks.
 - Keep checkout credentials and deployment secrets out of the runtime bundle.
-- Review the advisory dependency-audit output before each deployment.
+- Require the production dependency audit to pass before each deployment.

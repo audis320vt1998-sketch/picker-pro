@@ -11,7 +11,7 @@
 
 ## 2. Purpose
 
-This document defines the software design for Picker Pro — a Next.js 14 / TypeScript application for OCR-driven, Hebrew-aware order-picking and product aggregation.
+This document defines the software design for Picker Pro — a Next.js 16 / TypeScript application for OCR-driven, Hebrew-aware order-picking and product aggregation.
 
 ## 3. System Overview
 
@@ -190,6 +190,6 @@ interface SourceRef {
 
 ## 10. Quality Gates
 
-- ESLint (`next lint`) must pass with zero errors.
+- ESLint (`npm run lint`) must pass with zero warnings or errors.
 - Jest test suite must pass with ≥ 80 % coverage on `lib/` modules.
 - All new code must be typed; `any` is disallowed in `tsconfig.json` strict mode.

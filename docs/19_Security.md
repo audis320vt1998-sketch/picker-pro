@@ -79,10 +79,10 @@ secret. Optional non-secret paths/settings are listed in `.env.example`.
 - Checkout credentials are not persisted.
 - External workflow actions are pinned to reviewed full commit SHAs.
 - Dependencies are installed from `package-lock.json` with `npm ci`.
-- Production dependency findings are reported with
-  `npm audit --omit=dev --audit-level=high` as an advisory step.
-- The current lockfile reports high-severity findings in the Next.js 14 line;
-  resolving them requires a planned, tested major framework upgrade.
+- Production dependencies are checked with
+  `npm audit --omit=dev --audit-level=high` as a blocking CI step.
+- The current Next.js 16/PostCSS lockfile passes the production audit with zero
+  known vulnerabilities.
 - CodeQL runs separately because it requires `security-events: write`.
 - Dependabot automation is not configured yet.
 

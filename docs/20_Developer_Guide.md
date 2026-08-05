@@ -73,9 +73,9 @@ that job before merge is a separate branch-ruleset setting.
 | `npm run dev` | Start the development server |
 | `npm run build` | Create an optimized production build |
 | `npm start` | Start the compiled application |
-| `npm run lint` | Run Next.js ESLint checks |
+| `npm run lint` | Run ESLint with zero warnings allowed |
 | `npm test` | Run the Jest suite |
-| `npm run typecheck` | Run TypeScript without emitting files |
+| `npm run typecheck` | Generate Next.js route types and run TypeScript without emitting files |
 
 ## Updating review rules
 

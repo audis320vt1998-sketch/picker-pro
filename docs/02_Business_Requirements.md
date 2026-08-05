@@ -108,7 +108,7 @@
 |---|---|
 | NFR-01 | OCR accuracy for Hebrew numeric fields SHALL be ≥ 97 %. |
 | NFR-02 | End-to-end processing per page SHALL complete in < 8 seconds on a mid-range device. |
-| NFR-03 | The PWA SHALL be installable on iOS Safari 16+ and Android Chrome 112+. |
+| NFR-03 | The PWA SHALL be installable on iOS Safari 16.4+ and Android Chrome 112+. |
 | NFR-04 | All API endpoints SHALL respond within 200 ms for non-processing requests. |
 | NFR-05 | The system SHALL support concurrent processing of up to 10 jobs. |
 | NFR-06 | All secrets SHALL be stored in environment variables; none SHALL be hard-coded. |
@@ -117,7 +117,7 @@
 
 ## 4. Constraints
 
-- Technology stack: Next.js 14, TypeScript, React 18.
+- Technology stack: Next.js 16, TypeScript, React 19.
 - Mobile delivery: installable PWA; native app (Capacitor) is a future option.
 - No production application behaviour changes in the documentation task.
 - Catalog updates are deployed as configuration, not code releases.

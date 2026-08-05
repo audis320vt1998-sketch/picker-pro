@@ -55,8 +55,7 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Report production dependency vulnerabilities
-        continue-on-error: true
+      - name: Audit production dependencies
         if: ${{ always() && steps.install.outcome == 'success' }}
         timeout-minutes: 3
         run: npm audit --omit=dev --audit-level=high

@@ -766,6 +766,12 @@ nav a:hover {
   margin: 0.4rem 0 0;
 }
 
+.document-preflight__page-navigation-summary
+  .document-preflight__page-navigation-progress {
+  color: #1e3a5f;
+  font-weight: 700;
+}
+
 .document-preflight__page-navigation-note {
   color: #475569;
   font-size: 0.9rem;
@@ -779,6 +785,17 @@ nav a:hover {
 }
 
 .document-preflight__page-navigation-controls > .manual-review__secondary-button {
+  margin-top: 0;
+  min-height: 2.75rem;
+}
+
+.document-preflight__page-navigation-attention-action {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.document-preflight__page-navigation-attention-action
+  > .manual-review__primary-button {
   margin-top: 0;
   min-height: 2.75rem;
 }
@@ -1466,6 +1483,11 @@ nav a:hover {
   }
 
   .document-preflight__page-navigation-controls > .manual-review__secondary-button {
+    width: 100%;
+  }
+
+  .document-preflight__page-navigation-attention-action
+    > .manual-review__primary-button {
     width: 100%;
   }
 

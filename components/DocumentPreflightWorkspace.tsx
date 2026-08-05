@@ -22,6 +22,7 @@ import {
   getPreflightFileSelectionIssue,
   getPdfPreflightFileSelectionIssue,
   getAdjacentOcrPreflightPageNavigationEntry,
+  getNextOcrPreflightPageNavigationAttentionEntry,
   getOcrPreflightPageReviewState,
   hasLowConfidenceOcrPreflightRow,
   isOcrPreflightReviewInteractionLocked,
@@ -44,6 +45,7 @@ import {
   requiresSourceSelectionReplacementConfirmation,
   shouldFocusCompletedOcrPreflightResult,
   summarizeLowConfidenceOcrPreflightReview,
+  summarizeOcrPreflightPageNavigation,
   upsertOcrPreflightReplacementSlot,
   type DocumentPreflightIssue,
   type DocumentPreflightResult,
@@ -1488,6 +1490,9 @@ export default function DocumentPreflightWorkspace() {
     failedPages,
     replacementPages: pendingReplacementPages,
   })
+  const pageNavigationSummary = summarizeOcrPreflightPageNavigation(
+    pageNavigationEntries
+  )
   const activeOutcomePageNavigationEntry =
     resolveOcrPreflightPageNavigationEntry(
       pageNavigationEntries,
@@ -1511,6 +1516,12 @@ export default function DocumentPreflightWorkspace() {
         pageNavigationEntries,
         activeOutcomePageNavigationEntry.sourceDocumentRef,
         'next'
+      )
+    : null
+  const nextAttentionPageNavigationEntry = activeOutcomePageNavigationEntry
+    ? getNextOcrPreflightPageNavigationAttentionEntry(
+        pageNavigationEntries,
+        activeOutcomePageNavigationEntry.sourceDocumentRef
       )
     : null
   const approvedSelectedRows = pageReviewStates.flatMap(
@@ -2097,6 +2108,18 @@ export default function DocumentPreflightWorkspace() {
                   )}
                   .
                 </p>
+                <p
+                  aria-atomic="true"
+                  aria-live="polite"
+                  className="document-preflight__page-navigation-progress"
+                  role="status"
+                >
+                  אישור עמודים: {pageNavigationSummary.confirmedPageCount} מתוך{' '}
+                  {pageNavigationSummary.pageCount}. עמודים שדורשים תשומת לב:{' '}
+                  {pageNavigationSummary.attentionPageCount}.
+                  {pageNavigationSummary.lowConfidenceConfirmedPageCount > 0 &&
+                    ` עמודים מאושרים עם ודאות OCR נמוכה: ${pageNavigationSummary.lowConfidenceConfirmedPageCount}.`}
+                </p>
               </div>
               <div className="document-preflight__page-navigation-controls">
                 <button
@@ -2164,9 +2187,38 @@ export default function DocumentPreflightWorkspace() {
                   העמוד הבא
                 </button>
               </div>
+              <div className="document-preflight__page-navigation-attention-action">
+                <button
+                  aria-label={
+                    nextAttentionPageNavigationEntry
+                      ? `עבור לעמוד הבא שדורש טיפול, עמוד ${nextAttentionPageNavigationEntry.pageNumber}: ${pageNavigationStatusDescription(nextAttentionPageNavigationEntry)}`
+                      : pageNavigationSummary.attentionPageCount === 0
+                        ? 'אין עמודים שדורשים טיפול'
+                        : 'אין עמוד נוסף שדורש טיפול'
+                  }
+                  className="manual-review__primary-button"
+                  disabled={
+                    isReviewInteractionLocked ||
+                    nextAttentionPageNavigationEntry === null
+                  }
+                  onClick={() =>
+                    nextAttentionPageNavigationEntry &&
+                    focusOutcomePage(nextAttentionPageNavigationEntry)
+                  }
+                  type="button"
+                >
+                  {nextAttentionPageNavigationEntry
+                    ? `לעמוד ${nextAttentionPageNavigationEntry.pageNumber} שדורש טיפול`
+                    : pageNavigationSummary.attentionPageCount === 0
+                      ? 'אין עמודים שדורשים טיפול'
+                      : 'זה העמוד היחיד שדורש טיפול'}
+                </button>
+              </div>
               <p className="document-preflight__page-navigation-note">
-                מעבר בין העמודים אינו מאשר שורות, קווי חלוקה או כמויות; כל בדיקה
-                נשארת מקומית בדפדפן עד להעברה המפורשת למסך הבדיקה הידנית.
+                מעבר בין העמודים אינו מאשר שורות, קווי חלוקה או כמויות. כפתור
+                הטיפול מדלג על עמודים שאושרו ללא התראות וחוזר לתחילת הרשימה;
+                כל בדיקה נשארת מקומית בדפדפן עד להעברה המפורשת למסך הבדיקה
+                הידנית.
               </p>
             </section>
           )}

@@ -23,10 +23,15 @@ each source row into a labeled card for readable product identifiers,
 quantities, OCR checks, and transfer selection. When OCR completes, focus
 moves to the result heading and a short status announces the outcome; the full
 OCR table is not placed in a live region. A browser-only page navigator marks
-one current OCR page and can jump to another page draft, OCR failure, or
-replacement-photo state. It prioritizes unresolved work when no active page is
-available, preserves an explicitly selected page while it remains visible, and
-does not approve rows, route codes, quantities, or create a stored queue.
+one current OCR page, announces approved and attention-required page counts,
+and can jump to another page draft, OCR failure, replacement-photo state, or
+the next distinct page that requires attention. Attention navigation follows
+document order, skips confirmed pages without warnings, and wraps once. It
+prioritizes unresolved work when no active page is available, preserves an
+explicitly selected page while it remains visible, and does not approve rows,
+route codes, quantities, or create a stored queue. A confirmed page with low
+OCR confidence remains included in both the approved count and the attention
+count so the status never hides a source-document check.
 
 When one or more fields have low OCR confidence, the upload result also shows
 a temporary browser-only review list and can filter the visible rows to those

@@ -37,8 +37,10 @@ Available now:
   retries automatically. A reviewer can explicitly replace only one logical
   page with a clearer photo, then separately request OCR again without
   discarding drafts from the other pages. After OCR, a local page navigator
-  highlights the active page and lets a reviewer jump between page drafts,
-  failures, and replacement photos without creating a saved queue.
+  highlights the active page, reports approved and attention-required page
+  counts, and lets a reviewer jump between page drafts, failures, replacement
+  photos, or the next page that requires attention without creating a saved
+  queue.
 - An opt-in, temporary source-image preview beside each draft, so a reviewer
   can compare a row with the selected image before handoff. Only one preview
   is open at a time; it may show the original document or customer details,

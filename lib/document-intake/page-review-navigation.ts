@@ -38,6 +38,13 @@ export interface OcrPreflightPageNavigationEntry {
   lowConfidenceRowCount: number
 }
 
+export interface OcrPreflightPageNavigationSummary {
+  pageCount: number
+  confirmedPageCount: number
+  attentionPageCount: number
+  lowConfidenceConfirmedPageCount: number
+}
+
 export type OcrPreflightPageNavigationDirection = 'previous' | 'next'
 
 function statusForReview(
@@ -172,6 +179,26 @@ export function pageNavigationRequiresAttention(
   return attentionPriority(entry) < Number.POSITIVE_INFINITY
 }
 
+export function summarizeOcrPreflightPageNavigation(
+  entries: readonly OcrPreflightPageNavigationEntry[]
+): OcrPreflightPageNavigationSummary {
+  const attentionPageCount = entries.filter(
+    pageNavigationRequiresAttention
+  ).length
+  const confirmedEntries = entries.filter(
+    (entry) => entry.status === 'CONFIRMED'
+  )
+
+  return {
+    pageCount: entries.length,
+    confirmedPageCount: confirmedEntries.length,
+    attentionPageCount,
+    lowConfidenceConfirmedPageCount: confirmedEntries.filter(
+      (entry) => entry.lowConfidenceRowCount > 0
+    ).length,
+  }
+}
+
 /**
  * Preserves the current page when it still exists. Otherwise it sends the
  * reviewer to the highest-priority unresolved page, then to the first page.
@@ -215,4 +242,31 @@ export function getAdjacentOcrPreflightPageNavigationEntry(
 
   const nextIndex = direction === 'previous' ? currentIndex - 1 : currentIndex + 1
   return entries[nextIndex] ?? null
+}
+
+/**
+ * Finds the next page that still needs review in document order, wrapping once
+ * at the end. The current page is deliberately excluded so a single remaining
+ * attention item does not produce a button that appears to make progress.
+ */
+export function getNextOcrPreflightPageNavigationAttentionEntry(
+  entries: readonly OcrPreflightPageNavigationEntry[],
+  sourceDocumentRef: string | null
+): OcrPreflightPageNavigationEntry | null {
+  const currentIndex = entries.findIndex(
+    (entry) => entry.sourceDocumentRef === sourceDocumentRef
+  )
+
+  if (currentIndex < 0) {
+    return entries.find(pageNavigationRequiresAttention) ?? null
+  }
+
+  for (let offset = 1; offset < entries.length; offset += 1) {
+    const candidate = entries[(currentIndex + offset) % entries.length]
+    if (pageNavigationRequiresAttention(candidate)) {
+      return candidate
+    }
+  }
+
+  return null
 }

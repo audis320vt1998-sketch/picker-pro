@@ -10,6 +10,7 @@ Picker Pro uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Browser-local OCR page-review progress and next-attention navigation.
 - Complete documentation suite under `docs/` (22 documents).
 - Reference catalogs under `catalogs/` (products, cities, delivery routes, rules, OCR dictionary).
 - Updated `README.md` with full project overview, core business rules, and documentation index.

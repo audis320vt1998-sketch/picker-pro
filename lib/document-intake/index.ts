@@ -58,8 +58,10 @@ export {
 export {
   createOcrPreflightPageNavigation,
   getAdjacentOcrPreflightPageNavigationEntry,
+  getNextOcrPreflightPageNavigationAttentionEntry,
   pageNavigationRequiresAttention,
   resolveOcrPreflightPageNavigationEntry,
+  summarizeOcrPreflightPageNavigation,
 } from './page-review-navigation'
 export {
   canReturnToOcrImageSelectionForEditing,
@@ -137,6 +139,7 @@ export type {
   OcrPreflightPageNavigationReplacement,
   OcrPreflightPageNavigationReview,
   OcrPreflightPageNavigationStatus,
+  OcrPreflightPageNavigationSummary,
 } from './page-review-navigation'
 export type {
   OcrPreflightBatchFailure,

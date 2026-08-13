@@ -39,6 +39,12 @@ items. It is derived only from fixed parser issue codes, contains no source
 text, and is cleared when the selection changes or the page is left; it is not
 a stored review queue.
 
+Each OCR result page also offers a local quick-selection control for the rows
+currently shown and eligible for handoff. It never includes blocked rows or
+rows hidden by the low-confidence filter. A bulk selection still cancels that
+page's prior confirmation and the final source-check marker, so the reviewer
+must verify the route and explicitly confirm the page again before handoff.
+
 Before OCR begins, the reviewer can see generic page positions only, move a
 selected image up or down, or remove it from the batch. This changes only the
 browser-held selection: the opaque source reference remains with its selected

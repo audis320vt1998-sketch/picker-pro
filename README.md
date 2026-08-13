@@ -58,6 +58,10 @@ Available now:
 - When low-confidence fields exist, `/upload` offers a temporary browser-only
   review list and filter for those rows. It is not a stored review queue and
   is cleared with the current OCR selection.
+- Each OCR page also offers a browser-only quick selection for all currently
+  visible, transferable rows. It never selects blocked or filter-hidden rows,
+  and changing the selection still requires a valid route code and explicit
+  page confirmation before handoff.
 - A one-time, browser-only handoff of explicitly checked OCR identifiers to
   `/review`; source quantities initially remain comparison-only and the manual
   case/unit fields stay blank. A reviewer may explicitly request a compact,

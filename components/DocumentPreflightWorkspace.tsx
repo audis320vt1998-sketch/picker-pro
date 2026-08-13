@@ -45,6 +45,7 @@ import {
   recordOcrPreflightBatchSuccess,
   resolveOcrPreflightPageNavigationEntry,
   requiresSourceSelectionReplacementConfirmation,
+  setOcrPreflightVisibleRowSelections,
   shouldFocusCompletedOcrPreflightResult,
   summarizeLowConfidenceOcrPreflightReview,
   summarizeOcrPreflightPageNavigation,
@@ -1502,6 +1503,29 @@ export default function DocumentPreflightWorkspace() {
     setHasConfirmedSourceCheck(false)
   }
 
+  const setVisibleRowSelections = (
+    keys: readonly string[],
+    selected: boolean,
+    sourceDocumentRef: string
+  ) => {
+    if (isReviewInteractionLocked) {
+      return
+    }
+
+    const hasSelectionChange = keys.some(
+      (key) => Boolean(selectedRowKeys[key]) !== selected
+    )
+    if (!hasSelectionChange) {
+      return
+    }
+
+    setSelectedRowKeys((current) =>
+      setOcrPreflightVisibleRowSelections(current, keys, selected)
+    )
+    clearPageReviewConfirmation(sourceDocumentRef)
+    setHasConfirmedSourceCheck(false)
+  }
+
   const toggleSourcePreview = (pageNumber: number, sourceDocumentRef: string) => {
     if (previewedSource?.sourceDocumentRef === sourceDocumentRef) {
       setPreviewedSource(null)
@@ -2568,6 +2592,19 @@ export default function DocumentPreflightWorkspace() {
             const visibleRows = showOnlyLowConfidenceRows
               ? page.rows.filter(hasLowConfidenceOcrPreflightRow)
               : page.rows
+            const visibleTransferableRowKeys = visibleRows.flatMap((row) => {
+              const key = rowKey(page.pageNumber, row)
+              return canTransferRow(row, sourceDocumentRef) ? [key] : []
+            })
+            const selectedVisibleTransferableRowCount =
+              visibleTransferableRowKeys.filter((key) => selectedRowKeys[key]).length
+            const areAllVisibleTransferableRowsSelected =
+              visibleTransferableRowKeys.length > 0 &&
+              selectedVisibleTransferableRowCount ===
+                visibleTransferableRowKeys.length
+            const ocrTableId = `document-preflight-ocr-table-${page.pageNumber}`
+            const visibleRowSelectionHeadingId =
+              `document-preflight-visible-row-selection-${page.pageNumber}`
             const routeCode = routeCodeForPage(page.routeDraft, sourceDocumentRef)
             const pageReview = pageReviewStateBySourceRef.get(sourceDocumentRef)!
             const { reviewState, transferableRowCount, blockedRowCount } = pageReview
@@ -2752,8 +2789,76 @@ export default function DocumentPreflightWorkspace() {
                   )}
 
                   {visibleRows.length > 0 && (
-                    <div className="manual-review__table-wrapper document-preflight__table-wrapper">
-                      <table className="document-preflight__ocr-table">
+                    <div className="document-preflight__ocr-review-rows">
+                      {visibleTransferableRowKeys.length > 0 && (
+                        <section
+                          aria-labelledby={visibleRowSelectionHeadingId}
+                          className="document-preflight__visible-row-selection"
+                        >
+                          <h4
+                            className="document-preflight__sr-only"
+                            id={visibleRowSelectionHeadingId}
+                          >
+                            בחירה מהירה בעמוד {page.pageNumber}
+                          </h4>
+                          <p aria-atomic="true" role="status">
+                            נבחרו {selectedVisibleTransferableRowCount} מתוך{' '}
+                            {visibleTransferableRowKeys.length} שורות זמינות שמוצגות.
+                          </p>
+                          {showOnlyLowConfidenceRows && (
+                            <p>
+                              מוצגות רק שורות עם ודאות OCR נמוכה; השורות המוסתרות לא
+                              ישתנו.
+                            </p>
+                          )}
+                          <div className="document-preflight__visible-row-selection-actions">
+                            <button
+                              aria-controls={ocrTableId}
+                              aria-label={`בחר את כל ${visibleTransferableRowKeys.length} השורות הזמינות שמוצגות בעמוד ${page.pageNumber}`}
+                              className="manual-review__secondary-button"
+                              disabled={
+                                isReviewInteractionLocked ||
+                                areAllVisibleTransferableRowsSelected
+                              }
+                              onClick={() =>
+                                setVisibleRowSelections(
+                                  visibleTransferableRowKeys,
+                                  true,
+                                  sourceDocumentRef
+                                )
+                              }
+                              type="button"
+                            >
+                              בחר את כל הזמינות שמוצגות
+                            </button>
+                            <button
+                              aria-controls={ocrTableId}
+                              aria-label={`נקה בחירה מ־${selectedVisibleTransferableRowCount} שורות מוצגות בעמוד ${page.pageNumber}`}
+                              className="manual-review__secondary-button"
+                              disabled={
+                                isReviewInteractionLocked ||
+                                selectedVisibleTransferableRowCount === 0
+                              }
+                              onClick={() =>
+                                setVisibleRowSelections(
+                                  visibleTransferableRowKeys,
+                                  false,
+                                  sourceDocumentRef
+                                )
+                              }
+                              type="button"
+                            >
+                              נקה בחירה מהשורות המוצגות
+                            </button>
+                          </div>
+                        </section>
+                      )}
+
+                      <div className="manual-review__table-wrapper document-preflight__table-wrapper">
+                        <table
+                          className="document-preflight__ocr-table"
+                          id={ocrTableId}
+                        >
                         <caption className="document-preflight__ocr-table-caption document-preflight__sr-only">
                           תוצאות OCR לעמוד {page.pageNumber}
                         </caption>
@@ -2906,7 +3011,8 @@ export default function DocumentPreflightWorkspace() {
                             )
                           })}
                         </tbody>
-                      </table>
+                        </table>
+                      </div>
                     </div>
                   )}
                   {showOnlyLowConfidenceRows &&

@@ -55,6 +55,7 @@ export {
   createOcrPreflightPageReviewConfirmation,
   getOcrPreflightPageReviewState,
 } from './page-review'
+export { setOcrPreflightVisibleRowSelections } from './page-review-selection'
 export {
   createOcrPreflightPageNavigation,
   getAdjacentOcrPreflightPageNavigationEntry,

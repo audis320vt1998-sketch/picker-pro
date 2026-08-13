@@ -982,6 +982,37 @@ nav a:hover {
   width: fit-content;
 }
 
+.document-preflight__visible-row-selection {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+}
+
+.document-preflight__visible-row-selection p {
+  line-height: 1.5;
+  margin: 0;
+}
+
+.document-preflight__visible-row-selection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.document-preflight__visible-row-selection-actions .manual-review__secondary-button {
+  margin-top: 0;
+  min-height: 2.75rem;
+}
+
+.document-preflight__visible-row-selection-actions .manual-review__secondary-button:focus-visible {
+  outline: 3px solid #f59e0b;
+  outline-offset: 3px;
+}
+
 .document-preflight__page {
   margin-top: 1rem;
 }
@@ -1036,6 +1067,10 @@ nav a:hover {
 
 .document-preflight__review-layout--with-preview .document-preflight__preview {
   margin: 0;
+}
+
+.document-preflight__ocr-review-rows {
+  min-width: 0;
 }
 
 .document-preflight__trace {
@@ -1440,8 +1475,14 @@ nav a:hover {
   .document-preflight__camera-button,
   .document-preflight__submit-button,
   .document-preflight__source-actions > *,
-  .document-preflight__page-review .manual-review__primary-button {
+  .document-preflight__page-review .manual-review__primary-button,
+  .document-preflight__visible-row-selection-actions .manual-review__secondary-button {
     width: 100%;
+  }
+
+  .document-preflight__visible-row-selection-actions {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
   .document-preflight__camera-button {

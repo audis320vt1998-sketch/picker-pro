@@ -1,5 +1,7 @@
 import {
+  assessLocalImageDetail,
   assessLocalImageLighting,
+  summarizeLocalImageDetail,
   summarizeLocalImageLighting,
 } from '@/lib/document-intake'
 
@@ -19,6 +21,18 @@ function grayscalePixels(
   })
 
   return data
+}
+
+function patternedDocumentPixels(width: number, height: number): Uint8ClampedArray {
+  const values = Array.from({ length: width * height }, (_, index) => {
+    const x = index % width
+    const y = Math.floor(index / width)
+    const isTableRule = x % 29 === 0 || y % 17 === 0
+    const isTextStroke = y % 17 >= 4 && y % 17 <= 10 && x % 13 < 2
+    return isTableRule || isTextStroke ? 20 : 235
+  })
+
+  return grayscalePixels(width, height, values)
 }
 
 describe('local image lighting advice', () => {
@@ -92,6 +106,67 @@ describe('local image lighting advice', () => {
         darkPixelRatio: 0,
         darkestRegionLuminance: 0,
         brightestRegionLuminance: 0,
+      })
+    ).toEqual([])
+  })
+
+  it('advises when a large local raster has almost no central detail', () => {
+    const metrics = summarizeLocalImageDetail({
+      width: 120,
+      height: 120,
+      data: grayscalePixels(120, 120, Array.from({ length: 120 * 120 }, () => 245)),
+    })
+
+    expect(metrics?.interiorPixelCount).toBe(12_100)
+    expect(metrics?.meanAbsoluteLaplacian).toBeCloseTo(0)
+    expect(metrics?.strongLaplacianRatio).toBe(0)
+    expect(assessLocalImageDetail(metrics)).toEqual(['LOW_EDGE_DETAIL'])
+  })
+
+  it('does not confuse a document-like table and text pattern with a blurred capture', () => {
+    const metrics = summarizeLocalImageDetail({
+      width: 120,
+      height: 120,
+      data: patternedDocumentPixels(120, 120),
+    })
+
+    expect(metrics?.meanAbsoluteLaplacian).toBeGreaterThan(1.25)
+    expect(metrics?.strongLaplacianRatio).toBeGreaterThan(0.001)
+    expect(assessLocalImageDetail(metrics)).toEqual([])
+  })
+
+  it('ignores detail that exists only on the outer page border', () => {
+    const values = Array.from({ length: 120 * 120 }, (_, index) => {
+      const x = index % 120
+      const y = Math.floor(index / 120)
+      return x < 4 || x >= 116 || y < 4 || y >= 116 ? 15 : 245
+    })
+    const metrics = summarizeLocalImageDetail({
+      width: 120,
+      height: 120,
+      data: grayscalePixels(120, 120, values),
+    })
+
+    expect(assessLocalImageDetail(metrics)).toEqual(['LOW_EDGE_DETAIL'])
+  })
+
+  it('withholds detail advice when the sample is too small to be reliable', () => {
+    const metrics = summarizeLocalImageDetail({
+      width: 80,
+      height: 80,
+      data: patternedDocumentPixels(80, 80),
+    })
+
+    expect(metrics).toBeNull()
+    expect(assessLocalImageDetail(metrics)).toEqual([])
+  })
+
+  it('withholds detail advice when its metrics are invalid', () => {
+    expect(
+      assessLocalImageDetail({
+        meanAbsoluteLaplacian: Number.NaN,
+        strongLaplacianRatio: 0,
+        interiorPixelCount: 12_100,
       })
     ).toEqual([])
   })

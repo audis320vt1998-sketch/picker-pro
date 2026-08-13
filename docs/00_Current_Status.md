@@ -68,12 +68,12 @@ replacement is selected, the browser also reads its local image metadata and
 gives an advisory result for media type, the same minimum dimensions, and the
 same pixel limit as the server. Where the browser supports it and the source is
 not unusually large, it also samples a small in-memory canvas for extreme
-darkness or strong uneven lighting. That optional check does not upload or
-persist the photo, inspect OCR text, judge sharpness, or prevent the reviewer
-from requesting the server check. A new capture that would replace the whole
-current selection waits for explicit confirmation. The browser may offer a
-regular file chooser instead of a camera, so camera availability is never
-assumed.
+darkness, strong uneven lighting, or an unusually low amount of central image
+detail. That optional check does not upload or persist the photo, inspect OCR
+text, certify focus or OCR quality, or prevent the reviewer from requesting the
+server check. A new capture that would replace the whole current selection
+waits for explicit confirmation. The browser may offer a regular file chooser
+instead of a camera, so camera availability is never assumed.
 
 For the known temporary OCR states (busy, timeout, or unavailable), the user
 may explicitly retry that one page. The screen never retries automatically or

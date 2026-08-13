@@ -13,8 +13,9 @@ Picker Pro uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - A read-only GitHub Actions quality gate for tests, lint, type checking, and
   the production build on Node.js 24.
 - Browser-local OCR page-review progress and next-attention navigation.
-- An advisory browser-local camera-lighting check for extreme darkness and
-  strong uneven light, limited to the active photo and never sent to the server.
+- An advisory browser-local camera-quality check for extreme darkness, strong
+  uneven light, and unusually low detail, limited to the active photo and
+  never sent to the server.
 - Complete documentation suite under `docs/` (22 documents).
 - Reference catalogs under `catalogs/` (products, cities, delivery routes, rules, OCR dictionary).
 - Updated `README.md` with full project overview, core business rules, and documentation index.

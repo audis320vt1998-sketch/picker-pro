@@ -77,8 +77,11 @@ export {
 } from './camera-capture-flow'
 export { assessLocalCameraCaptureReadiness } from './camera-capture-readiness'
 export {
+  assessLocalImageDetail,
   assessLocalImageLighting,
   inspectLocalImageLighting,
+  inspectLocalImageQuality,
+  summarizeLocalImageDetail,
   summarizeLocalImageLighting,
 } from './local-image-lighting'
 export {
@@ -158,7 +161,10 @@ export type {
 } from './camera-capture-flow'
 export type { LocalCameraCaptureReadiness } from './camera-capture-readiness'
 export type {
+  LocalImageDetailIssue,
+  LocalImageDetailMetrics,
   LocalImageLightingIssue,
   LocalImageLightingMetrics,
   LocalImageLuminancePixels,
+  LocalImageQualityInspection,
 } from './local-image-lighting'

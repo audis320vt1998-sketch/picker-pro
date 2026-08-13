@@ -478,10 +478,6 @@ nav a:hover {
   color: #78350f;
 }
 
-.document-preflight__camera-lighting-advisory {
-  margin-top: 0.6rem;
-}
-
 .document-preflight__camera-dimensions {
   direction: ltr;
   unicode-bidi: plaintext;

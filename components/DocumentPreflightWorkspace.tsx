@@ -26,7 +26,7 @@ import {
   getNextOcrPreflightPageNavigationAttentionEntry,
   getOcrPreflightPageReviewState,
   hasLowConfidenceOcrPreflightRow,
-  inspectLocalImageLighting,
+  inspectLocalImageQuality,
   isOcrPreflightReviewInteractionLocked,
   isRetryablePreflightFailure,
   MAX_PREFLIGHT_BATCH_IMAGES,
@@ -53,7 +53,9 @@ import {
   type DocumentPreflightResult,
   type DocumentPreflightRow,
   type LocalCameraCaptureReadiness,
+  type LocalImageDetailIssue,
   type LocalImageLightingIssue,
+  type LocalImageQualityInspection,
   type MaayanFieldConfidenceField,
   type MaayanHeaderRouteDraft,
   type MaayanHeaderRouteDraftReason,
@@ -77,7 +79,7 @@ import {
 const OCR_UPLOAD_FILE_NAME = 'page-image'
 const PDF_UPLOAD_FILE_NAME = 'document-pdf'
 const CAMERA_CAPTURE_NOTE_ID = 'document-preflight-camera-note'
-const MAX_LOCAL_LIGHTING_SOURCE_PIXELS = 16_000_000
+const MAX_LOCAL_QUALITY_SOURCE_PIXELS = 16_000_000
 
 const HANDOFF_BLOCK_REASON_TEXT = {
   SOURCE_NOT_TRACEABLE: 'חסר מספר שורת מקור',
@@ -229,7 +231,9 @@ type LocalImageReadinessState =
 
 interface LocalImageInspection {
   readiness: LocalCameraCaptureReadiness
-  lightingIssues: readonly LocalImageLightingIssue[] | null
+  qualityCheck: 'NOT_REQUESTED' | 'UNAVAILABLE' | 'COMPLETE'
+  lightingIssues: readonly LocalImageLightingIssue[]
+  detailIssues: readonly LocalImageDetailIssue[]
 }
 
 type LocalImageReadinessSubject = 'CAMERA_CAPTURE' | 'REPLACEMENT_IMAGE'
@@ -408,7 +412,7 @@ function revokeLocalPreviewUrl(url: string | null): void {
 
 async function readLocalImageInspection(
   file: File,
-  inspectLighting: boolean
+  inspectQuality: boolean
 ): Promise<LocalImageInspection> {
   try {
     const buffer = await file.arrayBuffer()
@@ -418,18 +422,40 @@ async function readLocalImageInspection(
     })
     if (
       readiness.kind !== 'READY' ||
-      !inspectLighting ||
-      readiness.width * readiness.height > MAX_LOCAL_LIGHTING_SOURCE_PIXELS
+      !inspectQuality
     ) {
-      return { readiness, lightingIssues: null }
+      return {
+        readiness,
+        qualityCheck: 'NOT_REQUESTED',
+        lightingIssues: [],
+        detailIssues: [],
+      }
     }
 
+    if (readiness.width * readiness.height > MAX_LOCAL_QUALITY_SOURCE_PIXELS) {
+      return {
+        readiness,
+        qualityCheck: 'UNAVAILABLE',
+        lightingIssues: [],
+        detailIssues: [],
+      }
+    }
+
+    const quality: LocalImageQualityInspection | null =
+      await inspectLocalImageQuality(file)
     return {
       readiness,
-      lightingIssues: await inspectLocalImageLighting(file),
+      qualityCheck: quality ? 'COMPLETE' : 'UNAVAILABLE',
+      lightingIssues: quality?.lightingIssues ?? [],
+      detailIssues: quality?.detailIssues ?? [],
     }
   } catch {
-    return { readiness: { kind: 'UNREADABLE' }, lightingIssues: null }
+    return {
+      readiness: { kind: 'UNREADABLE' },
+      qualityCheck: 'UNAVAILABLE',
+      lightingIssues: [],
+      detailIssues: [],
+    }
   }
 }
 
@@ -485,6 +511,19 @@ function SourceImagePreview({
   )
 }
 
+function localImageQualityIssueText(
+  issue: LocalImageLightingIssue | LocalImageDetailIssue
+): string {
+  switch (issue) {
+    case 'TOO_DARK':
+      return 'התמונה חשוכה מאוד'
+    case 'UNEVENT_LIGHTING':
+      return 'נמצא צל משמעותי או אור לא אחיד'
+    case 'LOW_EDGE_DETAIL':
+      return 'לא זוהו מספיק פרטים חדים בתמונה'
+  }
+}
+
 function LocalImageReadinessMessage({
   inspection,
   subject,
@@ -517,38 +556,30 @@ function LocalImageReadinessMessage({
     )
 
   if (readiness.kind === 'READY') {
+    const qualityIssues = inspection
+      ? [...inspection.lightingIssues, ...inspection.detailIssues]
+      : []
+    const hasQualityAdvisory = qualityIssues.length > 0
+    const className = hasQualityAdvisory
+      ? 'document-preflight__camera-readiness document-preflight__camera-readiness--advisory'
+      : inspection?.qualityCheck === 'COMPLETE'
+        ? 'document-preflight__camera-readiness document-preflight__camera-readiness--ready'
+        : 'document-preflight__camera-readiness'
+
     return (
-      <>
-        <p
-          aria-atomic="true"
-          className="document-preflight__camera-readiness document-preflight__camera-readiness--ready"
-          role="status"
-        >
-          בדיקה מקומית בדפדפן: ממדי {subjectText} {dimensions} עומדים בסף
-          הבסיסי ל־OCR. בדיקת התאורה המקומית, אם זמינה, אינה נשלחת לרשת ואינה
-          מאשרת חדות או תקינות OCR.
-        </p>
-        {inspection?.lightingIssues && inspection.lightingIssues.length > 0 && (
-          <p
-            aria-atomic="true"
-            className="document-preflight__camera-readiness document-preflight__camera-readiness--advisory document-preflight__camera-lighting-advisory"
-            role="status"
-          >
-            בדיקת תאורה מקומית: {inspection.lightingIssues
-              .map((issue) => {
-                switch (issue) {
-                  case 'TOO_DARK':
-                    return 'התמונה חשוכה מאוד'
-                  case 'UNEVENT_LIGHTING':
-                    return 'נמצא צל משמעותי או אור לא אחיד'
-                }
-              })
-              .join('; ')}
-            . מומלץ לצלם שוב במקום מואר ובאור אחיד, ואז לבדוק את התצוגה
-            המקדימה. זו אזהרה בלבד — אפשר להמשיך ל־OCR אם הצילום קריא.
-          </p>
-        )}
-      </>
+      <p aria-atomic="true" className={className} role="status">
+        בדיקה מקומית בדפדפן: ממדי {subjectText} {dimensions} עומדים בסף הבסיסי
+        ל־OCR.{' '}
+        {inspection?.qualityCheck === 'COMPLETE' && hasQualityAdvisory
+          ? `בדיקת איכות צילום מקומית: ${qualityIssues
+              .map(localImageQualityIssueText)
+              .join('; ')}. מומלץ לצלם שוב במקום מואר, קרוב וממוקד, ואז לבדוק את התצוגה המקדימה. זו אזהרה בלבד — אפשר להמשיך ל־OCR אם הטבלה קריאה.`
+          : inspection?.qualityCheck === 'COMPLETE'
+            ? 'לא זוהתה בעיית תאורה קיצונית או חוסר פרטים חריג. הבדיקה אינה מאשרת חדות או תקינות OCR.'
+            : inspection?.qualityCheck === 'UNAVAILABLE'
+              ? 'בדיקת התאורה והפירוט המקומית אינה זמינה לצילום זה. בדוק את התצוגה המקדימה לפני OCR.'
+              : 'בדיקת התאורה והפירוט המקומית תפעל לאחר פתיחת העמוד לבדיקה.'}
+      </p>
     )
   }
 
@@ -607,11 +638,11 @@ function LocalImageReadinessMessage({
 
 function LocalImageReadiness({
   file,
-  inspectLighting = false,
+  inspectQuality = false,
   subject,
 }: {
   file: File
-  inspectLighting?: boolean
+  inspectQuality?: boolean
   subject: LocalImageReadinessSubject
 }) {
   const [inspectionResult, setInspectionResult] = useState<{
@@ -624,7 +655,7 @@ function LocalImageReadiness({
   useEffect(() => {
     let isCurrentFile = true
 
-    void readLocalImageInspection(file, inspectLighting).then((nextInspection) => {
+    void readLocalImageInspection(file, inspectQuality).then((nextInspection) => {
       if (isCurrentFile) {
         setInspectionResult({ file, inspection: nextInspection })
       }
@@ -633,7 +664,7 @@ function LocalImageReadiness({
     return () => {
       isCurrentFile = false
     }
-  }, [file, inspectLighting])
+  }, [file, inspectQuality])
 
   return <LocalImageReadinessMessage inspection={inspection} subject={subject} />
 }
@@ -1856,12 +1887,13 @@ export default function DocumentPreflightWorkspace() {
               isSingleCameraCaptureReadyToInspect && selectedCameraCapture ? (
                 <div className="document-preflight__camera-preview">
                   <p>
-                    בדיקות הממדים והתאורה המקומיות אינן מאשרות חדות או OCR. פתח
-                    את התצוגה המקדימה ובדוק שהטבלה חדה, ישרה וממלאת את התמונה.
+                    בדיקות הממדים ואיכות הצילום המקומיות אינן מאשרות חדות או
+                    OCR. פתח את התצוגה המקדימה ובדוק שהטבלה חדה, ישרה וממלאת את
+                    התמונה.
                   </p>
                   <LocalImageReadiness
                     file={selectedCameraCapture.file}
-                    inspectLighting
+                    inspectQuality
                     subject="CAMERA_CAPTURE"
                   />
                   <label className="document-preflight__camera-button document-preflight__camera-recapture">
@@ -1911,7 +1943,7 @@ export default function DocumentPreflightWorkspace() {
                     const isPagePreviewVisible =
                       previewedSource?.pageNumber === pageNumber &&
                       previewedSource.sourceDocumentRef === sourceDocumentRef
-                    const shouldInspectQueuedCameraLighting =
+                    const shouldInspectQueuedCameraQuality =
                       sourceDocumentRef === cameraCaptureInspectionSourceRef ||
                       sourceDocumentRef === expandedCameraPageSourceRef ||
                       isPagePreviewVisible
@@ -1994,11 +2026,13 @@ export default function DocumentPreflightWorkspace() {
                                   התצוגה המקדימה לפני המשך הצילום או הפעלת OCR.
                                 </p>
                               )}
-                              <LocalImageReadiness
-                                file={file}
-                                inspectLighting={shouldInspectQueuedCameraLighting}
-                                subject="CAMERA_CAPTURE"
-                              />
+                              {shouldInspectQueuedCameraQuality && (
+                                <LocalImageReadiness
+                                  file={file}
+                                  inspectQuality
+                                  subject="CAMERA_CAPTURE"
+                                />
+                              )}
                               <SourceImagePreview
                                 hasSourceImage
                                 isVisible={isPagePreviewVisible}
@@ -2419,10 +2453,10 @@ export default function DocumentPreflightWorkspace() {
                   נבחרה תמונה חלופית. הטיוטה הקודמת לעמוד זה הוסרה, והתמונה החדשה
                   לא נשלחה עדיין. אפשר להפעיל OCR מחדש רק בלחיצה מפורשת.
                 </p>
-                {sourceImage && (
+                {sourceImage && isActiveOutcomePage && (
                   <LocalImageReadiness
                     file={sourceImage.file}
-                    inspectLighting={isActiveOutcomePage}
+                    inspectQuality
                     subject="REPLACEMENT_IMAGE"
                   />
                 )}

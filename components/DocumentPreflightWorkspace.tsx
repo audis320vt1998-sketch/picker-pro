@@ -26,6 +26,7 @@ import {
   getNextOcrPreflightPageNavigationAttentionEntry,
   getOcrPreflightPageReviewState,
   hasLowConfidenceOcrPreflightRow,
+  inspectLocalImageLighting,
   isOcrPreflightReviewInteractionLocked,
   isRetryablePreflightFailure,
   MAX_PREFLIGHT_BATCH_IMAGES,
@@ -52,6 +53,7 @@ import {
   type DocumentPreflightResult,
   type DocumentPreflightRow,
   type LocalCameraCaptureReadiness,
+  type LocalImageLightingIssue,
   type MaayanFieldConfidenceField,
   type MaayanHeaderRouteDraft,
   type MaayanHeaderRouteDraftReason,
@@ -75,6 +77,7 @@ import {
 const OCR_UPLOAD_FILE_NAME = 'page-image'
 const PDF_UPLOAD_FILE_NAME = 'document-pdf'
 const CAMERA_CAPTURE_NOTE_ID = 'document-preflight-camera-note'
+const MAX_LOCAL_LIGHTING_SOURCE_PIXELS = 16_000_000
 
 const HANDOFF_BLOCK_REASON_TEXT = {
   SOURCE_NOT_TRACEABLE: 'חסר מספר שורת מקור',
@@ -223,6 +226,11 @@ type PendingSourceSelection =
 type LocalImageReadinessState =
   | { kind: 'CHECKING' }
   | LocalCameraCaptureReadiness
+
+interface LocalImageInspection {
+  readiness: LocalCameraCaptureReadiness
+  lightingIssues: readonly LocalImageLightingIssue[] | null
+}
 
 type LocalImageReadinessSubject = 'CAMERA_CAPTURE' | 'REPLACEMENT_IMAGE'
 
@@ -398,17 +406,30 @@ function revokeLocalPreviewUrl(url: string | null): void {
   }
 }
 
-async function readLocalImageReadiness(
-  file: File
-): Promise<LocalCameraCaptureReadiness> {
+async function readLocalImageInspection(
+  file: File,
+  inspectLighting: boolean
+): Promise<LocalImageInspection> {
   try {
     const buffer = await file.arrayBuffer()
-    return assessLocalCameraCaptureReadiness({
+    const readiness = assessLocalCameraCaptureReadiness({
       declaredMediaType: file.type,
       metadata: readImageMetadata(new Uint8Array(buffer)),
     })
+    if (
+      readiness.kind !== 'READY' ||
+      !inspectLighting ||
+      readiness.width * readiness.height > MAX_LOCAL_LIGHTING_SOURCE_PIXELS
+    ) {
+      return { readiness, lightingIssues: null }
+    }
+
+    return {
+      readiness,
+      lightingIssues: await inspectLocalImageLighting(file),
+    }
   } catch {
-    return { kind: 'UNREADABLE' }
+    return { readiness: { kind: 'UNREADABLE' }, lightingIssues: null }
   }
 }
 
@@ -465,13 +486,16 @@ function SourceImagePreview({
 }
 
 function LocalImageReadinessMessage({
-  readiness,
+  inspection,
   subject,
 }: {
-  readiness: LocalImageReadinessState
+  inspection: LocalImageInspection | null
   subject: LocalImageReadinessSubject
 }) {
   const subjectText = subject === 'CAMERA_CAPTURE' ? 'הצילום' : 'התמונה החלופית'
+  const readiness: LocalImageReadinessState = inspection?.readiness ?? {
+    kind: 'CHECKING',
+  }
 
   if (readiness.kind === 'CHECKING') {
     return (
@@ -494,14 +518,37 @@ function LocalImageReadinessMessage({
 
   if (readiness.kind === 'READY') {
     return (
-      <p
-        aria-atomic="true"
-        className="document-preflight__camera-readiness document-preflight__camera-readiness--ready"
-        role="status"
-      >
-        בדיקה מקומית בדפדפן: ממדי {subjectText} {dimensions} עומדים בסף הבסיסי
-        ל־OCR. הבדיקה אינה נשלחת לרשת ואינה בודקת חדות או צל.
-      </p>
+      <>
+        <p
+          aria-atomic="true"
+          className="document-preflight__camera-readiness document-preflight__camera-readiness--ready"
+          role="status"
+        >
+          בדיקה מקומית בדפדפן: ממדי {subjectText} {dimensions} עומדים בסף
+          הבסיסי ל־OCR. בדיקת התאורה המקומית, אם זמינה, אינה נשלחת לרשת ואינה
+          מאשרת חדות או תקינות OCR.
+        </p>
+        {inspection?.lightingIssues && inspection.lightingIssues.length > 0 && (
+          <p
+            aria-atomic="true"
+            className="document-preflight__camera-readiness document-preflight__camera-readiness--advisory document-preflight__camera-lighting-advisory"
+            role="status"
+          >
+            בדיקת תאורה מקומית: {inspection.lightingIssues
+              .map((issue) => {
+                switch (issue) {
+                  case 'TOO_DARK':
+                    return 'התמונה חשוכה מאוד'
+                  case 'UNEVENT_LIGHTING':
+                    return 'נמצא צל משמעותי או אור לא אחיד'
+                }
+              })
+              .join('; ')}
+            . מומלץ לצלם שוב במקום מואר ובאור אחיד, ואז לבדוק את התצוגה
+            המקדימה. זו אזהרה בלבד — אפשר להמשיך ל־OCR אם הצילום קריא.
+          </p>
+        )}
+      </>
     )
   }
 
@@ -560,35 +607,35 @@ function LocalImageReadinessMessage({
 
 function LocalImageReadiness({
   file,
+  inspectLighting = false,
   subject,
 }: {
   file: File
+  inspectLighting?: boolean
   subject: LocalImageReadinessSubject
 }) {
-  const [readinessResult, setReadinessResult] = useState<{
+  const [inspectionResult, setInspectionResult] = useState<{
     file: File
-    readiness: LocalCameraCaptureReadiness
+    inspection: LocalImageInspection
   } | null>(null)
-  const readiness: LocalImageReadinessState =
-    readinessResult?.file === file
-      ? readinessResult.readiness
-      : { kind: 'CHECKING' }
+  const inspection =
+    inspectionResult?.file === file ? inspectionResult.inspection : null
 
   useEffect(() => {
     let isCurrentFile = true
 
-    void readLocalImageReadiness(file).then((nextReadiness) => {
+    void readLocalImageInspection(file, inspectLighting).then((nextInspection) => {
       if (isCurrentFile) {
-        setReadinessResult({ file, readiness: nextReadiness })
+        setInspectionResult({ file, inspection: nextInspection })
       }
     })
 
     return () => {
       isCurrentFile = false
     }
-  }, [file])
+  }, [file, inspectLighting])
 
-  return <LocalImageReadinessMessage readiness={readiness} subject={subject} />
+  return <LocalImageReadinessMessage inspection={inspection} subject={subject} />
 }
 
 function SourceImageReplacement({
@@ -673,6 +720,9 @@ export default function DocumentPreflightWorkspace() {
   const [showOnlyLowConfidenceRows, setShowOnlyLowConfidenceRows] = useState(false)
   const [cameraCaptureInspectionSourceRef, setCameraCaptureInspectionSourceRef] =
     useState<string | null>(null)
+  const [expandedCameraPageSourceRef, setExpandedCameraPageSourceRef] = useState<
+    string | null
+  >(null)
   const [activeOutcomeSourceRef, setActiveOutcomeSourceRef] = useState<string | null>(
     null
   )
@@ -822,6 +872,7 @@ export default function DocumentPreflightWorkspace() {
     setHasConfirmedSourceCheck(false)
     setShowOnlyLowConfidenceRows(false)
     setCameraCaptureInspectionSourceRef(null)
+    setExpandedCameraPageSourceRef(null)
     setActiveOutcomeSourceRef(null)
     setPdfFile(null)
     setPdfPageSourceRefs([])
@@ -1040,6 +1091,9 @@ export default function DocumentPreflightWorkspace() {
 
     if (files[index]?.sourceDocumentRef === cameraCaptureInspectionSourceRef) {
       setCameraCaptureInspectionSourceRef(null)
+    }
+    if (files[index]?.sourceDocumentRef === expandedCameraPageSourceRef) {
+      setExpandedCameraPageSourceRef(null)
     }
     resetDraftAfterSelectionChange({ preserveSelectionKind: true })
     setFiles((current) => removeOcrPreflightSelectionItem(current, index))
@@ -1802,11 +1856,12 @@ export default function DocumentPreflightWorkspace() {
               isSingleCameraCaptureReadyToInspect && selectedCameraCapture ? (
                 <div className="document-preflight__camera-preview">
                   <p>
-                    בדיקת הממדים המקומית אינה בודקת חדות או צל. פתח את התצוגה
-                    המקדימה ובדוק שהטבלה חדה, ישרה וממלאת את התמונה.
+                    בדיקות הממדים והתאורה המקומיות אינן מאשרות חדות או OCR. פתח
+                    את התצוגה המקדימה ובדוק שהטבלה חדה, ישרה וממלאת את התמונה.
                   </p>
                   <LocalImageReadiness
                     file={selectedCameraCapture.file}
+                    inspectLighting
                     subject="CAMERA_CAPTURE"
                   />
                   <label className="document-preflight__camera-button document-preflight__camera-recapture">
@@ -1856,6 +1911,10 @@ export default function DocumentPreflightWorkspace() {
                     const isPagePreviewVisible =
                       previewedSource?.pageNumber === pageNumber &&
                       previewedSource.sourceDocumentRef === sourceDocumentRef
+                    const shouldInspectQueuedCameraLighting =
+                      sourceDocumentRef === cameraCaptureInspectionSourceRef ||
+                      sourceDocumentRef === expandedCameraPageSourceRef ||
+                      isPagePreviewVisible
 
                     return (
                       <li
@@ -1899,11 +1958,18 @@ export default function DocumentPreflightWorkspace() {
                                 : 'document-preflight__queued-camera-page'
                             }
                             onToggle={(event) => {
+                              if (event.currentTarget.open) {
+                                setExpandedCameraPageSourceRef(sourceDocumentRef)
+                                return
+                              }
+
                               if (
-                                !event.currentTarget.open &&
                                 sourceDocumentRef === cameraCaptureInspectionSourceRef
                               ) {
                                 setCameraCaptureInspectionSourceRef(null)
+                              }
+                              if (sourceDocumentRef === expandedCameraPageSourceRef) {
+                                setExpandedCameraPageSourceRef(null)
                               }
                             }}
                             ref={
@@ -1930,6 +1996,7 @@ export default function DocumentPreflightWorkspace() {
                               )}
                               <LocalImageReadiness
                                 file={file}
+                                inspectLighting={shouldInspectQueuedCameraLighting}
                                 subject="CAMERA_CAPTURE"
                               />
                               <SourceImagePreview
@@ -2355,6 +2422,7 @@ export default function DocumentPreflightWorkspace() {
                 {sourceImage && (
                   <LocalImageReadiness
                     file={sourceImage.file}
+                    inspectLighting={isActiveOutcomePage}
                     subject="REPLACEMENT_IMAGE"
                   />
                 )}

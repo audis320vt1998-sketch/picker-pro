@@ -77,6 +77,11 @@ export {
 } from './camera-capture-flow'
 export { assessLocalCameraCaptureReadiness } from './camera-capture-readiness'
 export {
+  assessLocalImageLighting,
+  inspectLocalImageLighting,
+  summarizeLocalImageLighting,
+} from './local-image-lighting'
+export {
   createOcrPreflightBatchOutcome,
   hasLowConfidenceOcrPreflightRow,
   removeOcrPreflightBatchOutcomeSource,
@@ -152,3 +157,8 @@ export type {
   SourceSelectionReplacementCheck,
 } from './camera-capture-flow'
 export type { LocalCameraCaptureReadiness } from './camera-capture-readiness'
+export type {
+  LocalImageLightingIssue,
+  LocalImageLightingMetrics,
+  LocalImageLuminancePixels,
+} from './local-image-lighting'

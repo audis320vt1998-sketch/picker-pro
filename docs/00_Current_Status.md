@@ -63,14 +63,17 @@ appended page receives a fresh opaque source reference; it does not replace a
 prior page and none of the queued photos is uploaded until the reviewer
 explicitly starts OCR. Each queued camera page can be opened for local metadata
 advice and preview, or explicitly replaced before OCR without changing the
-other pages or its opaque page reference. While a camera photo or image
-replacement is selected, the browser also reads only its local image metadata
-and gives an advisory result for media type, the same minimum dimensions, and
-the same pixel limit as the server. It does not upload or persist the photo,
-inspect OCR text, judge sharpness or shadows, or prevent the reviewer from
-requesting the server check. A new capture that would replace the whole current
-selection waits for explicit confirmation. The browser may offer a regular file
-chooser instead of a camera, so camera availability is never assumed.
+other pages or its opaque page reference. While an active camera photo or image
+replacement is selected, the browser also reads its local image metadata and
+gives an advisory result for media type, the same minimum dimensions, and the
+same pixel limit as the server. Where the browser supports it and the source is
+not unusually large, it also samples a small in-memory canvas for extreme
+darkness or strong uneven lighting. That optional check does not upload or
+persist the photo, inspect OCR text, judge sharpness, or prevent the reviewer
+from requesting the server check. A new capture that would replace the whole
+current selection waits for explicit confirmation. The browser may offer a
+regular file chooser instead of a camera, so camera availability is never
+assumed.
 
 For the known temporary OCR states (busy, timeout, or unavailable), the user
 may explicitly retry that one page. The screen never retries automatically or

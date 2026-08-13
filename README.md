@@ -18,10 +18,11 @@ Available now:
   only fixed configuration problems and counts; it does not expose catalog
   entries, offer city selection, or assign a route to an order.
 - A camera-first, browser-provided direct-camera chooser for one document image
-  at `/upload`, with a local preview and an advisory browser-only size/type
-  check before OCR, including after an image replacement. The check does not
-  upload, store, or inspect OCR text; it uses the same dimensions and pixel
-  limit as the server and still requires a human check for focus and shadows.
+  at `/upload`, with a local preview and advisory browser-only size/type and
+  lighting checks before OCR, including after an image replacement. The
+  lighting check samples only a small local canvas to flag extreme darkness or
+  strong uneven lighting; it does not upload, store, or inspect OCR text, and
+  still requires a human check for focus and readable table content.
   An explicit confirmation is required
   before a new source choice (camera capture, image batch, or PDF) replaces
   existing browser-held work. It does not upload or process the image until

@@ -44,6 +44,9 @@ currently shown and eligible for handoff. It never includes blocked rows or
 rows hidden by the low-confidence filter. A bulk selection still cancels that
 page's prior confirmation and the final source-check marker, so the reviewer
 must verify the route and explicitly confirm the page again before handoff.
+For a page waiting for that confirmation, the same explicit confirmation action
+is also available after its displayed OCR rows, avoiding a mobile scroll back
+to the top; it never transfers rows or advances pages.
 
 Before OCR begins, the reviewer can see generic page positions only, move a
 selected image up or down, or remove it from the batch. This changes only the

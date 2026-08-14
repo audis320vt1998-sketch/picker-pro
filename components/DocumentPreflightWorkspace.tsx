@@ -3097,6 +3097,30 @@ export default function DocumentPreflightWorkspace() {
                         </tbody>
                         </table>
                       </div>
+                      {reviewState.kind === 'PENDING' && (
+                        <section
+                          aria-label={`אישור עמוד ${page.pageNumber} לאחר בדיקת השורות`}
+                          className="document-preflight__page-review document-preflight__page-review--after-rows"
+                        >
+                          <strong>סיום בדיקת שורות</strong>
+                          <p>
+                            לאחר בדיקת {reviewState.selectedRowCount} השורות שנבחרו מול
+                            המסמך המקורי, אשר את העמוד ואת קו החלוקה.
+                          </p>
+                          <button
+                            aria-label={`אשר עמוד ${page.pageNumber} וקו ${reviewState.routeCode} לאחר בדיקת השורות`}
+                            className="manual-review__primary-button"
+                            disabled={isReviewInteractionLocked}
+                            onClick={() => confirmPageReview(sourceDocumentRef)}
+                            type="button"
+                          >
+                            אשר עמוד וקו {reviewState.routeCode}
+                          </button>
+                          <p className="document-preflight__page-review-note">
+                            האישור אינו מעביר שורות ואינו מתקדם לעמוד אחר.
+                          </p>
+                        </section>
+                      )}
                     </div>
                   )}
                   {showOnlyLowConfidenceRows &&

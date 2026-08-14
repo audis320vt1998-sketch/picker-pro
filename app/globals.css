@@ -968,6 +968,11 @@ nav a:hover {
   color: #78350f;
 }
 
+.document-preflight__page-review--after-rows {
+  margin-top: 0.75rem;
+  max-width: none;
+}
+
 .document-preflight__page-review-status {
   font-weight: 700;
 }

@@ -64,7 +64,9 @@ Available now:
 - Each OCR page also offers a browser-only quick selection for all currently
   visible, transferable rows. It never selects blocked or filter-hidden rows,
   and changing the selection still requires a valid route code and explicit
-  page confirmation before handoff.
+  page confirmation before handoff. A waiting page also repeats that explicit
+  confirmation action after its displayed rows for phone-sized screens; it
+  never transfers rows or advances pages.
 - A one-time, browser-only handoff of explicitly checked OCR identifiers to
   `/review`; source quantities initially remain comparison-only and the manual
   case/unit fields stay blank. A reviewer may explicitly request a compact,

@@ -1,5 +1,11 @@
 # 03 — Software Design Specification
 
+> **Historical target design — not the active implementation.** Read
+> [Current Status](./00_Current_Status.md) for the shipped workflow. The active
+> installable mobile shell is online-only and deliberately has no service
+> worker, offline cache, saved job queue, or offline draft recovery; references
+> to those systems below describe deferred architecture.
+
 ## 1. Document Control
 
 | Field | Value |

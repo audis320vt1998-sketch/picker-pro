@@ -10,6 +10,10 @@ Picker Pro uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- An online-only installable mobile shell with a web app manifest, generated
+  192px/512px PNG icons, Apple home-screen metadata, and browser-specific
+  installation guidance. It does not add service-worker caching, offline OCR,
+  or draft recovery.
 - A read-only GitHub Actions quality gate for tests, lint, type checking, and
   the production build on Node.js 24.
 - Browser-local OCR page-review progress and next-attention navigation.

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import InstallPickerPro from '@/components/InstallPickerPro'
 
 export default function Home() {
   return (
@@ -7,6 +8,8 @@ export default function Home() {
       <p>
         כלי ליקוט ששומר מארזים ובודדים בנפרד ומציג את מקור כל כמות.
       </p>
+
+      <InstallPickerPro />
 
       <nav>
         <ul>

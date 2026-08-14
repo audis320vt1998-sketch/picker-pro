@@ -1,5 +1,11 @@
 # 04 — System Architecture
 
+> **Historical target architecture — not the active implementation.** The
+> authoritative shipped boundary is [Current Status](./00_Current_Status.md).
+> The current installable mobile shell has no service worker, IndexedDB job
+> cache, offline OCR queue, or draft recovery; diagrams and paths below that
+> describe those capabilities are deferred architecture.
+
 ## 1. Architecture Style
 
 Picker Pro follows a **layered monolith** architecture deployed as a single Next.js application. The layers are:

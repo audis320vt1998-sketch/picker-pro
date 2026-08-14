@@ -13,6 +13,8 @@ Picker Pro follows a milestone-based release strategy. Each milestone delivers a
 ### Delivered
 - Hebrew OCR with Tesseract.js
 - Camera-first capture with a local multi-page queue (up to 20 pages), image upload, and PDF OCR preflight
+- Online-only installable mobile shell with a manifest, home-screen icons, and
+  browser-specific install guidance; it does not add offline OCR or draft recovery
 - Post-OCR page-level confirmation for route codes 1–99 before manual-review handoff
 - Manual product resolution (barcode → SKU → name → alias)
 - Explicit case/unit entry, validation, and aggregation

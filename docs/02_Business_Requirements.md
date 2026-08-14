@@ -1,5 +1,11 @@
 # 02 — Business Requirements
 
+> **Historical target baseline — not the active delivery contract.** The current
+> product boundary is [Current Status](./00_Current_Status.md). In particular,
+> the active online-only install shell has no service worker, offline cache,
+> offline queue, or job/draft recovery; requirements in this document that
+> describe those capabilities remain future scope.
+
 ## 1. Document Control
 
 | Field | Value |

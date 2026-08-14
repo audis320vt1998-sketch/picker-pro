@@ -89,6 +89,15 @@ server check. A new capture that would replace the whole current selection
 waits for explicit confirmation. The browser may offer a regular file chooser
 instead of a camera, so camera availability is never assumed.
 
+Picker Pro can also be added to a phone's home screen as an online-only
+installed web app. The manifest supplies the application name, a 192px and a
+512px PNG icon, and standalone display metadata; an iPhone or iPad uses the
+browser Share menu and **Add to Home Screen**, while other mobile browsers may
+offer an install action. This is only a launch convenience: no service worker,
+offline cache, offline OCR queue, retry queue, camera image, or editable OCR
+draft is retained for recovery. OCR remains a server request and needs a
+network connection.
+
 For the known temporary OCR states (busy, timeout, or unavailable), the user
 may explicitly retry that one page. The screen never retries automatically or
 in parallel. It reuses the same browser-held image, selected-order page number,

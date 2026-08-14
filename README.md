@@ -31,6 +31,10 @@ Available now:
   before a new source choice (camera capture, image batch, or PDF) replaces
   existing browser-held work. It does not upload or process the image until
   the reviewer explicitly starts OCR.
+- An installable, online-only mobile shell with a browser manifest and home-screen
+  icons. On supported phones, Picker Pro can be added from the browser's
+  install or Add to Home Screen action; installation does not cache OCR, retain
+  photos or drafts, or provide offline recovery.
 - A browser-only batch at `/upload` for up to 20 Maayan images, or one
   multi-page PDF of up to 20 pages. It processes one page at a time and returns only transient, review-required table
   drafts with stable page numbers. Before OCR, the reviewer can reorder or
@@ -110,8 +114,8 @@ Not available yet:
 
 - Automatic pick-list creation from an image or PDF.
 - Server-side stored jobs, a persistent review queue, editable draft recovery,
-  XLSX/PDF/print exports, export history, operational city/route grouping, or
-  AI assistance.
+  offline recovery, XLSX/PDF/print exports, export history, operational
+  city/route grouping, or AI assistance.
 - Automatic catalog verification or ERP synchronization.
 
 The canonical file [`catalogs/products.json`](./catalogs/products.json) is

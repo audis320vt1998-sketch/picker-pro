@@ -47,6 +47,9 @@ must verify the route and explicitly confirm the page again before handoff.
 For a page waiting for that confirmation, the same explicit confirmation action
 is also available after its displayed OCR rows, avoiding a mobile scroll back
 to the top; it never transfers rows or advances pages.
+Once the active page is explicitly confirmed, the same end-of-rows area can
+take the reviewer to the next page requiring attention. This is explicit local
+navigation only: it never confirms another page or transfers rows.
 
 Before OCR begins, the reviewer can see generic page positions only, move a
 selected image up or down, or remove it from the batch. This changes only the

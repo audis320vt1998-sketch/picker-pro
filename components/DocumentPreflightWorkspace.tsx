@@ -773,6 +773,7 @@ export default function DocumentPreflightWorkspace() {
   const outcomePageHeadingRefs = useRef<Record<string, HTMLHeadingElement | null>>(
     {}
   )
+  const pageContinuationRefs = useRef<Record<string, HTMLElement | null>>({})
   const focusSelectedBatchAfterEdit = useRef(false)
   const resultHeadingRef = useRef<HTMLHeadingElement>(null)
 
@@ -1738,7 +1739,10 @@ export default function DocumentPreflightWorkspace() {
       reviewState.kind !== 'CONFIRMED' && reviewState.selectedRowCount > 0
   ).length
 
-  const confirmPageReview = (sourceDocumentRef: string) => {
+  const confirmPageReview = (
+    sourceDocumentRef: string,
+    focusContinuation = false
+  ) => {
     if (isReviewInteractionLocked) {
       return
     }
@@ -1762,7 +1766,13 @@ export default function DocumentPreflightWorkspace() {
       ...current,
       [sourceDocumentRef]: confirmation,
     }))
+    setActiveOutcomeSourceRef(sourceDocumentRef)
     setHasConfirmedSourceCheck(false)
+    if (focusContinuation) {
+      window.requestAnimationFrame(() => {
+        pageContinuationRefs.current[sourceDocumentRef]?.focus()
+      })
+    }
   }
 
   const transferToManualReview = () => {
@@ -1796,6 +1806,18 @@ export default function DocumentPreflightWorkspace() {
     }
 
     delete outcomePageHeadingRefs.current[sourceDocumentRef]
+  }
+
+  const setPageContinuationRef = (
+    sourceDocumentRef: string,
+    element: HTMLElement | null
+  ) => {
+    if (element) {
+      pageContinuationRefs.current[sourceDocumentRef] = element
+      return
+    }
+
+    delete pageContinuationRefs.current[sourceDocumentRef]
   }
 
   const focusOutcomePage = (entry: OcrPreflightPageNavigationEntry) => {
@@ -3111,13 +3133,51 @@ export default function DocumentPreflightWorkspace() {
                             aria-label={`אשר עמוד ${page.pageNumber} וקו ${reviewState.routeCode} לאחר בדיקת השורות`}
                             className="manual-review__primary-button"
                             disabled={isReviewInteractionLocked}
-                            onClick={() => confirmPageReview(sourceDocumentRef)}
+                            onClick={() => confirmPageReview(sourceDocumentRef, true)}
                             type="button"
                           >
                             אשר עמוד וקו {reviewState.routeCode}
                           </button>
                           <p className="document-preflight__page-review-note">
                             האישור אינו מעביר שורות ואינו מתקדם לעמוד אחר.
+                          </p>
+                        </section>
+                      )}
+                      {isActiveOutcomePage && reviewState.kind === 'CONFIRMED' && (
+                        <section
+                          aria-label={`המשך בדיקה לאחר אישור עמוד ${page.pageNumber}`}
+                          className="document-preflight__page-review document-preflight__page-review--confirmed document-preflight__page-review--after-rows"
+                          ref={(element) =>
+                            setPageContinuationRef(sourceDocumentRef, element)
+                          }
+                          tabIndex={-1}
+                        >
+                          <strong>המשך בדיקה</strong>
+                          {nextAttentionPageNavigationEntry ? (
+                            <>
+                              <p>
+                                עמוד זה אושר. אפשר לעבור לעמוד{' '}
+                                {nextAttentionPageNavigationEntry.pageNumber} שדורש טיפול.
+                              </p>
+                              <button
+                                aria-label={`עבור לעמוד הבא שדורש טיפול, עמוד ${nextAttentionPageNavigationEntry.pageNumber}: ${pageNavigationStatusDescription(nextAttentionPageNavigationEntry)}`}
+                                className="manual-review__primary-button"
+                                disabled={isReviewInteractionLocked}
+                                onClick={() =>
+                                  focusOutcomePage(nextAttentionPageNavigationEntry)
+                                }
+                                type="button"
+                              >
+                                לעמוד {nextAttentionPageNavigationEntry.pageNumber} שדורש טיפול
+                              </button>
+                            </>
+                          ) : (
+                            <p className="document-preflight__page-review-status">
+                              אין עמוד אחר שדורש טיפול.
+                            </p>
+                          )}
+                          <p className="document-preflight__page-review-note">
+                            המעבר אינו משנה שורות, קו חלוקה או אישור עמוד.
                           </p>
                         </section>
                       )}

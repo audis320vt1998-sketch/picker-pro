@@ -18,6 +18,8 @@ Picker Pro uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   confirmation before handoff.
 - A repeated explicit page-confirmation action after OCR rows that removes a
   mobile scroll-back step without selecting, transferring, or advancing rows.
+- An end-of-rows, explicit next-attention action after page confirmation for
+  faster phone review, without auto-confirming or transferring any rows.
 - Automatic browser-local preview opening for each accepted camera capture,
   so framing and readability can be inspected before OCR without upload.
 - An advisory browser-local camera-quality check for extreme darkness, strong

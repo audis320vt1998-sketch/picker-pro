@@ -67,6 +67,9 @@ Available now:
   page confirmation before handoff. A waiting page also repeats that explicit
   confirmation action after its displayed rows for phone-sized screens; it
   never transfers rows or advances pages.
+- After explicitly confirming the active OCR page, a browser-only action at the
+  end of its rows can take the reviewer to the next page needing attention. It
+  navigates only; it never confirms another page or transfers rows.
 - A one-time, browser-only handoff of explicitly checked OCR identifiers to
   `/review`; source quantities initially remain comparison-only and the manual
   case/unit fields stay blank. A reviewer may explicitly request a compact,

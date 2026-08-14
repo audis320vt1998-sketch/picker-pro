@@ -16,6 +16,8 @@ Picker Pro uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - A page-local bulk selection control for currently visible, transferable OCR
   rows; it preserves hidden or blocked rows and still requires page
   confirmation before handoff.
+- Automatic browser-local preview opening for each accepted camera capture,
+  so framing and readability can be inspected before OCR without upload.
 - An advisory browser-local camera-quality check for extreme darkness, strong
   uneven light, and unusually low detail, limited to the active photo and
   never sent to the server.

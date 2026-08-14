@@ -1,6 +1,7 @@
 import {
   canAppendCameraCaptureToBatch,
   cameraCaptureInspectionScrollBehavior,
+  getNextCameraCapturePreviewPageNumber,
   requiresCameraCaptureReplacementConfirmation,
   requiresSourceSelectionReplacementConfirmation,
 } from '@/lib/document-intake/camera-capture-flow'
@@ -116,6 +117,14 @@ describe('source selection replacement flow', () => {
 })
 
 describe('camera capture inspection flow', () => {
+  it('assigns an auto-preview only to a valid next camera page', () => {
+    expect(getNextCameraCapturePreviewPageNumber(0)).toBe(1)
+    expect(getNextCameraCapturePreviewPageNumber(3)).toBe(4)
+    expect(getNextCameraCapturePreviewPageNumber(MAX_PREFLIGHT_BATCH_IMAGES)).toBeNull()
+    expect(getNextCameraCapturePreviewPageNumber(-1)).toBeNull()
+    expect(getNextCameraCapturePreviewPageNumber(1.5)).toBeNull()
+  })
+
   it('avoids animated scrolling when reduced motion is requested', () => {
     expect(cameraCaptureInspectionScrollBehavior(false)).toBe('smooth')
     expect(cameraCaptureInspectionScrollBehavior(true)).toBe('auto')

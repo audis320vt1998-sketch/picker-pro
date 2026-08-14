@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   type ChangeEvent,
   type FormEvent,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -23,6 +24,7 @@ import {
   getPreflightFileSelectionIssue,
   getPdfPreflightFileSelectionIssue,
   getAdjacentOcrPreflightPageNavigationEntry,
+  getNextCameraCapturePreviewPageNumber,
   getNextOcrPreflightPageNavigationAttentionEntry,
   getOcrPreflightPageReviewState,
   hasLowConfidenceOcrPreflightRow,
@@ -743,6 +745,9 @@ export default function DocumentPreflightWorkspace() {
   )
   const [activeLocalPreview, setActiveLocalPreview] =
     useState<ActiveLocalPreview | null>(null)
+  const [autoPreviewSourceRefs, setAutoPreviewSourceRefs] = useState<
+    readonly string[]
+  >([])
   const [selectedRowKeys, setSelectedRowKeys] = useState<Record<string, boolean>>({})
   const [routeCodeEdits, setRouteCodeEdits] = useState<Record<string, string>>({})
   const [confirmedPageReviews, setConfirmedPageReviews] = useState<
@@ -813,10 +818,75 @@ export default function DocumentPreflightWorkspace() {
   })
   const lowConfidenceReviewSummary = summarizeLowConfidenceOcrPreflightReview(pages)
 
+  const closeSourcePreview = useCallback(() => {
+    setPreviewedSource(null)
+    setActiveLocalPreview(null)
+  }, [])
+
+  const openSourcePreview = useCallback(
+    (pageNumber: number, sourceDocumentRef: string, file: File) => {
+      const url = createLocalPreviewUrl(file)
+      setPreviewedSource({ pageNumber, sourceDocumentRef })
+      setActiveLocalPreview(url ? { sourceDocumentRef, url } : null)
+    },
+    []
+  )
+
   useEffect(() => {
     const url = activeLocalPreview?.url ?? null
     return () => revokeLocalPreviewUrl(url)
   }, [activeLocalPreview])
+
+  useEffect(() => {
+    if (autoPreviewSourceRefs.length === 0) {
+      return
+    }
+
+    const sourceDocumentRef = [...autoPreviewSourceRefs]
+      .reverse()
+      .find((candidateRef) =>
+        files.some((file) => file.sourceDocumentRef === candidateRef)
+      )
+    if (!sourceDocumentRef) {
+      const animationFrame = window.requestAnimationFrame(() => {
+        setAutoPreviewSourceRefs([])
+      })
+      return () => window.cancelAnimationFrame(animationFrame)
+    }
+
+    const selectedFileIndex = files.findIndex(
+      (file) => file.sourceDocumentRef === sourceDocumentRef
+    )
+    const previewPageNumber = getNextCameraCapturePreviewPageNumber(
+      selectedFileIndex
+    )
+    const selectedFile = files[selectedFileIndex]
+    if (!selectedFile || previewPageNumber === null) {
+      const animationFrame = window.requestAnimationFrame(() => {
+        setAutoPreviewSourceRefs([])
+      })
+      return () => window.cancelAnimationFrame(animationFrame)
+    }
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      if (sourceSelectionKind === 'camera' && outcome === null) {
+        setCameraCaptureInspectionSourceRef(sourceDocumentRef)
+      }
+      openSourcePreview(
+        previewPageNumber,
+        sourceDocumentRef,
+        selectedFile.file
+      )
+      setAutoPreviewSourceRefs([])
+    })
+    return () => window.cancelAnimationFrame(animationFrame)
+  }, [
+    autoPreviewSourceRefs,
+    files,
+    openSourcePreview,
+    outcome,
+    sourceSelectionKind,
+  ])
 
   useEffect(() => {
     if (isCompletedOcrResultReady) {
@@ -892,12 +962,19 @@ export default function DocumentPreflightWorkspace() {
 
   const resetDraftAfterSelectionChange = ({
     preserveSelectionKind = false,
-  }: { preserveSelectionKind?: boolean } = {}) => {
+    preserveAutoPreviewRequests = false,
+  }: {
+    preserveSelectionKind?: boolean
+    preserveAutoPreviewRequests?: boolean
+  } = {}) => {
     setError(null)
     setOutcome(null)
     setPendingReplacementPages([])
     setPreviewedSource(null)
     setActiveLocalPreview(null)
+    if (!preserveAutoPreviewRequests) {
+      setAutoPreviewSourceRefs([])
+    }
     setSelectedRowKeys({})
     setRouteCodeEdits({})
     setConfirmedPageReviews({})
@@ -925,15 +1002,18 @@ export default function DocumentPreflightWorkspace() {
 
     try {
       const nextFiles = selectedFiles.map((file) => ({
-          file,
-          sourceDocumentRef: createSourceDocumentRef(),
-        }))
+        file,
+        sourceDocumentRef: createSourceDocumentRef(),
+      }))
+      const firstCameraCapture =
+        selectionKind === 'camera' ? nextFiles[0] ?? null : null
       setFiles(nextFiles)
       setSourceSelectionKind(selectionKind)
       setCameraCaptureInspectionSourceRef(
-        selectionKind === 'camera'
-          ? nextFiles[0]?.sourceDocumentRef ?? null
-          : null
+        firstCameraCapture?.sourceDocumentRef ?? null
+      )
+      setAutoPreviewSourceRefs(
+        firstCameraCapture ? [firstCameraCapture.sourceDocumentRef] : []
       )
     } catch {
       setFiles([])
@@ -953,14 +1033,17 @@ export default function DocumentPreflightWorkspace() {
         file: cameraCapture,
         sourceDocumentRef: createSourceDocumentRef(),
       }
-      resetDraftAfterSelectionChange()
+      resetDraftAfterSelectionChange({ preserveAutoPreviewRequests: true })
       setFiles((current) =>
         current.length < MAX_PREFLIGHT_BATCH_IMAGES
           ? [...current, nextCapture]
           : current
       )
       setSourceSelectionKind('camera')
-      setCameraCaptureInspectionSourceRef(nextCapture.sourceDocumentRef)
+      setAutoPreviewSourceRefs((current) => [
+        ...current.filter((sourceRef) => sourceRef !== nextCapture.sourceDocumentRef),
+        nextCapture.sourceDocumentRef,
+      ])
     } catch {
       setError('הדפדפן לא הצליח ליצור מזהה זמני ובטוח למסמך. נסה שוב.')
     }
@@ -1181,11 +1264,15 @@ export default function DocumentPreflightWorkspace() {
       setError(PREFLIGHT_FAILURE_TEXT[selectionIssue])
       return
     }
-    if (!files.some((file) => file.sourceDocumentRef === sourceDocumentRef)) {
+    const selectedFileIndex = files.findIndex(
+      (file) => file.sourceDocumentRef === sourceDocumentRef
+    )
+    if (selectedFileIndex < 0) {
       setError('לא ניתן לגשת לעמוד המצולם. נסה לצלם אותו מחדש או להתחיל אצווה חדשה.')
       return
     }
 
+    closeSourcePreview()
     setError(null)
     setFiles((current) =>
       current.map((selectedFile) =>
@@ -1194,10 +1281,8 @@ export default function DocumentPreflightWorkspace() {
           : selectedFile
       )
     )
-    if (previewedSource?.sourceDocumentRef === sourceDocumentRef) {
-      setPreviewedSource(null)
-      setActiveLocalPreview(null)
-    }
+    setCameraCaptureInspectionSourceRef(sourceDocumentRef)
+    setAutoPreviewSourceRefs([sourceDocumentRef])
   }
 
   const selectReplacementFile = (
@@ -1238,6 +1323,7 @@ export default function DocumentPreflightWorkspace() {
       return
     }
 
+    closeSourcePreview()
     setError(null)
     setFiles((current) =>
       current.map((selectedFile) =>
@@ -1271,6 +1357,7 @@ export default function DocumentPreflightWorkspace() {
       return remaining
     })
     setHasConfirmedSourceCheck(false)
+    setAutoPreviewSourceRefs([replacementSlot.sourceDocumentRef])
     const hasRemainingLowConfidenceRows = pages.some(
       ({ page, sourceDocumentRef }) =>
         sourceDocumentRef !== replacementSlot.sourceDocumentRef &&
@@ -1278,10 +1365,6 @@ export default function DocumentPreflightWorkspace() {
     )
     if (!hasRemainingLowConfidenceRows) {
       setShowOnlyLowConfidenceRows(false)
-    }
-    if (previewedSource?.sourceDocumentRef === replacementSlot.sourceDocumentRef) {
-      setPreviewedSource(null)
-      setActiveLocalPreview(null)
     }
   }
 
@@ -1306,6 +1389,7 @@ export default function DocumentPreflightWorkspace() {
     setActiveOutcomeSourceRef(null)
     setPreviewedSource(null)
     setActiveLocalPreview(null)
+    setAutoPreviewSourceRefs([])
     setSelectedRowKeys({})
     setRouteCodeEdits({})
     setConfirmedPageReviews({})
@@ -1528,17 +1612,16 @@ export default function DocumentPreflightWorkspace() {
 
   const toggleSourcePreview = (pageNumber: number, sourceDocumentRef: string) => {
     if (previewedSource?.sourceDocumentRef === sourceDocumentRef) {
-      setPreviewedSource(null)
-      setActiveLocalPreview(null)
+      closeSourcePreview()
       return
     }
 
     const file = files.find(
       (selectedFile) => selectedFile.sourceDocumentRef === sourceDocumentRef
     )?.file
-    const url = file ? createLocalPreviewUrl(file) : null
-    setPreviewedSource({ pageNumber, sourceDocumentRef })
-    setActiveLocalPreview(url ? { sourceDocumentRef, url } : null)
+    if (file) {
+      openSourcePreview(pageNumber, sourceDocumentRef, file)
+    }
   }
 
   const routeCodeForPage = (
@@ -1911,9 +1994,9 @@ export default function DocumentPreflightWorkspace() {
               isSingleCameraCaptureReadyToInspect && selectedCameraCapture ? (
                 <div className="document-preflight__camera-preview">
                   <p>
-                    בדיקות הממדים ואיכות הצילום המקומיות אינן מאשרות חדות או
-                    OCR. פתח את התצוגה המקדימה ובדוק שהטבלה חדה, ישרה וממלאת את
-                    התמונה.
+                    התצוגה המקדימה נפתחה אוטומטית. בדיקות הממדים ואיכות הצילום
+                    המקומיות אינן מאשרות חדות או OCR; בדוק שהטבלה חדה, ישרה
+                    וממלאת את התמונה.
                   </p>
                   <LocalImageReadiness
                     file={selectedCameraCapture.file}
@@ -2046,8 +2129,9 @@ export default function DocumentPreflightWorkspace() {
                             <div>
                               {sourceDocumentRef === cameraCaptureInspectionSourceRef && (
                                 <p role="status">
-                                  עמוד {pageNumber} נוסף לתור. בדוק את הממדים ואת
-                                  התצוגה המקדימה לפני המשך הצילום או הפעלת OCR.
+                                  עמוד {pageNumber} נוסף לתור והתצוגה המקדימה שלו
+                                  נפתחה אוטומטית. בדוק את הממדים ואת הצילום לפני
+                                  המשך הצילום או הפעלת OCR.
                                 </p>
                               )}
                               {shouldInspectQueuedCameraQuality && (

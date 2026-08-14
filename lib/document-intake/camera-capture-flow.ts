@@ -65,6 +65,25 @@ export function canAppendCameraCaptureToBatch({
 }
 
 /**
+ * Returns the page number for a newly accepted camera capture. The value is
+ * intentionally local to the browser-held batch and never becomes an OCR
+ * result or document identifier.
+ */
+export function getNextCameraCapturePreviewPageNumber(
+  selectedImageCount: number
+): number | null {
+  if (
+    !Number.isInteger(selectedImageCount) ||
+    selectedImageCount < 0 ||
+    selectedImageCount >= MAX_PREFLIGHT_BATCH_IMAGES
+  ) {
+    return null
+  }
+
+  return selectedImageCount + 1
+}
+
+/**
  * Chooses the least surprising scroll behavior when a newly captured page is
  * brought into view for inspection.
  */

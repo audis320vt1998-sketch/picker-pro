@@ -61,15 +61,17 @@ replacing browser-held work.
 
 On a supported mobile browser, the same screen offers a camera-first,
 direct-camera chooser. After a camera capture, the screen moves to the local
-inspection step; an appended page opens its own inspection card. After checking
-a sharp, straight, shadow-free table photo locally, the reviewer may press
+inspection step and opens its local preview automatically; an appended page
+opens its own inspection card and preview. After checking a sharp, straight,
+shadow-free table photo locally, the reviewer may press
 **Save page and continue capturing** to append another photo to the browser-only
 camera queue, up to 20 pages. Each
 appended page receives a fresh opaque source reference; it does not replace a
 prior page and none of the queued photos is uploaded until the reviewer
 explicitly starts OCR. Each queued camera page can be opened for local metadata
-advice and preview, or explicitly replaced before OCR without changing the
-other pages or its opaque page reference. While an active camera photo or image
+advice and its preview can be hidden or shown again, or explicitly replaced
+before OCR without changing the other pages or its opaque page reference. While
+an active camera photo or image
 replacement is selected, the browser also reads its local image metadata and
 gives an advisory result for media type, the same minimum dimensions, and the
 same pixel limit as the server. Where the browser supports it and the source is

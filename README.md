@@ -20,6 +20,9 @@ Available now:
 - A camera-first, browser-provided direct-camera chooser for one document image
   at `/upload`, with a local preview and advisory browser-only size/type and
   lighting and detail checks before OCR, including after an image replacement.
+  Each accepted camera capture opens that local preview automatically so the
+  reviewer can inspect framing and readability before OCR; it can be hidden
+  again and remains browser-only.
   The small local canvas check can flag extreme darkness, strong uneven
   lighting, or an unusually detail-free photo; it does not upload, store, or
   inspect OCR text, and still requires a human check for focus and readable

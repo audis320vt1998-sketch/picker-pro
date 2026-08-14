@@ -73,6 +73,7 @@ export {
 export {
   canAppendCameraCaptureToBatch,
   cameraCaptureInspectionScrollBehavior,
+  getNextCameraCapturePreviewPageNumber,
   requiresCameraCaptureReplacementConfirmation,
   requiresSourceSelectionReplacementConfirmation,
 } from './camera-capture-flow'

@@ -59,3 +59,101 @@ jobs:
         if: ${{ always() && steps.install.outcome == 'success' }}
         timeout-minutes: 3
         run: npm audit --omit=dev --audit-level=high
+
+  staging-container:
+    name: Staging container
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Validate container definitions
+        run: |
+          docker compose -f compose.staging.yml config --quiet
+          docker build --check .
+
+      - name: Build staging image
+        run: docker compose -f compose.staging.yml build --pull
+
+      - name: Audit staging image
+        uses: docker/scout-action@7c6b6c3f7844478ace1ffd4e7aef649053d1f87d # v1.24.0
+        with:
+          command: cves
+          image: local://picker-pro:staging
+          only-severities: critical,high
+          only-fixed: true
+          exit-code: true
+          write-comment: false
+
+      - name: Start staging container
+        run: >-
+          docker compose -f compose.staging.yml up
+          --detach --no-build --wait --wait-timeout 300
+
+      - name: Verify staging runtime
+        run: |
+          curl --fail --silent --show-error http://127.0.0.1:3000/api/health | tee /tmp/picker-pro-health.json
+          jq --exit-status '.status == "degraded"' /tmp/picker-pro-health.json
+          docker compose -f compose.staging.yml exec -T app node <<'NODE'
+          const fs = require('node:fs')
+          const path = require('node:path')
+          const { Worker } = require('node:worker_threads')
+
+          async function verifyRuntime() {
+            if (typeof process.getuid !== 'function' || process.getuid() === 0) {
+              throw new Error('container must run as non-root')
+            }
+
+            const runtimeFiles = [
+              'tesseract.js',
+              'tesseract.js/src/worker-script/node/index.js',
+              'tesseract.js-core/tesseract-core-simd-lstm',
+              'tesseract.js-core/tesseract-core-simd-lstm.wasm',
+              'tesseract.js-core/tesseract-core-lstm.wasm',
+            ]
+            for (const id of runtimeFiles) {
+              console.log(require.resolve(id))
+            }
+
+            for (const target of [
+              '/app/.next/cache',
+              process.env.PICKER_PRO_OCR_CACHE,
+              '/tmp',
+            ]) {
+              const sentinel = path.join(target, `.picker-pro-ci-${process.pid}`)
+              fs.writeFileSync(sentinel, 'ok', { flag: 'wx' })
+              fs.rmSync(sentinel)
+            }
+
+            const worker = new Worker(
+              require.resolve('tesseract.js/src/worker-script/node/index.js')
+            )
+            await new Promise((resolve, reject) => {
+              const timer = setTimeout(resolve, 500)
+              worker.once('error', (error) => {
+                clearTimeout(timer)
+                reject(error)
+              })
+            })
+            await worker.terminate()
+          }
+
+          verifyRuntime().catch((error) => {
+            console.error(error)
+            process.exit(1)
+          })
+          NODE
+          docker compose -f compose.staging.yml exec -T app sh -c 'pdfinfo -v >/dev/null 2>&1 && pdftoppm -v >/dev/null 2>&1'
+
+      - name: Show staging logs on failure
+        if: ${{ failure() }}
+        run: docker compose -f compose.staging.yml logs --no-color
+
+      - name: Stop staging container
+        if: ${{ always() }}
+        run: docker compose -f compose.staging.yml down --volumes --remove-orphans

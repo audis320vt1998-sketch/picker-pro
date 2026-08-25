@@ -41,6 +41,45 @@ another port is required.
 
 No migration command exists or is required.
 
+## Container staging
+
+`Dockerfile` builds Next.js standalone output on Node 24, installs Poppler in
+the runtime image, removes build-only package-manager tooling, and runs as the
+image's non-root `node` user. Start the loopback-only staging service with:
+
+```bash
+docker compose -f compose.staging.yml up --build --detach --wait
+curl --fail http://127.0.0.1:3000/api/health
+```
+
+Stop it without deleting the named caches:
+
+```bash
+docker compose -f compose.staging.yml down
+```
+
+Set `PICKER_PRO_PORT` in the Compose environment to change the host port. The
+container root filesystem is read-only; separate writable mounts are provided
+for the Next runtime cache, the Tesseract language cache, and temporary PDF
+rendering. Use `docker compose -f compose.staging.yml down --volumes` only when
+the staging caches should be discarded.
+
+The initial staging limits are two CPUs, 2 GiB of memory, 256 processes, and a
+1 GiB temporary filesystem. Measure representative 20-page PDF and OCR loads
+before changing those limits; they are safety boundaries, not capacity claims.
+
+An empty OCR cache needs outbound HTTPS access on its first request so
+Tesseract can obtain the English and Hebrew language models. A restricted
+environment must provision compatible model files in the OCR cache before it
+serves requests. The container healthcheck validates HTTP liveness only; it
+does not initialize Tesseract or render a PDF.
+
+The `Quality / Staging container` CI job validates the Compose model, pulls a
+fresh Node 24 base, builds and scans the image for fixable high or critical
+vulnerabilities, starts it, checks `/api/health`, verifies the non-root and
+writable-path contract, resolves the packaged Tesseract worker and WASM file,
+and confirms both Poppler commands are present.
+
 ## Hosted platforms
 
 For a managed Next.js platform:

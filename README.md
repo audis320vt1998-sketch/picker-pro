@@ -182,6 +182,24 @@ dependencies for pull requests to `main`, pushes to `main`, and manual
 dispatches. Its production dependency audit is a blocking gate for high and
 critical findings.
 
+## Run the staging container
+
+The staging definition builds a minimal Next.js standalone image on Node 24,
+installs Poppler for PDF preflight, and runs the application as a non-root
+user. Docker Compose binds it to loopback only:
+
+```bash
+docker compose -f compose.staging.yml up --build --detach --wait
+curl --fail http://127.0.0.1:3000/api/health
+docker compose -f compose.staging.yml down
+```
+
+Set `PICKER_PRO_PORT` before the first command to change the host port. The
+named OCR cache volume survives container replacement; its first uncached OCR
+request needs outbound HTTPS access to download the English and Hebrew
+Tesseract models. `/api/health` is a process-liveness check, not proof that OCR
+or an upstream reverse proxy is operational.
+
 ## Active structure
 
 ```text

@@ -3,6 +3,10 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 interface TestedNextConfig {
+  headers: Array<{
+    source: string
+    headers: Array<{ key: string; value: string }>
+  }>
   output?: string
   outputFileTracingIncludes: Record<string, string[]>
   serverExternalPackages: string[]
@@ -25,7 +29,12 @@ function loadNextConfig(standalone: boolean): TestedNextConfig {
       process.execPath,
       [
         '-e',
-        "process.stdout.write(JSON.stringify(require('./next.config.js')))",
+        [
+          "const config = require('./next.config.js')",
+          'Promise.resolve(config.headers()).then((headers) =>',
+          '  process.stdout.write(JSON.stringify({ ...config, headers }))',
+          ')',
+        ].join('\n'),
       ],
       { cwd: process.cwd(), encoding: 'utf8', env }
     )
@@ -33,6 +42,28 @@ function loadNextConfig(standalone: boolean): TestedNextConfig {
 }
 
 describe('staging container contract', () => {
+  it('applies conservative security headers to every route', () => {
+    const config = loadNextConfig(false)
+
+    expect(config.headers).toEqual([
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(self), geolocation=(), microphone=()',
+          },
+        ],
+      },
+    ])
+  })
+
   it('builds a standalone server with the dynamic Tesseract runtime files', () => {
     const normalConfig = loadNextConfig(false)
     const standaloneConfig = loadNextConfig(true)

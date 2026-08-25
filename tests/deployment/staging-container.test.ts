@@ -47,9 +47,22 @@ describe('staging container contract', () => {
     ]) {
       expect(standaloneConfig.outputFileTracingIncludes[route]).toEqual(
         expect.arrayContaining([
+          'node_modules/bmp-js/**/*',
+          'node_modules/is-electron/**/*',
+          'node_modules/is-url/**/*',
+          'node_modules/node-fetch/**/*',
+          'node_modules/regenerator-runtime/**/*',
           'node_modules/tesseract.js/**/*',
-          'node_modules/tesseract.js-core/**/*',
+          'node_modules/tesseract.js-core/package.json',
+          'node_modules/tesseract.js-core/tesseract-core-{,simd-}lstm.{js,wasm}',
+          'node_modules/tr46/**/*',
+          'node_modules/wasm-feature-detect/**/*',
+          'node_modules/webidl-conversions/**/*',
+          'node_modules/whatwg-url/**/*',
         ])
+      )
+      expect(standaloneConfig.outputFileTracingIncludes[route]).not.toContain(
+        'node_modules/tesseract.js-core/**/*'
       )
     }
   })

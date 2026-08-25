@@ -2,17 +2,21 @@ import type { OcrPage, OcrWord } from '../../lib/document-intake'
 import {
   groupTargetedProductNameWords,
   hasEnoughTargetedRows,
+  hasTrustedShortTargetedRecovery,
   recoverTargetedMaayanRows,
   selectTargetedQuantityCenters,
   selectTargetedSkuCalibration,
   targetedBarcodeRectangle,
+  targetedPrintedRowRectangle,
   targetedProductNameRectangle,
   targetedQuantityRectangle,
+  targetedQuantityScoutRectangle,
   targetedSkuScanRectangle,
 } from '../../lib/document-intake/maayan-targeted-recovery'
 
 const page: Pick<OcrPage, 'width' | 'height'> = { width: 1000, height: 2000 }
 const rowYs = [500, 650, 800, 950]
+const shortRowYs = [600, 780, 960]
 
 function word(text: string, x: number, y: number, confidence = 90): OcrWord {
   return {
@@ -28,6 +32,27 @@ function skuWords(): OcrWord[] {
     // A plausible-looking numeric column outside the allowed calibration shift.
     word(`88${100 + index}`, 700, y),
   ])
+}
+
+function shortSkuWords(rowCount: 2 | 3): OcrWord[] {
+  return shortRowYs.slice(0, rowCount).map((y, index) =>
+    word(`93${100 + index}`, 850, y)
+  )
+}
+
+function completeShortTablePasses(rowCount: 2 | 3) {
+  const ys = shortRowYs.slice(0, rowCount)
+  return {
+    barcodeWordsByAnchor: ys.map((y, index) => [
+      word(`0729002053100${index + 1}`, 700, y),
+    ]),
+    printedRowWords: ys.map((y, index) => word(String(index + 1), 950, y)),
+    quantityWords: {
+      caseQuantity: ys.map((y) => word('2.00', 275, y)),
+      unitsPerCase: ys.map((y) => word('10.00', 205, y)),
+      totalUnits: ys.map((y) => word('20.00', 115, y)),
+    },
+  }
 }
 
 describe('Maayan targeted numeric recovery', () => {
@@ -67,8 +92,22 @@ describe('Maayan targeted numeric recovery', () => {
       caseQuantity: 285,
     })
     expect(targetedQuantityRectangle(page, calibration, centers!, 'totalUnits')).toEqual(
-      expect.objectContaining({ left: 80, width: 90 })
+      expect.objectContaining({ left: 80, top: 420, width: 90, height: 630 })
     )
+    expect(targetedPrintedRowRectangle(page, calibration)).toEqual(
+      expect.objectContaining({ top: 420, height: 630 })
+    )
+  })
+
+  it('keeps the established quantity-column evidence for four-row tables', () => {
+    const calibration = selectTargetedSkuCalibration(page, skuWords())!
+    const incompleteScout = rowYs.slice(0, 2).flatMap((y) => [
+      word('20.00', 115, y),
+      word('10.00', 205, y),
+      word('2.00', 275, y),
+    ])
+
+    expect(selectTargetedQuantityCenters(page, calibration, incompleteScout)).toBeNull()
   })
 
   it('scans only the calibrated product-name column and assigns each word to one SKU row', () => {
@@ -135,6 +174,289 @@ describe('Maayan targeted numeric recovery', () => {
     expect(rows[0]?.rawText).not.toContain('99.99')
     expect(rows[2]?.printedRowNumber).toBeNull()
     expect(hasEnoughTargetedRows(rows)).toBe(false)
+    expect(hasTrustedShortTargetedRecovery(calibration, {
+      barcodeWordsByAnchor: [
+        [word('07290020531001', 700, rowYs[0])],
+        [word('07290020531002', 700, rowYs[1])],
+        [
+          word('07290020531003', 700, rowYs[2]),
+          word('07290020531004', 710, rowYs[2]),
+        ],
+        [word('07290020531005', 700, rowYs[3])],
+      ],
+      printedRowWords: [word('1', 950, rowYs[0]), word('2', 950, rowYs[1])],
+      quantityWords,
+    }, rows)).toBe(false)
+  })
+
+  it('accepts a two-row table only when every anchor has a strict numeric lattice', () => {
+    const calibration = selectTargetedSkuCalibration(page, shortSkuWords(2))
+    const passes = completeShortTablePasses(2)
+    const rows = recoverTargetedMaayanRows(calibration!, passes)
+
+    expect(calibration?.anchors).toHaveLength(2)
+    expect(rows).toHaveLength(2)
+    expect(hasEnoughTargetedRows(rows)).toBe(false)
+    expect(hasTrustedShortTargetedRecovery(calibration!, passes, rows)).toBe(true)
+  })
+
+  it('accepts a three-row table only when every anchor has a strict numeric lattice', () => {
+    const calibration = selectTargetedSkuCalibration(page, shortSkuWords(3))
+    const passes = completeShortTablePasses(3)
+    const rows = recoverTargetedMaayanRows(calibration!, passes)
+
+    expect(calibration?.anchors).toHaveLength(3)
+    expect(rows).toHaveLength(3)
+    expect(hasTrustedShortTargetedRecovery(calibration!, passes, rows)).toBe(true)
+  })
+
+  it('scans the full expected numeric band when proving a short candidate', () => {
+    const calibration = selectTargetedSkuCalibration(page, shortSkuWords(2))!
+    const centers = {
+      caseQuantity: 285,
+      unitsPerCase: 215,
+      totalUnits: 125,
+    }
+
+    expect(targetedPrintedRowRectangle(page, calibration)).toEqual(
+      expect.objectContaining({ top: 360, height: 1140 })
+    )
+    expect(targetedQuantityScoutRectangle(page, calibration)).toEqual(
+      expect.objectContaining({ top: 360, height: 1140 })
+    )
+    expect(
+      targetedQuantityRectangle(page, calibration, centers, 'totalUnits')
+    ).toEqual(expect.objectContaining({ top: 360, height: 1140 }))
+  })
+
+  it('does not provisionally calibrate two SKU-like values that are too close together', () => {
+    expect(
+      selectTargetedSkuCalibration(page, [
+        word('93100', 850, 600),
+        word('93101', 850, 630),
+      ])
+    ).toBeNull()
+  })
+
+  it('does not provisionally calibrate short SKU rows with an implausibly large gap', () => {
+    expect(
+      selectTargetedSkuCalibration(page, [
+        word('93100', 850, 400),
+        word('93101', 850, 1400),
+      ])
+    ).toBeNull()
+  })
+
+  it.each([
+    ['uneven', [600, 700, 880]],
+    ['uniformly oversized', [400, 700, 1000]],
+  ] as const)('rejects a three-row short lattice with %s gaps', (_label, ys) => {
+    expect(
+      selectTargetedSkuCalibration(
+        page,
+        ys.map((y, index) => word(`9310${index}`, 850, y))
+      )
+    ).toBeNull()
+  })
+
+  it('rejects a short candidate when another SKU was detected on the same row', () => {
+    const calibration = selectTargetedSkuCalibration(page, [
+      ...shortSkuWords(2),
+      word('93999', 870, shortRowYs[0], 85),
+    ])!
+    const passes = completeShortTablePasses(2)
+    const rows = recoverTargetedMaayanRows(calibration, passes)
+
+    expect(calibration.anchors).toHaveLength(2)
+    expect(calibration.detectedSkuCandidateCount).toBe(3)
+    expect(rows).toHaveLength(2)
+    expect(hasTrustedShortTargetedRecovery(calibration, passes, rows)).toBe(false)
+  })
+
+  it.each([
+    ['printed row', 'printedRow'],
+    ['case quantity', 'caseQuantity'],
+    ['units per case', 'unitsPerCase'],
+    ['total units', 'totalUnits'],
+  ] as const)(
+    'rejects a short subset when another %s candidate was detected',
+    (_label, evidence) => {
+      const calibration = selectTargetedSkuCalibration(page, shortSkuWords(2))!
+      const passes = completeShortTablePasses(2)
+      const extraRowY = 1100
+      if (evidence === 'printedRow') {
+        passes.printedRowWords.push(word('3', 950, extraRowY))
+      } else {
+        const value = evidence === 'caseQuantity'
+          ? '2.00'
+          : evidence === 'unitsPerCase'
+            ? '10.00'
+            : '20.00'
+        const x = evidence === 'caseQuantity'
+          ? 275
+          : evidence === 'unitsPerCase'
+            ? 205
+            : 115
+        passes.quantityWords[evidence].push(word(value, x, extraRowY))
+      }
+      const rows = recoverTargetedMaayanRows(calibration, passes)
+
+      expect(rows).toHaveLength(2)
+      expect(hasTrustedShortTargetedRecovery(calibration, passes, rows)).toBe(false)
+    }
+  )
+
+  it('rejects a short table when a source quantity is inconsistent', () => {
+    const calibration = selectTargetedSkuCalibration(page, shortSkuWords(2))!
+    const passes = completeShortTablePasses(2)
+    passes.quantityWords.totalUnits[1] = word('19.00', 115, shortRowYs[1])
+    const rows = recoverTargetedMaayanRows(calibration, passes)
+
+    expect(rows).toHaveLength(2)
+    expect(hasTrustedShortTargetedRecovery(calibration, passes, rows)).toBe(false)
+  })
+
+  it('rejects a short candidate when quantity columns are reversed', () => {
+    const calibration = selectTargetedSkuCalibration(page, shortSkuWords(2))!
+    const passes = completeShortTablePasses(2)
+    passes.quantityWords.unitsPerCase[0] = word('10.00', 115, shortRowYs[0])
+    passes.quantityWords.totalUnits[0] = word('20.00', 205, shortRowYs[0])
+    const rows = recoverTargetedMaayanRows(calibration, passes)
+
+    expect(rows).toHaveLength(2)
+    expect(hasTrustedShortTargetedRecovery(calibration, passes, rows)).toBe(false)
+  })
+
+  it('rejects rounded quantities outside the safe-integer range', () => {
+    const calibration = selectTargetedSkuCalibration(page, shortSkuWords(2))!
+    const passes = completeShortTablePasses(2)
+    passes.quantityWords.caseQuantity[0] = word(
+      '9007199254740993',
+      275,
+      shortRowYs[0]
+    )
+    passes.quantityWords.unitsPerCase[0] = word('1', 205, shortRowYs[0])
+    passes.quantityWords.totalUnits[0] = word(
+      '9007199254740992',
+      115,
+      shortRowYs[0]
+    )
+    const rows = recoverTargetedMaayanRows(calibration, passes)
+
+    expect(rows).toHaveLength(2)
+    expect(hasTrustedShortTargetedRecovery(calibration, passes, rows)).toBe(false)
+  })
+
+  it('rejects a short table when a printed row is missing or a barcode is ambiguous', () => {
+    const calibration = selectTargetedSkuCalibration(page, shortSkuWords(2))!
+    const missingPrintedRowPasses = completeShortTablePasses(2)
+    missingPrintedRowPasses.printedRowWords = [
+      word('1', 950, shortRowYs[0]),
+    ]
+    const missingPrintedRowRows = recoverTargetedMaayanRows(
+      calibration,
+      missingPrintedRowPasses
+    )
+
+    expect(missingPrintedRowRows).toHaveLength(2)
+    expect(
+      hasTrustedShortTargetedRecovery(
+        calibration,
+        missingPrintedRowPasses,
+        missingPrintedRowRows
+      )
+    ).toBe(false)
+
+    const ambiguousBarcodePasses = completeShortTablePasses(2)
+    ambiguousBarcodePasses.barcodeWordsByAnchor[1].push(
+      word('0729002053199', 710, shortRowYs[1])
+    )
+    const ambiguousBarcodeRows = recoverTargetedMaayanRows(
+      calibration,
+      ambiguousBarcodePasses
+    )
+
+    expect(ambiguousBarcodeRows).toHaveLength(1)
+    expect(
+      hasTrustedShortTargetedRecovery(
+        calibration,
+        ambiguousBarcodePasses,
+        ambiguousBarcodeRows
+      )
+    ).toBe(false)
+  })
+
+  it('rejects a short candidate with nonconsecutive printed row numbers', () => {
+    const calibration = selectTargetedSkuCalibration(page, shortSkuWords(2))!
+    const passes = completeShortTablePasses(2)
+    passes.printedRowWords[1] = word('3', 950, shortRowYs[1])
+    const rows = recoverTargetedMaayanRows(calibration, passes)
+
+    expect(rows).toHaveLength(2)
+    expect(hasTrustedShortTargetedRecovery(calibration, passes, rows)).toBe(false)
+  })
+
+  it('rejects consecutive printed row numbers that do not start at one', () => {
+    const calibration = selectTargetedSkuCalibration(page, shortSkuWords(2))!
+    const passes = completeShortTablePasses(2)
+    passes.printedRowWords = [
+      word('2', 950, shortRowYs[0]),
+      word('3', 950, shortRowYs[1]),
+    ]
+    const rows = recoverTargetedMaayanRows(calibration, passes)
+
+    expect(rows).toHaveLength(2)
+    expect(hasTrustedShortTargetedRecovery(calibration, passes, rows)).toBe(false)
+  })
+
+  it('rejects consecutive printed row numbers outside the parser range', () => {
+    const calibration = selectTargetedSkuCalibration(page, shortSkuWords(2))!
+    const passes = completeShortTablePasses(2)
+    passes.printedRowWords = [
+      word('0', 950, shortRowYs[0]),
+      word('1', 950, shortRowYs[1]),
+    ]
+    const rows = recoverTargetedMaayanRows(calibration, passes)
+
+    expect(rows).toHaveLength(2)
+    expect(hasTrustedShortTargetedRecovery(calibration, passes, rows)).toBe(false)
+  })
+
+  it('rejects a short candidate with low-confidence or neighbouring-row barcode evidence', () => {
+    const calibration = selectTargetedSkuCalibration(page, shortSkuWords(2))!
+    const lowConfidencePasses = completeShortTablePasses(2)
+    lowConfidencePasses.barcodeWordsByAnchor[0][0] = word(
+      '07290020531001',
+      700,
+      shortRowYs[0],
+      79
+    )
+    const lowConfidenceRows = recoverTargetedMaayanRows(calibration, lowConfidencePasses)
+
+    expect(lowConfidenceRows).toHaveLength(2)
+    expect(
+      hasTrustedShortTargetedRecovery(calibration, lowConfidencePasses, lowConfidenceRows)
+    ).toBe(false)
+
+    const neighbouringBarcodePasses = completeShortTablePasses(2)
+    neighbouringBarcodePasses.barcodeWordsByAnchor[1][0] = word(
+      '07290020531002',
+      700,
+      shortRowYs[0]
+    )
+    const neighbouringBarcodeRows = recoverTargetedMaayanRows(
+      calibration,
+      neighbouringBarcodePasses
+    )
+
+    expect(neighbouringBarcodeRows).toHaveLength(2)
+    expect(
+      hasTrustedShortTargetedRecovery(
+        calibration,
+        neighbouringBarcodePasses,
+        neighbouringBarcodeRows
+      )
+    ).toBe(false)
   })
 
   it('keeps targeted confidence by field and flags a low-confidence identifier', () => {

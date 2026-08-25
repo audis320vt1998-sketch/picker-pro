@@ -35,13 +35,20 @@ turn them into operational case/unit totals or split a value by pack size.
   review reason and no number. It never returns raw header/customer text or
   maps the code to a city. A group can appear only later as a separate review
   result after explicit page confirmation and manual row evaluation.
-- When the normal full-page OCR cannot establish the table, the runtime first
-  scans a narrow numeric SKU area. It requires at least four vertically
-  aligned SKU candidates near the expected column, then accepts only an
-  unambiguous barcode and all three source quantities on each matching row.
+- Before general full-page OCR, the runtime may first scan a narrow numeric SKU
+  area. The normal targeted path requires at least four
+  vertically aligned SKU candidates near the expected column. A two- or
+  three-row candidate is provisional: its printed-row and quantity scans cover
+  the full expected table band and must contain exactly one candidate per
+  anchor, with no competing SKU candidate. Every anchor must have one
+  high-confidence same-row barcode, row numbers must be exactly `1..N`, and
+  positive safe-integer quantities must satisfy cases times units-per-case
+  equals total units. Extra, missing, duplicated, misaligned, out-of-range, or
+  inconsistent numeric evidence falls back to general full-page OCR.
 - This numeric recovery uses an in-memory, English/digits-only OCR worker and
   never returns its full scan text. It may leave a product name or printed
-  source-row number empty; those fields must be checked manually.
+  source-row number empty; those fields must be checked manually. The strict
+  short-table path instead requires every printed source-row number.
 - A numeric recovery row is discarded if a barcode or quantity is missing or
   ambiguous. It never joins fragments, repairs digits, converts quantities, or
   creates a total.

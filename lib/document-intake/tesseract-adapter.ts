@@ -11,6 +11,7 @@ import {
 import {
   groupTargetedProductNameWords,
   hasEnoughTargetedRows,
+  hasTrustedShortTargetedRecovery,
   recoverTargetedMaayanRows,
   selectTargetedQuantityCenters,
   selectTargetedSkuCalibration,
@@ -286,7 +287,7 @@ async function tryTargetedMaayanRecovery(
     }
   }
 
-  const recoveredRows = recoverTargetedMaayanRows(calibration, {
+  const passes = {
     barcodeWordsByAnchor,
     productNameWordsByAnchor: groupTargetedProductNameWords(
       calibration,
@@ -294,8 +295,10 @@ async function tryTargetedMaayanRecovery(
     ),
     printedRowWords,
     quantityWords,
-  })
-  return hasEnoughTargetedRows(recoveredRows)
+  }
+  const recoveredRows = recoverTargetedMaayanRows(calibration, passes)
+  return hasEnoughTargetedRows(recoveredRows) ||
+    hasTrustedShortTargetedRecovery(calibration, passes, recoveredRows)
     ? { rows: recoveredRows, routeDraft }
     : null
 }

@@ -10,6 +10,10 @@ Picker Pro uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Conservative targeted OCR recovery for fully corroborated two- and
+  three-row Maayan table candidates. It scans the full expected numeric band
+  and falls back to full-page OCR for extra, missing, duplicated, misaligned,
+  low-confidence, out-of-range, or internally inconsistent numeric evidence.
 - An online-only installable mobile shell with a web app manifest, generated
   192px/512px PNG icons, Apple home-screen metadata, and browser-specific
   installation guidance. It does not add service-worker caching, offline OCR,

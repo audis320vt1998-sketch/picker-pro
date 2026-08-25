@@ -16,6 +16,7 @@ export interface OcrRectangle {
 
 export interface TargetedSkuCalibration {
   anchors: readonly OcrWord[]
+  detectedSkuCandidateCount: number
   skuCenterX: number
   rowPitch: number
   bodyBounds: BoundingBox
@@ -40,7 +41,14 @@ export interface TargetedRecoveryPasses {
 
 const EXPECTED_SKU_CENTER = 0.86
 const MAX_SKU_CENTER_SHIFT = 0.065
-const MIN_ANCHORS = 4
+const MIN_STANDARD_ANCHORS = 4
+const MIN_SHORT_TABLE_ANCHORS = 2
+const MAX_SHORT_TABLE_ANCHORS = MIN_STANDARD_ANCHORS - 1
+const MIN_SHORT_TABLE_FIELD_CONFIDENCE = 80
+const MIN_SHORT_TABLE_VERTICAL_SPAN_RATIO = 0.025
+const MAX_SHORT_TABLE_ROW_PITCH_RATIO = 0.12
+const MAX_SHORT_TABLE_ROW_GAP_RATIO = 1.6
+const STRICT_SHORT_TABLE_ROW_ALIGNMENT_RATIO = 0.22
 const SKU_SCAN_BOUNDS = {
   xMin: 0.7,
   xMax: 0.96,
@@ -165,6 +173,37 @@ function rowPitch(words: readonly OcrWord[], pageHeight: number): number {
   return Math.max(median(pitches), pageHeight * 0.012)
 }
 
+function hasPlausibleShortSkuLattice(
+  anchors: readonly OcrWord[],
+  verticalSpan: number,
+  pageHeight: number
+): boolean {
+  if (anchors.length < MIN_SHORT_TABLE_ANCHORS || verticalSpan < pageHeight * MIN_SHORT_TABLE_VERTICAL_SPAN_RATIO) {
+    return false
+  }
+
+  const gaps = anchors
+    .slice(1)
+    .map((anchor, index) => centerY(anchor) - centerY(anchors[index]))
+  if (
+    gaps.some(
+      (gap) =>
+        gap < pageHeight * 0.012 ||
+        gap > pageHeight * MAX_SHORT_TABLE_ROW_PITCH_RATIO
+    )
+  ) {
+    return false
+  }
+
+  if (gaps.length < 2) {
+    return true
+  }
+
+  const smallestGap = Math.min(...gaps)
+  const largestGap = Math.max(...gaps)
+  return smallestGap > 0 && largestGap / smallestGap <= MAX_SHORT_TABLE_ROW_GAP_RATIO
+}
+
 function unionBounds(words: readonly OcrWord[]): BoundingBox {
   return {
     x0: Math.min(...words.map((word) => word.boundingBox.x0)),
@@ -201,9 +240,12 @@ function quantityValue(word: OcrWord): number | null {
 
 /**
  * The first numeric pass scans a broad but table-shaped SKU area. A column is
- * accepted only when at least four plausible SKU values form a vertically
- * aligned group near the expected column. This excludes isolated header and
- * customer numbers from calibration.
+ * accepted only when a vertically aligned group appears near the expected
+ * column. Four or more anchors use the established fast path. A two- or
+ * three-anchor candidate is only a provisional calibration: it must later
+ * pass the stricter cross-column checks in hasTrustedShortTargetedRecovery
+ * before it can replace full-page OCR. This keeps isolated header and
+ * customer numbers from becoming a recovered table.
  */
 export function targetedSkuScanRectangle(
   page: Pick<OcrPage, 'width' | 'height'>
@@ -246,9 +288,15 @@ export function selectTargetedSkuCalibration(
     })
     .filter(
       (candidate) =>
-        candidate.anchors.length >= MIN_ANCHORS &&
+        candidate.anchors.length >= MIN_SHORT_TABLE_ANCHORS &&
         Math.abs(candidate.normalizedShift) <= MAX_SKU_CENTER_SHIFT &&
-        candidate.verticalSpan >= page.height * 0.05
+        (candidate.anchors.length >= MIN_STANDARD_ANCHORS
+          ? candidate.verticalSpan >= page.height * 0.05
+          : hasPlausibleShortSkuLattice(
+              candidate.anchors,
+              candidate.verticalSpan,
+              page.height
+            ))
     )
     .sort(
       (left, right) =>
@@ -265,6 +313,7 @@ export function selectTargetedSkuCalibration(
   const yPadding = best.pitch * 0.6
   return {
     anchors: best.anchors,
+    detectedSkuCandidateCount: words.filter(isSku).length,
     skuCenterX: best.center,
     rowPitch: best.pitch,
     bodyBounds: {
@@ -278,6 +327,21 @@ export function selectTargetedSkuCalibration(
       ),
     },
   }
+}
+
+function targetedNumericVerticalBounds(
+  page: Pick<OcrPage, 'height'>,
+  calibration: TargetedSkuCalibration
+): { yMin: number; yMax: number } {
+  return calibration.anchors.length <= MAX_SHORT_TABLE_ANCHORS
+    ? {
+        yMin: page.height * SKU_SCAN_BOUNDS.yMin,
+        yMax: page.height * SKU_SCAN_BOUNDS.yMax,
+      }
+    : {
+        yMin: calibration.bodyBounds.y0,
+        yMax: calibration.bodyBounds.y1,
+      }
 }
 
 /**
@@ -307,12 +371,13 @@ export function targetedPrintedRowRectangle(
 ): OcrRectangle {
   const center = calibration.skuCenterX + page.width * 0.1
   const halfWidth = page.width * 0.05
+  const verticalBounds = targetedNumericVerticalBounds(page, calibration)
   return rectangle(
     page,
     center - halfWidth,
     center + halfWidth,
-    calibration.bodyBounds.y0,
-    calibration.bodyBounds.y1
+    verticalBounds.yMin,
+    verticalBounds.yMax
   )
 }
 
@@ -320,12 +385,13 @@ export function targetedQuantityScoutRectangle(
   page: Pick<OcrPage, 'width' | 'height'>,
   calibration: TargetedSkuCalibration
 ): OcrRectangle {
+  const verticalBounds = targetedNumericVerticalBounds(page, calibration)
   return rectangle(
     page,
     page.width * QUANTITY_SCAN_BOUNDS.xMin,
     page.width * QUANTITY_SCAN_BOUNDS.xMax,
-    calibration.bodyBounds.y0,
-    calibration.bodyBounds.y1
+    verticalBounds.yMin,
+    verticalBounds.yMax
   )
 }
 
@@ -361,7 +427,7 @@ export function selectTargetedQuantityCenters(
   words: readonly OcrWord[]
 ): TargetedQuantityCenters | null {
   const minimumRows = Math.min(
-    MIN_ANCHORS,
+    MIN_STANDARD_ANCHORS,
     Math.max(2, Math.ceil(calibration.anchors.length * 0.6))
   )
   const clusters = clusterByX(
@@ -417,12 +483,13 @@ export function targetedQuantityRectangle(
   field: keyof MaayanRawQuantities
 ): OcrRectangle {
   const halfWidth = (page.width * QUANTITY_CROP_WIDTH[field]) / 2
+  const verticalBounds = targetedNumericVerticalBounds(page, calibration)
   return rectangle(
     page,
     centers[field] - halfWidth,
     centers[field] + halfWidth,
-    calibration.bodyBounds.y0,
-    calibration.bodyBounds.y1
+    verticalBounds.yMin,
+    verticalBounds.yMax
   )
 }
 
@@ -713,6 +780,265 @@ export function recoverTargetedMaayanRows(
   })
 }
 
+interface StrictShortTargetedRowEvidence {
+  barcode: OcrWord
+  printedRow: OcrWord
+  quantities: Record<
+    keyof MaayanRawQuantities,
+    { word: OcrWord; value: number }
+  >
+}
+
+function isStrictlyAlignedWithAnchor(
+  word: OcrWord,
+  anchor: OcrWord,
+  rowPitchValue: number
+): boolean {
+  return (
+    Math.abs(centerY(word) - centerY(anchor)) <=
+    Math.max(rowPitchValue * STRICT_SHORT_TABLE_ROW_ALIGNMENT_RATIO, 12)
+  )
+}
+
+function oneStrictShortBarcode(
+  words: readonly OcrWord[],
+  anchor: OcrWord,
+  rowPitchValue: number
+): OcrWord | null {
+  const candidates = words.filter(isBarcode)
+  if (candidates.length !== 1) {
+    return null
+  }
+
+  const barcode = candidates[0]
+  return barcode.confidence >= MIN_SHORT_TABLE_FIELD_CONFIDENCE &&
+    isStrictlyAlignedWithAnchor(barcode, anchor, rowPitchValue)
+    ? barcode
+    : null
+}
+
+function oneStrictShortPrintedRow(
+  words: readonly OcrWord[],
+  anchor: OcrWord,
+  rowPitchValue: number
+): OcrWord | null {
+  const candidates = words.filter(
+    (word) => isPrintedRow(word) && isStrictlyAlignedWithAnchor(word, anchor, rowPitchValue)
+  )
+  if (candidates.length !== 1) {
+    return null
+  }
+
+  return candidates[0].confidence >= MIN_SHORT_TABLE_FIELD_CONFIDENCE
+    ? candidates[0]
+    : null
+}
+
+function oneStrictShortQuantity(
+  words: readonly OcrWord[],
+  anchor: OcrWord,
+  rowPitchValue: number
+): { word: OcrWord; value: number } | null {
+  const candidates = words
+    .filter((word) => isStrictlyAlignedWithAnchor(word, anchor, rowPitchValue))
+    .map((word) => ({ word, value: quantityValue(word) }))
+    .filter(
+      (candidate): candidate is { word: OcrWord; value: number } =>
+        candidate.value !== null
+    )
+  if (candidates.length !== 1) {
+    return null
+  }
+
+  const quantity = candidates[0]
+  return quantity.word.confidence >= MIN_SHORT_TABLE_FIELD_CONFIDENCE &&
+    Number.isSafeInteger(quantity.value) &&
+    quantity.value > 0
+    ? quantity
+    : null
+}
+
+function strictShortTargetedEvidence(
+  calibration: TargetedSkuCalibration,
+  passes: TargetedRecoveryPasses,
+  anchor: OcrWord,
+  anchorIndex: number
+): StrictShortTargetedRowEvidence | null {
+  if (anchor.confidence < MIN_SHORT_TABLE_FIELD_CONFIDENCE) {
+    return null
+  }
+
+  const barcode = oneStrictShortBarcode(
+    passes.barcodeWordsByAnchor[anchorIndex] ?? [],
+    anchor,
+    calibration.rowPitch
+  )
+  const printedRow = oneStrictShortPrintedRow(
+    passes.printedRowWords,
+    anchor,
+    calibration.rowPitch
+  )
+  const quantities = {
+    caseQuantity: oneStrictShortQuantity(
+      passes.quantityWords.caseQuantity,
+      anchor,
+      calibration.rowPitch
+    ),
+    unitsPerCase: oneStrictShortQuantity(
+      passes.quantityWords.unitsPerCase,
+      anchor,
+      calibration.rowPitch
+    ),
+    totalUnits: oneStrictShortQuantity(
+      passes.quantityWords.totalUnits,
+      anchor,
+      calibration.rowPitch
+    ),
+  }
+  if (
+    !barcode ||
+    !printedRow ||
+    !quantities.caseQuantity ||
+    !quantities.unitsPerCase ||
+    !quantities.totalUnits
+  ) {
+    return null
+  }
+
+  const calculatedTotal =
+    quantities.caseQuantity.value * quantities.unitsPerCase.value
+  if (
+    !Number.isSafeInteger(calculatedTotal) ||
+    calculatedTotal !== quantities.totalUnits.value
+  ) {
+    return null
+  }
+
+  return {
+    barcode,
+    printedRow,
+    quantities: {
+      caseQuantity: quantities.caseQuantity,
+      unitsPerCase: quantities.unitsPerCase,
+      totalUnits: quantities.totalUnits,
+    },
+  }
+}
+
+function hasExactShortNumericEvidence(
+  calibration: TargetedSkuCalibration,
+  passes: TargetedRecoveryPasses
+): boolean {
+  const expectedRows = calibration.anchors.length
+  return (
+    calibration.detectedSkuCandidateCount === expectedRows &&
+    passes.printedRowWords.filter(isPrintedRow).length === expectedRows &&
+    (['caseQuantity', 'unitsPerCase', 'totalUnits'] as const).every(
+      (field) => passes.quantityWords[field].filter(isQuantity).length === expectedRows
+    )
+  )
+}
+
+function hasStrictShortColumnTopology(
+  calibration: TargetedSkuCalibration,
+  evidence: StrictShortTargetedRowEvidence
+): boolean {
+  const pageWidth = calibration.bodyBounds.x1 - calibration.bodyBounds.x0
+  if (!Number.isFinite(pageWidth) || pageWidth <= 0) {
+    return false
+  }
+
+  const skuCenter = calibration.skuCenterX / pageWidth
+  const isNearColumn = (word: OcrWord, expectedCenter: number, tolerance: number) =>
+    Math.abs(centerX(word) / pageWidth - expectedCenter) <= tolerance
+  const quantityCenters = evidence.quantities
+
+  return (
+    isNearColumn(evidence.barcode, skuCenter - 0.14, 0.095) &&
+    isNearColumn(evidence.printedRow, skuCenter + 0.1, 0.055) &&
+    (['caseQuantity', 'unitsPerCase', 'totalUnits'] as const).every((field) =>
+      isNearColumn(
+        quantityCenters[field].word,
+        skuCenter + QUANTITY_OFFSETS_FROM_SKU[field],
+        0.065
+      )
+    ) &&
+    centerX(quantityCenters.totalUnits.word) <
+      centerX(quantityCenters.unitsPerCase.word) &&
+    centerX(quantityCenters.unitsPerCase.word) <
+      centerX(quantityCenters.caseQuantity.word)
+  )
+}
+
+/**
+ * A short table has too few SKU anchors to establish the usual repeated-row
+ * confidence. It may use targeted OCR only when every 2–3 row anchor is
+ * independently corroborated by unambiguous, high-confidence identifiers,
+ * printed row number, and complete quantity lattice. The short-path numeric
+ * crops cover the full expected table band, and any additional detected SKU,
+ * row number, or quantity candidate rejects the shortcut. Any uncertainty
+ * returns false so the caller falls back to full-page OCR instead of guessing.
+ */
+export function hasTrustedShortTargetedRecovery(
+  calibration: TargetedSkuCalibration,
+  passes: TargetedRecoveryPasses,
+  rows: readonly MaayanParsedRow[]
+): boolean {
+  const { anchors } = calibration
+  if (
+    anchors.length < MIN_SHORT_TABLE_ANCHORS ||
+    anchors.length > MAX_SHORT_TABLE_ANCHORS ||
+    rows.length !== anchors.length ||
+    !hasExactShortNumericEvidence(calibration, passes)
+  ) {
+    return false
+  }
+
+  const evidence = anchors.map((anchor, index) =>
+    strictShortTargetedEvidence(calibration, passes, anchor, index)
+  )
+  const verifiedEvidence = evidence.filter(
+    (row): row is StrictShortTargetedRowEvidence => row !== null
+  )
+  if (verifiedEvidence.length !== anchors.length) {
+    return false
+  }
+
+  const printedRowNumbers = verifiedEvidence.map((row) => Number(token(row.printedRow)))
+  if (
+    printedRowNumbers[0] !== 1 ||
+    printedRowNumbers.some(
+      (printedRowNumber, index) =>
+        !Number.isInteger(printedRowNumber) ||
+        printedRowNumber < 1 ||
+        printedRowNumber > 999 ||
+        (index > 0 && printedRowNumber !== printedRowNumbers[index - 1] + 1)
+    )
+  ) {
+    return false
+  }
+
+  const skus = anchors.map(token)
+  const barcodes = verifiedEvidence.map((row) => token(row.barcode))
+  if (new Set(skus).size !== skus.length || new Set(barcodes).size !== barcodes.length) {
+    return false
+  }
+
+  return verifiedEvidence.every((rowEvidence, index) => {
+    const recovered = rows[index]
+    const anchor = anchors[index]
+    return (
+      hasStrictShortColumnTopology(calibration, rowEvidence) &&
+      recovered.sku === token(anchor) &&
+      recovered.barcode === token(rowEvidence.barcode) &&
+      recovered.printedRowNumber === printedRowNumbers[index] &&
+      recovered.rawQuantities.caseQuantity === rowEvidence.quantities.caseQuantity.value &&
+      recovered.rawQuantities.unitsPerCase === rowEvidence.quantities.unitsPerCase.value &&
+      recovered.rawQuantities.totalUnits === rowEvidence.quantities.totalUnits.value
+    )
+  })
+}
+
 export function hasEnoughTargetedRows(rows: readonly MaayanParsedRow[]): boolean {
-  return rows.length >= MIN_ANCHORS
+  return rows.length >= MIN_STANDARD_ANCHORS
 }

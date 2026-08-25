@@ -258,9 +258,17 @@ cannot be submitted again.
   field becomes a non-persistent review issue with fixed UI guidance; it does
   not accept, reject, convert, or automatically transfer a quantity.
 - On a high-resolution Maayan close-up, it may first use a numeric calibration
-  pass. That pass requires at least four vertically aligned SKU candidates,
-  one unambiguous barcode per accepted row, and all three source quantity
-  values. It omits a row instead of guessing any missing value. After that
+  pass. The normal path requires at least four vertically aligned SKU
+  candidates, one unambiguous barcode per accepted row, and all three source
+  quantity values. A two- or three-row candidate is provisional: its numeric
+  checks span the full expected table band and require exactly the same number
+  of detected SKU, printed-row, and per-quantity candidates, with no competing
+  SKU evidence. Every anchored row must have one high-confidence, same-row
+  barcode, printed rows must be exactly `1..N`, and the three positive safe
+  integer quantities must satisfy cases times units-per-case equals total
+  units. Any extra, incomplete, ambiguous, misaligned, out-of-range, or
+  inconsistent numeric evidence falls back to full-page OCR. The targeted
+  pass omits a row instead of guessing any missing value. After that
   calibration, it may scan only the bounded product-name column and assigns a
   returned name to just one nearby SKU row; no returned text, or a
   boundary-ambiguous word, remains blank with a review issue.

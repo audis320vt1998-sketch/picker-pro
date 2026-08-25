@@ -93,11 +93,11 @@ describe('staging container contract', () => {
     const workflow = repositoryFile('.github/workflows/quality.yml')
 
     expect(workflow).toContain(
-      'docker/scout-action@7c6b6c3f7844478ace1ffd4e7aef649053d1f87d'
+      'aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25'
     )
-    expect(workflow).toContain('only-severities: critical,high')
-    expect(workflow).toContain('only-fixed: true')
-    expect(workflow).toContain('exit-code: true')
+    expect(workflow).toContain('ignore-unfixed: true')
+    expect(workflow).toContain('severity: CRITICAL,HIGH')
+    expect(workflow).toContain('exit-code: "1"')
   })
 
   it('excludes local dependencies, outputs, secrets, caches, and archives', () => {

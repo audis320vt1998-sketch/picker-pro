@@ -45,6 +45,8 @@ Picker Pro uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Security
 - Replaced the vulnerable Next.js 14/PostCSS dependency line and made the
   production `npm audit` check block high and critical findings in CI.
+- Pinned every external GitHub Action to a reviewed full commit SHA and added
+  a regression test that rejects floating action tags in workflow files.
 
 ---
 

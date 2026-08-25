@@ -51,6 +51,7 @@ RUN apt-get update \
 
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+COPY --from=builder --chown=node:node /app/scripts/staging-runtime-canary.cjs ./scripts/staging-runtime-canary.cjs
 
 USER node
 

@@ -78,7 +78,9 @@ The `Quality / Staging container` CI job validates the Compose model, pulls a
 fresh Node 24 base, builds and scans the image for fixable high or critical
 vulnerabilities, starts it, checks `/api/health`, verifies the non-root and
 writable-path contract, resolves the packaged Tesseract worker and WASM file,
-and confirms both Poppler commands are present.
+then sends a generated, non-customer PDF through Poppler and a real `eng+heb`
+Tesseract recognition. The fixed canary asserts only synthetic digits; it does
+not establish production OCR accuracy.
 
 ## Hosted platforms
 

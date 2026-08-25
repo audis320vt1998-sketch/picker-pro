@@ -148,7 +148,7 @@ jobs:
             process.exit(1)
           })
           NODE
-          docker compose -f compose.staging.yml exec -T app sh -c 'pdfinfo -v >/dev/null 2>&1 && pdftoppm -v >/dev/null 2>&1'
+          docker compose -f compose.staging.yml exec -T app sh -c 'timeout --kill-after=10s 180s node /app/scripts/staging-runtime-canary.cjs'
 
       - name: Show staging logs on failure
         if: ${{ failure() }}

@@ -69,9 +69,9 @@ On a supported mobile browser, the same screen offers a camera-first,
 direct-camera chooser. After a camera capture, the screen moves to the local
 inspection step and opens its local preview automatically; an appended page
 opens its own inspection card and preview. After checking a sharp, straight,
-shadow-free table photo locally, the reviewer may press
-**Save page and continue capturing** to append another photo to the browser-only
-camera queue, up to 20 pages. Each
+shadow-free table photo locally, the reviewer may press the contextual
+**The photo is clear? Continue capturing page N** action to append another
+photo to the browser-only camera queue, up to 20 pages. Each
 appended page receives a fresh opaque source reference; it does not replace a
 prior page and none of the queued photos is uploaded until the reviewer
 explicitly starts OCR. Each queued camera page can be opened for local metadata

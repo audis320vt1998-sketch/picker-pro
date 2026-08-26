@@ -265,6 +265,13 @@ interface SourceImageReplacementProps {
   pageNumber: number
 }
 
+interface CameraCaptureContinuationProps {
+  currentPageNumber: number
+  disabled: boolean
+  nextPageNumber: number
+  onSelect: (event: ChangeEvent<HTMLInputElement>) => void
+}
+
 type PreflightActivity =
   | { kind: 'batch'; current: number; total: number }
   | { kind: 'pdf' }
@@ -711,6 +718,36 @@ function SourceImageReplacement({
       <p className="document-preflight__camera-note" id={cameraNoteId}>
         צילום חלופי מחליף רק את העמוד הזה ושומר את מזהה המקור שלו. הדפדפן יכול
         לפתוח מצלמה או בורר קבצים; התמונה אינה נשלחת עד להפעלה מפורשת של OCR.
+      </p>
+    </div>
+  )
+}
+
+function CameraCaptureContinuation({
+  currentPageNumber,
+  disabled,
+  nextPageNumber,
+  onSelect,
+}: CameraCaptureContinuationProps) {
+  const continuationNoteId = `document-preflight-camera-continuation-${currentPageNumber}`
+
+  return (
+    <div className="document-preflight__camera-continuation">
+      <label className="document-preflight__camera-button document-preflight__camera-button--continue">
+        <span>הצילום ברור? המשך לצלם עמוד {nextPageNumber}</span>
+        <input
+          accept={PREFLIGHT_FILE_INPUT_ACCEPT}
+          aria-describedby={`${CAMERA_CAPTURE_NOTE_ID} ${continuationNoteId}`}
+          aria-label={`צלם ושמור עמוד ${nextPageNumber} באצווה המקומית`}
+          capture={PREFLIGHT_CAMERA_CAPTURE}
+          disabled={disabled}
+          onChange={onSelect}
+          type="file"
+        />
+      </label>
+      <p className="document-preflight__camera-continuation-note" id={continuationNoteId}>
+        הצילום הבא יצטרף לתור המקומי. הוא לא יחליף את עמוד {currentPageNumber}
+        ולא יישלח ל־OCR לפני לחיצה על ״צור טיוטות OCR״.
       </p>
     </div>
   )
@@ -2054,6 +2091,14 @@ export default function DocumentPreflightWorkspace() {
                     }
                     pageNumber={1}
                   />
+                  {canAppendCameraPage && (
+                    <CameraCaptureContinuation
+                      currentPageNumber={1}
+                      disabled={isSelectionLocked}
+                      nextPageNumber={files.length + 1}
+                      onSelect={selectCameraCapture}
+                    />
+                  )}
                   <p className="document-preflight__next-step">
                     שלב 3 מתוך 3: לאחר שהצילום ברור, הפעל בדיקת OCR. בדיקת
                     השרת היא הסופית.
@@ -2177,6 +2222,15 @@ export default function DocumentPreflightWorkspace() {
                                 }
                                 pageNumber={pageNumber}
                               />
+                              {sourceDocumentRef === cameraCaptureInspectionSourceRef &&
+                                canAppendCameraPage && (
+                                  <CameraCaptureContinuation
+                                    currentPageNumber={pageNumber}
+                                    disabled={isSelectionLocked}
+                                    nextPageNumber={files.length + 1}
+                                    onSelect={selectCameraCapture}
+                                  />
+                                )}
                               <SourceImageReplacement
                                 disabled={isReviewInteractionLocked}
                                 onSelect={(event) =>

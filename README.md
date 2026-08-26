@@ -22,7 +22,8 @@ Available now:
   lighting and detail checks before OCR, including after an image replacement.
   Each accepted camera capture opens that local preview automatically so the
   reviewer can inspect framing and readability before OCR; it can be hidden
-  again and remains browser-only.
+  again and remains browser-only. A clear-photo continuation action in that
+  inspection view opens the next camera capture without a long mobile scroll.
   The small local canvas check can flag extreme darkness, strong uneven
   lighting, or an unusually detail-free photo; it does not upload, store, or
   inspect OCR text, and still requires a human check for focus and readable

@@ -10,6 +10,9 @@ Picker Pro uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- A contextual clear-photo capture action inside the local camera inspection,
+  so a phone user can append the next page without scrolling back to the batch
+  controls.
 - Conservative targeted OCR recovery for fully corroborated two- and
   three-row Maayan table candidates. It scans the full expected numeric band
   and falls back to full-page OCR for extra, missing, duplicated, misaligned,

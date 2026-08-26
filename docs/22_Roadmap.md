@@ -8,20 +8,39 @@ Picker Pro follows a milestone-based release strategy. Each milestone delivers a
 
 ## v1.0 — Foundation (Current)
 
-**Status**: In development
+**Status**: In development — review-first workflow with explicit local result snapshots
 
 ### Delivered
 - Hebrew OCR with Tesseract.js
-- Camera capture, image upload, PDF upload
-- Product resolution (barcode → SKU → name → alias)
-- Case/unit separation and aggregation
-- City and delivery-route grouping
-- Validation engine and review queue
-- Excel (XLSX), PDF, and print export per city
-- Full source traceability (page + row)
-- Offline job recovery (PWA)
-- Versioned, configurable business rules
-- CodeQL security analysis in CI
+- Camera-first capture with a local multi-page queue (up to 20 pages), image upload, and PDF OCR preflight
+- Online-only installable mobile shell with a manifest, home-screen icons, and
+  browser-specific install guidance; it does not add offline OCR or draft recovery
+- Post-OCR page-level confirmation for route codes 1–99 before manual-review handoff
+- Manual product resolution (barcode → SKU → name → alias)
+- Explicit case/unit entry, validation, and aggregation
+- Non-persistent review breakdown by a confirmed route code
+- Safe source traceability (document position + page + row)
+- Versioned, configurable packing-review rules
+- Explicit, browser-local snapshots of completed verified results (up to 24
+  hours); they are display-only and contain no source images, OCR text, or
+  editable drafts
+- Local UTF-8 CSV download of a saved verified-result summary only; no
+  route/city/source data and no server-side export history
+- Confirmed return from an image-OCR outcome to its local photo batch for
+  reordering or removal before a fresh OCR run; it clears drafts and remains
+  unavailable for individual PDF pages
+- Browser-local page navigator for multi-page OCR review, including progress
+  counts, next-attention navigation, failed pages, and replacement-photo
+  states, without a saved review queue
+
+### Not delivered in v1.0
+
+- City or delivery-route assignment
+- Server-side saved jobs, review queues, editable draft recovery, or offline
+  recovery
+- Excel, PDF, print, or export history beyond the local verified-summary CSV
+- Operational pick lists or grouping by city
+- Authentication or multi-user audit logs
 
 ---
 
@@ -29,8 +48,6 @@ Picker Pro follows a milestone-based release strategy. Each milestone delivers a
 
 **Target**: Q4 2026
 
-- Page removal and reordering after submission
-- Batch camera capture (multiple shots without returning to upload screen)
 - Improved Hebrew OCR accuracy via fine-tuned Tesseract model
 - Push notifications for job completion
 - Export history with re-download

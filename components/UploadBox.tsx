@@ -1,18 +1,40 @@
 'use client'
 
 import React, { useState } from 'react'
-import ProgressBar from './ProgressBar'
 
 interface UploadBoxProps {
   onFileSelect?: (files: File[]) => void
-  onProcessComplete?: (result: any) => void
+  onProcessComplete?: (result: unknown) => void
 }
 
 interface ProcessResult {
   success: boolean
   message: string
-  data?: any
+  data?: unknown
   errors?: string[]
+}
+
+interface ProcessErrorResponse {
+  error: string
+  code?: string
+}
+
+function isProcessResult(value: unknown): value is ProcessResult {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'success' in value &&
+    'message' in value
+  )
+}
+
+function isProcessErrorResponse(value: unknown): value is ProcessErrorResponse {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'error' in value &&
+    typeof value.error === 'string'
+  )
 }
 
 export default function UploadBox({
@@ -22,7 +44,6 @@ export default function UploadBox({
   const [files, setFiles] = useState<File[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -60,16 +81,24 @@ export default function UploadBox({
       setError('Some files were skipped. Only PDF and image files are allowed.')
     }
 
-    setFiles((prev) => [...prev, ...validFiles])
-    onFileSelect?.(validFiles)
+    setFiles((previousFiles) => {
+      const updatedFiles = [...previousFiles, ...validFiles]
+      onFileSelect?.(updatedFiles)
+      return updatedFiles
+    })
   }
 
   const removeFile = (index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index))
+    setFiles((previousFiles) => {
+      const updatedFiles = previousFiles.filter((_, fileIndex) => fileIndex !== index)
+      onFileSelect?.(updatedFiles)
+      return updatedFiles
+    })
   }
 
   const clearFiles = () => {
     setFiles([])
+    onFileSelect?.([])
     setError(null)
   }
 
@@ -80,7 +109,6 @@ export default function UploadBox({
     }
 
     setIsProcessing(true)
-    setProgress(0)
     setError(null)
 
     try {
@@ -89,39 +117,27 @@ export default function UploadBox({
         form.append('files', file)
       })
 
-      // Simulate progress updates
-      const progressInterval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 90) {
-            clearInterval(progressInterval)
-            return prev
-          }
-          return prev + Math.random() * 20
-        })
-      }, 500)
-
       const res = await fetch('/api/process', {
         method: 'POST',
         body: form,
       })
 
-      clearInterval(progressInterval)
+      const result: unknown = await res.json()
 
       if (!res.ok) {
+        if (isProcessErrorResponse(result)) {
+          throw new Error(result.error)
+        }
         throw new Error(`API error: ${res.statusText}`)
       }
 
-      const result: ProcessResult = await res.json()
-
-      if (result.success) {
-        setProgress(100)
+      if (isProcessResult(result) && result.success) {
         onProcessComplete?.(result.data)
         setTimeout(() => {
           clearFiles()
-          setProgress(0)
         }, 1500)
       } else {
-        setError(result.message || 'Processing failed')
+        setError('The processing service returned an unexpected response.')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
@@ -219,11 +235,11 @@ export default function UploadBox({
         </div>
       )}
 
-      {/* Progress Bar */}
+      {/* Request status: no OCR progress is shown until a real job API exists. */}
       {isProcessing && (
-        <div className="mt-6">
-          <ProgressBar progress={progress} label="Processing Files" />
-        </div>
+        <p className="mt-6 text-sm text-gray-600" role="status">
+          שולח את הבקשה לעיבוד…
+        </p>
       )}
 
       {/* Process Button */}

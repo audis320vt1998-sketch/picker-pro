@@ -1,114 +1,169 @@
 # 18 — Deployment
 
-## 1. Overview
+## Active deployment boundary
 
-Picker Pro is a Next.js 14 application deployable to any Node.js hosting platform. The recommended target is **Vercel**, but a self-hosted Node.js server with a reverse proxy (Nginx / Caddy) is also supported.
+Picker Pro is currently a review-first Next.js 16 application. It does not use
+a database, object storage, authentication, an AI service, or a background job
+queue. OCR results are transient; the only retained result is an explicit,
+limited browser-local snapshot described in `docs/00_Current_Status.md`.
 
-## 2. Prerequisites
+Do not provision target-architecture services from older design assumptions or
+treat this deployment as an automated pick-list system.
 
-| Requirement | Minimum Version |
+## Requirements
+
+| Requirement | Version or boundary |
 |---|---|
-| Node.js | 18 LTS |
-| npm | 9 |
-| PostgreSQL | 14 |
-| Object storage | S3-compatible (for uploaded images/PDFs) |
+| Node.js | 24 LTS, matching `.nvmrc` and `package.json` |
+| npm | 11 or newer |
+| Memory/time | Enough for one Tesseract worker per Node process |
+| Poppler | Optional; required for PDF preflight only |
 
-## 3. Environment Variables
+The image/manual-review workflow requires no environment variables. Optional
+values are documented in `.env.example`:
 
-Copy `.env.example` to `.env.local` (development) or configure via your hosting provider's secrets management.
+- `LOG_LEVEL`;
+- `PICKER_PRO_OCR_CACHE`;
+- `PICKER_PRO_PDFINFO_PATH`;
+- `PICKER_PRO_PDFTOPPM_PATH`.
 
-| Variable | Required | Description |
-|---|---|---|
-| `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `OPENAI_API_KEY` | Yes | OpenAI API key for AI-assisted correction |
-| `STORAGE_BUCKET` | Yes | S3-compatible bucket name |
-| `STORAGE_ENDPOINT` | Yes | S3 endpoint URL |
-| `STORAGE_ACCESS_KEY` | Yes | S3 access key |
-| `STORAGE_SECRET_KEY` | Yes | S3 secret key |
-| `NEXT_PUBLIC_APP_URL` | Yes | Public URL of the application |
-| `DATABASE_POOL_SIZE` | No | DB connection pool size (default: 10) |
-| `OCR_CONFIDENCE_THRESHOLD` | No | Minimum OCR confidence (default: 70) |
-
-## 4. Build and Start
+## Build and start
 
 ```bash
-# Install dependencies
-npm install
-
-# Run database migrations
-npm run migrate
-
-# Production build
+npm ci --no-audit --no-fund
 npm run build
-
-# Start production server
 npm start
 ```
 
-## 5. Vercel Deployment
+`npm start` serves the compiled application on port 3000 by default. Set
+`PORT` using the hosting platform's standard process configuration when
+another port is required.
 
-1. Connect the GitHub repository to a Vercel project.
-2. Set all environment variables in the Vercel dashboard under **Project → Settings → Environment Variables**.
-3. Vercel automatically runs `npm run build` on each push to the default branch.
-4. Database migrations must be run manually via `vercel env pull && npm run migrate` or via a Vercel build hook.
+No migration command exists or is required.
 
-## 6. Self-Hosted Deployment
+## Container staging
 
+`Dockerfile` builds Next.js standalone output on Node 24, installs Poppler in
+the runtime image, removes build-only package-manager tooling, and runs as the
+image's non-root `node` user. Start the loopback-only staging service with:
+
+```bash
+docker compose -f compose.staging.yml up --build --detach --wait
+curl --fail http://127.0.0.1:3000/api/health
 ```
-Internet ──▶ Nginx (TLS termination) ──▶ Node.js (port 3000)
-                                              │
-                                       PostgreSQL (port 5432)
-                                              │
-                                       S3 Object Storage
+
+Stop it without deleting the named caches:
+
+```bash
+docker compose -f compose.staging.yml down
 ```
 
-Systemd service example:
+Set `PICKER_PRO_PORT` in the Compose environment to change the host port. The
+container root filesystem is read-only; separate writable mounts are provided
+for the Next runtime cache, the Tesseract language cache, and temporary PDF
+rendering. Use `docker compose -f compose.staging.yml down --volumes` only when
+the staging caches should be discarded.
+
+The initial staging limits are two CPUs, 2 GiB of memory, 256 processes, and a
+1 GiB temporary filesystem. Measure representative 20-page PDF and OCR loads
+before changing those limits; they are safety boundaries, not capacity claims.
+
+An empty OCR cache needs outbound HTTPS access on its first request so
+Tesseract can obtain the English and Hebrew language models. A restricted
+environment must provision compatible model files in the OCR cache before it
+serves requests. The container healthcheck validates HTTP liveness only; it
+does not initialize Tesseract or render a PDF.
+
+The `Quality / Staging container` CI job validates the Compose model, pulls a
+fresh Node 24 base, builds and scans the image for fixable high or critical
+vulnerabilities, starts it, checks `/api/health`, verifies the non-root and
+writable-path contract, resolves the packaged Tesseract worker and WASM file,
+then sends a generated, non-customer PDF through Poppler and a real `eng+heb`
+Tesseract recognition. The fixed canary asserts only synthetic digits; it does
+not establish production OCR accuracy.
+
+## Hosted platforms
+
+For a managed Next.js platform:
+
+1. Select Node.js 24.
+2. Install from `package-lock.json` and run `npm run build`.
+3. Keep the application and its API routes on the same origin.
+4. Verify the platform permits the Tesseract worker, request sizes, memory, and
+   execution time required by OCR preflight.
+5. Treat PDF preflight as unavailable unless compatible `pdfinfo` and
+   `pdftoppm` binaries are explicitly supplied.
+
+Vercel can build the Next.js application, but the repository does not promise
+that its default serverless limits or filesystem include Poppler. Validate OCR
+and PDF behavior in the selected production plan before operational use.
+
+## Self-hosted process
+
+A typical topology is:
+
+```text
+Internet -> TLS reverse proxy -> npm start (Node.js 24, port 3000)
+```
+
+Run the service as a non-root user, keep TLS and request limits at the reverse
+proxy, and give the process write access only to its temporary/OCR-cache
+locations.
+
+Example systemd service (adjust executable paths for the host):
 
 ```ini
 [Service]
-ExecStart=/usr/bin/node /app/server.js
-WorkingDirectory=/app
-EnvironmentFile=/app/.env.production
-Restart=always
+Type=simple
+WorkingDirectory=/opt/picker-pro
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/npm start
+Restart=on-failure
+NoNewPrivileges=true
 ```
 
-## 7. Database Migrations
+## Poppler and temporary files
 
-```bash
-# Run all pending migrations
-npm run migrate
+PDF preflight invokes `pdfinfo` and `pdftoppm` with a 30-second command
+timeout. The source PDF and rendered PNG pages are created in a unique temporary
+directory and removed in a `finally` block whether rendering succeeds or
+fails.
 
-# Rollback last migration
-npm run migrate:rollback
-```
+When Poppler is not on PATH, configure both command-path variables. Do not point
+them at shell scripts or user-controlled executables.
 
-Migrations are idempotent; re-running them on an up-to-date database is safe.
+## Catalog deployment
 
-## 8. Catalog Updates
+Catalog JSON files are bundled with the application:
 
-Catalog files (`catalogs/`) are deployed as part of the application. To update a catalog:
+1. Verify an update against the authoritative warehouse source.
+2. Increment its version.
+3. Run the complete quality workflow.
+4. Deploy the resulting commit and restart/redeploy the application.
 
-1. Edit the relevant JSON file in the repository.
-2. Increment the `version` field in the catalog.
-3. Merge to the default branch.
-4. Redeploy the application (Vercel redeploys automatically; self-hosted requires a restart).
+The settings CSV check does not import or activate a catalog.
 
-## 9. Health Check
+## Liveness and capability check
 
-```
-GET /api/health
-```
+`GET /api/health` returns HTTP JSON with a timestamp, version, and explicit
+capabilities. Its body currently uses `"status": "degraded"` by design because
+document processing is preflight-only and AI assistance is unavailable. It does
+not test a database.
 
-Returns `{ "status": "ok" }` when the application and database are reachable. Use this endpoint for load-balancer health checks and uptime monitoring.
+Use the HTTP response for basic process liveness, and monitor OCR separately
+with a controlled non-customer test document when required.
 
-## 10. Rollback
+## Rollback
 
-- **Vercel**: use the Vercel dashboard to promote a previous deployment.
-- **Self-hosted**: redeploy the previous Git tag; run `npm run migrate:rollback` if the schema changed.
+Redeploy the previous known-good commit, run `npm ci`, rebuild, and restart.
+There is no database schema or server-side job state to roll back in the active
+product.
 
-## 11. Security Hardening
+## Production hardening
 
-- All environment variables are injected at runtime; never hard-coded.
-- TLS is required in production; HTTP requests are redirected to HTTPS.
-- The application runs as a non-root user in self-hosted deployments.
-- Database connections use SSL (`sslmode=require` in `DATABASE_URL`).
+- Do not expose the internal review workflow publicly without adding and
+  testing authentication and rate limiting.
+- Terminate TLS at the hosting platform or reverse proxy.
+- Preserve the server-side upload limits; do not rely only on browser checks.
+- Keep checkout credentials and deployment secrets out of the runtime bundle.
+- Require the production dependency audit to pass before each deployment.

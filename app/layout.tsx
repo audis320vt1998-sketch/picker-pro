@@ -1,9 +1,20 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
+  applicationName: 'Picker Pro',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Picker Pro',
+  },
   title: 'Picker Pro',
-  description: 'OCR-based product picker and data processing application',
+  description: 'כלי ליקוט עם הפרדה בין מארזים ובודדים',
+}
+
+export const viewport: Viewport = {
+  colorScheme: 'light',
+  themeColor: '#0f2d52',
 }
 
 export default function RootLayout({
@@ -12,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="he" dir="rtl">
       <body>{children}</body>
     </html>
   )

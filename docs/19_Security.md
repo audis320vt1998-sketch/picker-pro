@@ -1,92 +1,105 @@
 # 19 — Security
 
-## 1. Security Principles
+## Active security boundary
 
-1. **No secrets in code** — all credentials are environment variables.
-2. **Input validation** — all API payloads are validated before processing.
-3. **Least privilege** — database user has only the permissions needed.
-4. **Auditability** — all reviewer actions are logged with identity and timestamp.
-5. **Traceability** — every exported value is linked to its source row (prevents undetected tampering).
+This document describes controls present in the current review-first product.
+Database encryption, object storage, malware scanning, authentication,
+identity-backed audit logs, persistent jobs, and AI correction are not active
+capabilities.
 
-## 2. Secret Management
+## Data minimization
 
-| Secret | Storage |
-|---|---|
-| `DATABASE_URL` | Environment variable |
-| `OPENAI_API_KEY` | Environment variable |
-| `STORAGE_ACCESS_KEY` / `STORAGE_SECRET_KEY` | Environment variables |
+- Image and PDF inputs are accepted only for transient OCR preflight.
+- The API does not create stored jobs or retain original filenames.
+- PDF source/render files use a unique temporary directory and are removed
+  before the render operation resolves or rejects.
+- OCR-to-review handoff retains only the narrow source/page/row reference needed
+  for human verification.
+- An explicitly saved verified result is browser-local, expires after 24 hours,
+  and excludes source images, filenames, OCR text, customer data, and editable
+  drafts.
+- The local CSV contains only verified product identifiers, names, cases, and
+  units; spreadsheet-formula prefixes are escaped.
 
-- Secrets are **never** committed to the repository.
-- `.env.local` is listed in `.gitignore`.
-- `.env.example` contains only placeholder values with no real credentials.
+## Input validation
 
-## 3. API Security
+The server, not the browser, is the authoritative input boundary.
 
-### 3.1 Input Validation
+- Images are limited to JPEG, PNG, and WebP, with fixed byte, dimension, pixel,
+  multipart, and decoded-content checks.
+- PDFs require the PDF media type and signature and have fixed byte/page limits.
+- Manual-review JSON rejects unrecognized metadata and enforces explicit
+  cases/units, product resolution, and source traceability.
+- Disabled `/api/process` and `/api/ai` routes return fixed, non-cacheable
+  `501` responses without processing user content.
+- Error responses use fixed codes/messages and do not return OCR text,
+  filenames, opaque source IDs, or stack traces.
 
-- All multipart file uploads are validated for MIME type and file size before processing.
-- JSON payloads are validated against TypeScript schemas at the API layer.
-- File size limits are enforced (`MAX_UPLOAD_SIZE_MB`, default: 20 MB per file).
+## OCR and external services
 
-### 3.2 Error Responses
+Active OCR uses Tesseract on the application server. No raw image or extracted
+text is sent to OpenAI or another cloud OCR provider. AI assistance is disabled
+and no API key is required.
 
-- API errors return generic messages; internal stack traces are never exposed to clients.
-- Sensitive fields (database errors, file paths) are stripped from error responses.
+Poppler command paths are operator-controlled configuration. PDF rendering uses
+`execFile` with fixed arguments and a timeout rather than a shell command.
 
-### 3.3 Authentication (Planned)
+## Browser storage
 
-- v1.0 does not include authentication (single-tenant, internal deployment).
-- v1.x will add JWT-based authentication with role-based access control (RBAC).
+- The OCR batch, previews, selections, and editable review state remain
+  ephemeral browser state.
+- The one-time OCR handoff uses session storage.
+- A completed verified-result snapshot is saved only after an explicit action
+  and can be deleted by the user.
+- No server-side recovery is available after browser data is cleared.
 
-### 3.4 Rate Limiting
+## Authentication and rate limiting
 
-- The `/api/process` endpoint enforces a rate limit per IP (configurable; default: 10 requests/minute).
-- The `/api/ai` endpoint enforces a stricter rate limit (default: 5 requests/minute) to control OpenAI API costs.
+Authentication, authorization, user identity, and IP rate limiting are not
+implemented. Deploy the current product only in a controlled internal boundary.
+They must be implemented and tested before exposing the workflow publicly or
+enabling persistent/multi-user capabilities.
 
-## 4. File Upload Security
+OCR concurrency and timeouts protect process capacity but are not substitutes
+for network rate limiting.
 
-- Uploaded files are stored in object storage, not on the application server filesystem.
-- Files are referenced by opaque UUIDs; original filenames are not used in storage paths.
-- Uploaded files are scanned for known malicious patterns before OCR processing.
-- Files are deleted from storage after a configurable retention period (default: 30 days).
+## Secrets and configuration
 
-## 5. Data at Rest
+The active workflow requires no database, storage, OCR-provider, or OpenAI
+secret. Optional non-secret paths/settings are listed in `.env.example`.
 
-- PostgreSQL databases in production use encryption at rest (managed by the hosting provider).
-- Object storage buckets use server-side encryption (SSE).
+- Never commit real credentials or customer data.
+- Keep `.env.local` and other local overrides outside source control.
+- Do not place secrets in `NEXT_PUBLIC_*` variables because they are exposed
+  to browser bundles.
 
-## 6. Data in Transit
+## Dependency and workflow security
 
-- All traffic between the client and server uses TLS 1.2+.
-- Database connections use SSL (`sslmode=require`).
-- Storage connections use HTTPS.
+- `Quality / Verify` runs with `contents: read` only.
+- Checkout credentials are not persisted.
+- External workflow actions are pinned to reviewed full commit SHAs.
+- Dependencies are installed from `package-lock.json` with `npm ci`.
+- Production dependencies are checked with
+  `npm audit --omit=dev --audit-level=high` as a blocking CI step.
+- The current Next.js 16/PostCSS lockfile passes the production audit with zero
+  known vulnerabilities.
+- CodeQL runs separately because it requires `security-events: write`.
+- Dependabot automation is not configured yet.
 
-## 7. Dependency Security
+## Logging and auditability
 
-- Dependencies are audited with `npm audit` in CI.
-- Dependabot is configured to automatically open PRs for security updates.
-- Only dependencies with active maintenance and no known critical vulnerabilities are introduced.
+The application does not have an identity-backed audit log. Operational logs
+must not include source images, OCR text, customer details, filenames, or
+browser-local saved results.
 
-## 8. CodeQL Analysis
+Traceability inside a current response/result is a product-review aid, not a
+durable compliance audit trail.
 
-- GitHub CodeQL analysis runs on every pull request (see `.github/workflows/`).
-- All CodeQL findings must be reviewed and resolved or triaged before merging.
+## Deployment responsibilities
 
-## 9. OCR and AI Security
-
-- OCR is performed on the server; raw image data does not leave the server to a third-party OCR service.
-- AI correction via OpenAI API sends only extracted text (not raw images) to OpenAI.
-- Users are informed via the Privacy Notice that extracted text may be sent to OpenAI.
-
-## 10. Audit Log
-
-The following actions are recorded in the audit log with user identity and timestamp:
-
-| Action | Logged |
-|---|---|
-| Job submitted | Yes |
-| Page OCR completed | Yes |
-| Review item approved / corrected / rejected | Yes |
-| Export generated | Yes |
-| Catalog updated | Yes |
-| Settings changed | Yes |
+- Terminate TLS at the hosting platform or reverse proxy.
+- Run self-hosted processes as a non-root user with minimal filesystem access.
+- Retain the server-side upload boundaries.
+- Review dependency/CodeQL findings before deployment.
+- Do not claim persistence, deletion schedules, encryption-at-rest, or user
+  attribution until those systems exist and have been tested.

@@ -1,0 +1,37 @@
+name: picker-pro-staging
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      pull: true
+    image: picker-pro:staging
+    cpus: 2.0
+    init: true
+    mem_limit: 2g
+    pids_limit: 256
+    read_only: true
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      LOG_LEVEL: "${LOG_LEVEL:-info}"
+      PICKER_PRO_OCR_CACHE: /var/cache/picker-pro-ocr
+      PICKER_PRO_PDFINFO_PATH: /usr/bin/pdfinfo
+      PICKER_PRO_PDFTOPPM_PATH: /usr/bin/pdftoppm
+    ports:
+      - "127.0.0.1:${PICKER_PRO_PORT:-3000}:3000"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,mode=1777,size=1g
+    volumes:
+      - next-cache:/app/.next/cache
+      - ocr-cache:/var/cache/picker-pro-ocr
+
+volumes:
+  next-cache:
+  ocr-cache:

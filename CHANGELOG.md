@@ -10,9 +10,46 @@ Picker Pro uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- A contextual clear-photo capture action inside the local camera inspection,
+  so a phone user can append the next page without scrolling back to the batch
+  controls.
+- Conservative targeted OCR recovery for fully corroborated two- and
+  three-row Maayan table candidates. It scans the full expected numeric band
+  and falls back to full-page OCR for extra, missing, duplicated, misaligned,
+  low-confidence, out-of-range, or internally inconsistent numeric evidence.
+- An online-only installable mobile shell with a web app manifest, generated
+  192px/512px PNG icons, Apple home-screen metadata, and browser-specific
+  installation guidance. It does not add service-worker caching, offline OCR,
+  or draft recovery.
+- A read-only GitHub Actions quality gate for tests, lint, type checking, and
+  the production build on Node.js 24.
+- Browser-local OCR page-review progress and next-attention navigation.
+- A page-local bulk selection control for currently visible, transferable OCR
+  rows; it preserves hidden or blocked rows and still requires page
+  confirmation before handoff.
+- A repeated explicit page-confirmation action after OCR rows that removes a
+  mobile scroll-back step without selecting, transferring, or advancing rows.
+- An end-of-rows, explicit next-attention action after page confirmation for
+  faster phone review, without auto-confirming or transferring any rows.
+- Automatic browser-local preview opening for each accepted camera capture,
+  so framing and readability can be inspected before OCR without upload.
+- An advisory browser-local camera-quality check for extreme darkness, strong
+  uneven light, and unusually low detail, limited to the active photo and
+  never sent to the server.
 - Complete documentation suite under `docs/` (22 documents).
 - Reference catalogs under `catalogs/` (products, cities, delivery routes, rules, OCR dictionary).
 - Updated `README.md` with full project overview, core business rules, and documentation index.
+
+### Changed
+- Upgraded the active application to Next.js 16.3, React 19.2, and the ESLint
+  flat configuration, including asynchronous route parameters and Turbopack
+  production builds.
+
+### Security
+- Replaced the vulnerable Next.js 14/PostCSS dependency line and made the
+  production `npm audit` check block high and critical findings in CI.
+- Pinned every external GitHub Action to a reviewed full commit SHA and added
+  a regression test that rejects floating action tags in workflow files.
 
 ---
 

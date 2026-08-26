@@ -17,7 +17,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
@@ -27,7 +27,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": [
-        "./src/*"
+        "./*"
       ],
       "@components/*": [
         "./components/*"
@@ -47,14 +47,21 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts"
-  ],
-  "references": [
-    {
-      "path": "./tsconfig.node.json"
-    }
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "tests",
+    "lib/aggregator/**",
+    "lib/calculator/**",
+    "lib/database/**",
+    "lib/engine/**",
+    "lib/export/**",
+    "lib/ocr/**",
+    "lib/parser/**",
+    "lib/rules/**",
+    "lib/catalog/catalog.ts",
+    "lib/catalog/loader.ts"
   ]
 }
